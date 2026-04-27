@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLOAA Rings</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="category" data-category="rings" data-banner="Stackable rings for everyday">
+    <header class="site-header">
+        <a href="index.html" class="brand-logo-link" aria-label="FLOAA home">
+            <img class="brand-logo" src="assets/branding/floaa-logo.jpeg" alt="FLOAA">
+        </a>
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+        <nav class="main-nav" id="site-nav" aria-label="Primary navigation">
+            <a href="index.html">Home</a>
+            <div class="nav-dropdown">
+                <a href="shop.html" class="nav-dropdown-trigger">Shop</a>
+                <div class="nav-dropdown-menu">
+                    <a href="earrings.html">Earrings</a>
+                    <a href="necklaces.html">Necklaces</a>
+                    <a href="bracelets.html">Bracelets</a>
+                    <a href="rings.html">Rings</a>
+                </div>
+            </div>
+            <a href="about.html">About</a>
+            <a href="contact.html">Contact</a>
+        </nav>
+    </header>
+
+    <main class="interior-page">
+        <section class="category-banner">
+            <p class="eyebrow">Rings</p>
+            <h1>Stackable rings for everyday</h1>
+            <p>Minimal silhouettes, adjustable fits, and statement stones for a more expressive ring stack.</p>
+        </section>
+        <section class="section category-page-section">
+            <div class="filter-row">
+                <button class="filter-chip is-active" type="button" data-filter="all">All</button>
+                <button class="filter-chip" type="button" data-filter="adjustable">Adjustable</button>
+                <button class="filter-chip" type="button" data-filter="minimal">Minimal</button>
+                <button class="filter-chip" type="button" data-filter="statement">Statement</button>
+            </div>
+            <div id="category-product-grid" class="product-grid"></div>
+        </section>
+    </main>
+
+    <footer class="site-footer compact-footer">
+        <p class="footer-note">Copyright 2026 FLOAA. All rights reserved.</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

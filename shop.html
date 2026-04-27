@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop FLOAA Jewellery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="shop-all">
+    <header class="site-header">
+        <a href="index.html" class="brand-logo-link" aria-label="FLOAA home">
+            <img class="brand-logo" src="assets/branding/floaa-logo.jpeg" alt="FLOAA">
+        </a>
+        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+        <nav class="main-nav" id="site-nav" aria-label="Primary navigation">
+            <a href="index.html">Home</a>
+            <div class="nav-dropdown">
+                <a href="shop.html" class="nav-dropdown-trigger">Shop</a>
+                <div class="nav-dropdown-menu">
+                    <a href="earrings.html">Earrings</a>
+                    <a href="necklaces.html">Necklaces</a>
+                    <a href="bracelets.html">Bracelets</a>
+                    <a href="rings.html">Rings</a>
+                </div>
+            </div>
+            <a href="about.html">About</a>
+            <a href="contact.html">Contact</a>
+        </nav>
+    </header>
+
+    <main class="interior-page">
+        <section class="page-hero page-hero-soft">
+            <p class="eyebrow">Shop All</p>
+            <h1>Browse FLOAA through category, mood, and styling intent.</h1>
+            <p>Use the style filters to move between everyday wear, colour stones, stackable looks, and occasion pieces.</p>
+        </section>
+
+        <section class="section filtered-shop-section">
+            <div class="filter-row">
+                <a class="filter-chip" href="shop.html">All</a>
+                <a class="filter-chip" href="shop.html?style=everyday-wear">Everyday Wear</a>
+                <a class="filter-chip" href="shop.html?style=colour-stone">Colour Stone</a>
+                <a class="filter-chip" href="shop.html?style=stackable-styles">Stackable Styles</a>
+                <a class="filter-chip" href="shop.html?style=occasion">Occasion</a>
+            </div>
+            <div id="shop-product-grid" class="product-grid"></div>
+        </section>
+    </main>
+
+    <footer class="site-footer compact-footer">
+        <p class="footer-note">Copyright 2026 FLOAA. All rights reserved.</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
