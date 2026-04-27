@@ -11,10 +11,24 @@
 </head>
 <body data-page="shop-all">
     <header class="site-header">
+        <button class="nav-toggle header-icon-button" type="button" aria-expanded="false" aria-controls="site-nav">
+            <span class="header-icon icon-menu" aria-hidden="true"></span>
+            <span class="sr-only">Menu</span>
+        </button>
+        <a class="mobile-icon-link mobile-search" href="shop.html" aria-label="Search products">
+            <span class="header-icon icon-search" aria-hidden="true"></span>
+        </a>
         <a href="index.html" class="brand-logo-link" aria-label="FLOAA home">
             <img class="brand-logo" src="assets/branding/floaa-logo.jpeg" alt="FLOAA">
         </a>
-        <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
+        <div class="mobile-header-actions" aria-label="Quick links">
+            <a class="mobile-icon-link" href="contact.html" aria-label="Account and appointments">
+                <span class="header-icon icon-account" aria-hidden="true"></span>
+            </a>
+            <a class="mobile-icon-link" href="shop.html" aria-label="Shopping bag">
+                <span class="header-icon icon-bag" aria-hidden="true"></span>
+            </a>
+        </div>
         <nav class="main-nav" id="site-nav" aria-label="Primary navigation">
             <a href="index.html">Home</a>
             <div class="nav-dropdown">
