@@ -722,11 +722,29 @@ input {
     .utility-bar {
         align-items: flex-start;
         flex-direction: column;
+        gap: 0.7rem;
+        letter-spacing: 0.08em;
+        padding-bottom: 0.7rem;
+        padding-top: 0.7rem;
+    }
+
+    .utility-links {
+        flex-wrap: wrap;
+        gap: 0.8rem 1.1rem;
+    }
+
+    .site-header {
+        min-height: 92px;
     }
 
     .hero-cinema-copy h1 {
-        font-size: 2.8rem;
+        font-size: clamp(2.35rem, 12vw, 2.8rem);
     }
+
+    .hero-subtitle {
+        font-size: 0.95rem;
+    }
+
     .hero-montage {
         grid-template-columns: 1fr 90px;
         width: 100%;
@@ -745,8 +763,49 @@ input {
     }
 
     .brand-logo-link {
-        height: 70px;
+        height: 64px;
         width: min(280px, 62vw);
+    }
+
+    .btn {
+        min-height: 48px;
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .utility-bar {
+        display: none;
+    }
+
+    .site-header {
+        min-height: 82px;
+    }
+
+    .brand-logo-link {
+        height: 58px;
+        width: min(230px, 60vw);
+    }
+
+    .main-nav {
+        left: 0.9rem;
+        right: 0.9rem;
+    }
+
+    .hero-cinema-video {
+        height: 68vh;
+        min-height: 430px;
+    }
+
+    .hero-cinema-overlay {
+        padding: 1.2rem;
+    }
+
+    .whatsapp-float {
+        bottom: 16px;
+        height: 52px;
+        right: 16px;
+        width: 52px;
     }
 }
 
