@@ -145,7 +145,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             const iframe = document.createElement("iframe");
             iframe.className = "hero-cinema-video";
             iframe.title = heroVideo.alt || "FLOAA hero video";
-            iframe.src = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&controls=0&playsinline=1&rel=0&modestbranding=1`;
+            const youtubeParams = new URLSearchParams({
+                autoplay: "1",
+                mute: "1",
+                loop: "1",
+                playlist: youtubeId,
+                controls: "0",
+                playsinline: "1",
+                rel: "0",
+                modestbranding: "1",
+                origin: window.location.origin
+            });
+            iframe.src = `https://www.youtube.com/embed/${youtubeId}?${youtubeParams.toString()}`;
             iframe.allow = "autoplay; encrypted-media; picture-in-picture";
             iframe.referrerPolicy = "strict-origin-when-cross-origin";
             iframe.setAttribute("allowfullscreen", "");
