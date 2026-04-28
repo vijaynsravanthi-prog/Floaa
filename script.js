@@ -32,6 +32,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             .replace(/^-|-$/g, "");
         return imageName ? `assets/floaa-jew-pics/${imageName}.jpeg` : "";
     };
+    const normalizeImagePath = (value) => {
+        const image = normalizeValue(value);
+        if (!image || /^https?:\/\//i.test(image) || image.startsWith("assets/")) return image;
+        return `assets/floaa-jew-pics/${image}`;
+    };
+    const getProductImages = (value, name) => {
+        const images = normalizeList(value).map(normalizeImagePath).filter(Boolean);
+        return images.length ? images : [getGeneratedImagePath(name)].filter(Boolean);
+    };
     const parsePrice = (value) => {
         const price = Number(normalizeValue(value).replace(/[^\d.]/g, ""));
         return Number.isFinite(price) ? price : 0;
@@ -99,7 +108,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const name = normalizeValue(getRowValue(row, ["Name"]));
         const price = getRowValue(row, ["Price"]);
         const discountPrice = getRowValue(row, ["DiscountPrice", "Discount Price"]);
-        const image = normalizeValue(getRowValue(row, ["Image"])) || getGeneratedImagePath(name);
+        const images = getProductImages(getRowValue(row, ["Image", "Images"]), name);
         const createdDate = normalizeValue(getRowValue(row, ["CreatedDate", "Created Date"]));
         const category = normalizeSlug(getRowValue(row, ["Category"]));
         const status = normalizeStatus(getRowValue(row, ["Status"]));
@@ -111,7 +120,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             discountPrice: formatPrice(discountPrice),
             priceValue: parsePrice(price),
             discountPriceValue: parsePrice(discountPrice),
-            image,
+            image: images[0] || "",
+            images,
             createdDate,
             isNew: isNewArrival(createdDate),
             description: normalizeValue(getRowValue(row, ["Description"])),
@@ -181,6 +191,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
 
+        ["earrings", "necklaces", "bracelets", "rings"].forEach((category) => {
+            const categoryImage = content[`category-${category}`] || content[`${category}-image`];
+            const categoryTile = document.querySelector(`.category-tile[href="${category}.html"] .category-tile-media`);
+            if (categoryTile && categoryImage?.value) {
+                categoryTile.style.backgroundImage = `url("${normalizeImagePath(categoryImage.value)}")`;
+            }
+        });
+
         const heroVideo = content["hero-video"] || content.video || content["floaa-video"];
         const heroVideoPoster = content["hero-video-poster"] || content.poster || content["video-poster"];
         const heroVideoElement = document.querySelector(".hero-cinema-video");
@@ -233,6 +251,25 @@ document.addEventListener("DOMContentLoaded", async () => {
             const productMedia = document.createElement("div");
             productMedia.className = "product-media";
             productMedia.style.backgroundImage = `url("${item.image}")`;
+            if (item.images?.length > 1) {
+                let activeImageIndex = 0;
+                productMedia.setAttribute("role", "button");
+                productMedia.setAttribute("tabindex", "0");
+                productMedia.setAttribute("aria-label", `View more images of ${item.name}`);
+
+                const showNextImage = () => {
+                    activeImageIndex = (activeImageIndex + 1) % item.images.length;
+                    productMedia.style.backgroundImage = `url("${item.images[activeImageIndex]}")`;
+                };
+
+                productMedia.addEventListener("click", showNextImage);
+                productMedia.addEventListener("keydown", (event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        showNextImage();
+                    }
+                });
+            }
             if (item.isNew) {
                 const newBadge = document.createElement("span");
                 newBadge.textContent = "New";
