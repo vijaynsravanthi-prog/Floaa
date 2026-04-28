@@ -191,13 +191,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
 
-        ["earrings", "necklaces", "bracelets", "rings"].forEach((category) => {
+        ["earrings", "necklaces", "bracelets", "combos"].forEach((category) => {
             const categoryImage = content[`category-${category}`] || content[`${category}-image`];
             const categoryTile = document.querySelector(`.category-tile[href="${category}.html"] .category-tile-media`);
             if (categoryTile && categoryImage?.value) {
                 categoryTile.style.backgroundImage = `url("${normalizeImagePath(categoryImage.value)}")`;
             }
         });
+
+        const combosImage = content["category-combos"] || content["combos-image"] || content["category-rings"] || content["rings-image"];
+        const combosTile = document.querySelector('.category-tile[href="rings.html"] .category-tile-media');
+        if (combosTile && combosImage?.value) {
+            combosTile.style.backgroundImage = `url("${normalizeImagePath(combosImage.value)}")`;
+        }
 
         const heroVideo = content["hero-video"] || content.video || content["floaa-video"];
         const heroVideoPoster = content["hero-video-poster"] || content.poster || content["video-poster"];
@@ -369,7 +375,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const categoryGrid = document.getElementById("category-product-grid");
     if (categoryGrid) {
         const category = document.body.dataset.category;
-        const categoryProducts = products.filter((product) => product.category === category);
+        const categoryProducts = products.filter((product) => {
+            if (category === "combos") {
+                return product.category === "combos" || product.category === "rings";
+            }
+
+            return product.category === category;
+        });
         renderProducts(categoryGrid, categoryProducts, "contact.html");
 
         document.querySelectorAll("[data-filter]").forEach((button) => {
