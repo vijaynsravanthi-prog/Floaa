@@ -12,6 +12,8 @@
     --line: rgba(210, 186, 135, 0.26);
     --gold: #d7bd7e;
     --gold-deep: #b89d60;
+    --theme-gradient: linear-gradient(135deg, #dce8f7 0%, #fffdf8 52%, #fdecea 100%);
+    --theme-gradient-hover: linear-gradient(135deg, #cfe0f3 0%, #fffaf5 50%, #f8d0cb 100%);
     --shadow: 0 24px 60px rgba(92, 82, 88, 0.1);
 }
 
@@ -94,7 +96,7 @@ input {
 
 .site-header {
     align-items: center;
-    background: rgba(255, 250, 245, 0.94);
+    background: var(--theme-gradient);
     border-bottom: 1px solid var(--line);
     display: flex;
     gap: 1.2rem;
@@ -393,14 +395,14 @@ input {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #f8d8d4 0%, var(--blush) 48%, #ead69d 100%);
-    border-color: rgba(215, 189, 126, 0.42);
-    box-shadow: 0 14px 28px rgba(215, 189, 126, 0.2);
+    background: var(--theme-gradient);
+    border-color: rgba(215, 189, 126, 0.48);
+    box-shadow: 0 14px 28px rgba(120, 145, 180, 0.18);
     color: #2f2a2c;
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #fdecea 0%, #f8d8d4 48%, #f0dfa9 100%);
+    background: var(--theme-gradient-hover);
 }
 
 .btn-secondary {
@@ -540,7 +542,7 @@ input {
 
 .style-link-row a,
 .filter-chip {
-    background: var(--surface);
+    background: var(--theme-gradient);
     border: 1px solid var(--line);
     border-radius: 999px;
     color: var(--text);
@@ -550,7 +552,7 @@ input {
 
 .style-link-row a:hover,
 .filter-chip:hover {
-    background: var(--blush-soft);
+    background: var(--theme-gradient-hover);
     border-color: rgba(215, 189, 126, 0.42);
 }
 
@@ -559,7 +561,7 @@ input {
 }
 
 .filter-chip.is-active {
-    background: linear-gradient(135deg, #f8d8d4 0%, var(--blush) 55%, #ead69d 100%);
+    background: var(--theme-gradient-hover);
     border-color: rgba(215, 189, 126, 0.46);
     color: #2f2a2c;
 }

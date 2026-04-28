@@ -24,6 +24,51 @@ document.addEventListener("DOMContentLoaded", async () => {
         .split(",")
         .map((item) => item.trim())
         .filter(Boolean);
+    const getGeneratedImagePath = (name) => {
+        const imageName = normalizeSlug(name)
+            .replace(/[^a-z0-9\s-]/g, "")
+            .replace(/\s+/g, "-")
+            .replace(/-+/g, "-")
+            .replace(/^-|-$/g, "");
+        return imageName ? `assets/floaa-jew-pics/${imageName}.jpeg` : "";
+    };
+    const parsePrice = (value) => {
+        const price = Number(normalizeValue(value).replace(/[^\d.]/g, ""));
+        return Number.isFinite(price) ? price : 0;
+    };
+    const isNewArrival = (value) => {
+        const createdDate = normalizeValue(value);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(createdDate)) return false;
+
+        const createdTime = new Date(`${createdDate}T00:00:00`).getTime();
+        if (!Number.isFinite(createdTime)) return false;
+
+        const daysOld = (Date.now() - createdTime) / (1000 * 60 * 60 * 24);
+        return daysOld >= 0 && daysOld <= 7;
+    };
+    const filterProductsByPrice = (items, range) => {
+        if (!range || range === "all") return items;
+
+        return items.filter((product) => {
+            const price = product.discountPriceValue || product.priceValue;
+            if (!price) return false;
+
+            if (range === "under-1500") return price < 1500;
+            if (range === "1500-2500") return price >= 1500 && price <= 2500;
+            if (range === "above-2500") return price > 2500;
+            return true;
+        });
+    };
+    const applyProductFilters = (items, { style = "", price = "", categoryFilter = "" } = {}) => {
+        let filteredItems = style ? items.filter((product) => product.style === style) : items;
+        filteredItems = filterProductsByPrice(filteredItems, price);
+        if (categoryFilter && categoryFilter !== "all") {
+            filteredItems = filteredItems.filter((product) =>
+                product.filters.includes(categoryFilter) || filterProductsByPrice([product], categoryFilter).length > 0
+            );
+        }
+        return filteredItems;
+    };
     const getRowValue = (row, names) => {
         const normalizedNames = names.map(normalizeSlug);
         const matchingKey = Object.keys(row).find((key) => normalizedNames.includes(normalizeSlug(key)));
@@ -54,6 +99,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const name = normalizeValue(getRowValue(row, ["Name"]));
         const price = getRowValue(row, ["Price"]);
         const discountPrice = getRowValue(row, ["DiscountPrice", "Discount Price"]);
+        const image = normalizeValue(getRowValue(row, ["Image"])) || getGeneratedImagePath(name);
+        const createdDate = normalizeValue(getRowValue(row, ["CreatedDate", "Created Date"]));
         const category = normalizeSlug(getRowValue(row, ["Category"]));
         const status = normalizeStatus(getRowValue(row, ["Status"]));
         const stockStatus = normalizeKey(getRowValue(row, ["StockStatus", "Stock Status"]));
@@ -62,7 +109,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             name,
             price: formatPrice(price),
             discountPrice: formatPrice(discountPrice),
-            image: normalizeValue(getRowValue(row, ["Image"])),
+            priceValue: parsePrice(price),
+            discountPriceValue: parsePrice(discountPrice),
+            image,
+            createdDate,
+            isNew: isNewArrival(createdDate),
             description: normalizeValue(getRowValue(row, ["Description"])),
             whatsappText: normalizeValue(getRowValue(row, ["WhatsAppText", "WhatsApp Text"])) || `Hi FLOAA, I am interested in ${name || "this product"}`,
             category,
@@ -182,6 +233,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             const productMedia = document.createElement("div");
             productMedia.className = "product-media";
             productMedia.style.backgroundImage = `url("${item.image}")`;
+            if (item.isNew) {
+                const newBadge = document.createElement("span");
+                newBadge.textContent = "New";
+                newBadge.style.cssText = "position:absolute;top:0.75rem;left:0.75rem;z-index:1;background:#fffdf8;color:#2f2a2c;border:1px solid rgba(215,189,126,0.5);border-radius:999px;padding:0.25rem 0.55rem;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;box-shadow:0 8px 18px rgba(92,82,88,0.12);";
+                productMedia.style.position = "relative";
+                productMedia.append(newBadge);
+            }
 
             const productInfo = document.createElement("div");
             productInfo.className = "product-info";
@@ -255,14 +313,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (shopGrid) {
         const params = new URLSearchParams(window.location.search);
         const style = params.get("style");
-        const filtered = style ? products.filter((product) => product.style === style) : products;
+        const price = params.get("price");
+        const filtered = applyProductFilters(products, { style, price });
         renderProducts(shopGrid, filtered, "shop.html");
 
         document.querySelectorAll(".filter-chip").forEach((chip) => {
             const chipHref = chip.getAttribute("href");
             if (!chipHref) return;
             const chipUrl = new URL(chipHref, window.location.href);
-            if (chipUrl.searchParams.get("style") === style || (!style && !chipUrl.searchParams.get("style"))) {
+            const chipStyle = chipUrl.searchParams.get("style");
+            const chipPrice = chipUrl.searchParams.get("price");
+            if ((chipStyle === style || (!style && !chipStyle)) && (chipPrice === price || (!price && !chipPrice))) {
                 chip.classList.add("is-active");
             }
         });
@@ -277,9 +338,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.querySelectorAll("[data-filter]").forEach((button) => {
             button.addEventListener("click", () => {
                 const filterValue = button.dataset.filter;
-                const nextItems = filterValue === "all"
-                    ? categoryProducts
-                    : categoryProducts.filter((product) => product.filters.includes(filterValue));
+                const nextItems = applyProductFilters(categoryProducts, { categoryFilter: filterValue });
 
                 document.querySelectorAll("[data-filter]").forEach((item) => item.classList.remove("is-active"));
                 button.classList.add("is-active");
