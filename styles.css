@@ -865,12 +865,101 @@ input {
         width: 100%;
     }
 
-    .category-tile-grid,
-    .product-grid,
     .contact-grid,
     .story-grid,
     .footer-grid {
         grid-template-columns: 1fr;
+    }
+
+    .product-grid {
+        gap: 0.8rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .product-card {
+        border-radius: 0.75rem;
+    }
+
+    .product-media {
+        margin: 0.55rem;
+    }
+
+    .product-info {
+        padding: 0 0.75rem 0.85rem;
+    }
+
+    .product-tag {
+        font-size: 0.64rem;
+        letter-spacing: 0.14em;
+        margin-bottom: 0.4rem;
+    }
+
+    .product-name {
+        font-size: 1.3rem;
+    }
+
+    .product-price {
+        font-size: 0.78rem;
+        gap: 0.3rem;
+        letter-spacing: 0.04em;
+        margin: 0.3rem 0 0.45rem;
+    }
+
+    .product-price-original {
+        font-size: 0.72rem;
+    }
+
+    .product-description {
+        font-size: 0.78rem;
+        line-height: 1.35;
+        margin-bottom: 0.65rem;
+        min-height: 4.2rem;
+    }
+
+    .product-stock {
+        font-size: 0.68rem;
+        margin: -0.2rem 0 0.55rem;
+    }
+
+    .category-tile-grid {
+        gap: 0.8rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .category-tile {
+        border-radius: 0.75rem;
+    }
+
+    .category-tile-media {
+        margin: 0.55rem;
+    }
+
+    .category-tile-copy {
+        padding: 0 0.75rem 0.85rem;
+    }
+
+    .category-tile-copy h3 {
+        font-size: 1.35rem;
+    }
+
+    .category-tile-copy p {
+        font-size: 0.82rem;
+        line-height: 1.35;
+    }
+
+    .style-link-row {
+        display: grid;
+        gap: 0.8rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .style-link-row a {
+        align-items: center;
+        border-radius: 0.75rem;
+        justify-content: center;
+        min-height: 4rem;
+        padding: 0.8rem;
+        text-align: center;
     }
 
     .brand-logo {
@@ -885,6 +974,13 @@ input {
     .btn {
         min-height: 48px;
         width: 100%;
+    }
+
+    .product-card .btn {
+        font-size: 0.68rem;
+        letter-spacing: 0.04em;
+        min-height: 42px;
+        padding: 0.7rem 0.55rem;
     }
 }
 
