@@ -12,6 +12,10 @@
     --line: rgba(210, 186, 135, 0.26);
     --gold: #d7bd7e;
     --gold-deep: #b89d60;
+    --control-gold: #D8B45A;
+    --control-gold-deep: #B88924;
+    --control-gold-text: #3F2B08;
+    --control-gold-soft: #F5EDD0;
     --theme-gradient: linear-gradient(135deg, #dce8f7 0%, #fffdf8 52%, #fdecea 100%);
     --theme-gradient-hover: linear-gradient(135deg, #cfe0f3 0%, #fffaf5 50%, #f8d0cb 100%);
     --shadow: 0 24px 60px rgba(92, 82, 88, 0.1);
@@ -395,14 +399,14 @@ input {
 }
 
 .btn-primary {
-    background: var(--theme-gradient);
-    border-color: rgba(215, 189, 126, 0.48);
-    box-shadow: 0 14px 28px rgba(120, 145, 180, 0.18);
-    color: #2f2a2c;
+    background: var(--control-gold);
+    border-color: var(--control-gold-deep);
+    box-shadow: 0 14px 28px rgba(184, 137, 36, 0.18);
+    color: var(--control-gold-text);
 }
 
 .btn-primary:hover {
-    background: var(--theme-gradient-hover);
+    background: var(--control-gold);
 }
 
 .btn-secondary {
@@ -526,10 +530,7 @@ input {
 }
 
 .shop-style-section {
-    background:
-        radial-gradient(circle at 8% 0%, rgba(220, 232, 247, 0.78) 0%, rgba(220, 232, 247, 0) 22rem),
-        radial-gradient(circle at 92% 100%, rgba(247, 208, 203, 0.68) 0%, rgba(247, 208, 203, 0) 24rem),
-        linear-gradient(180deg, rgba(255, 250, 245, 0.78) 0%, rgba(255, 247, 241, 0.96) 100%);
+    background: #fffaf5;
 }
 
 .style-link-row,
@@ -541,18 +542,19 @@ input {
 
 .style-link-row a,
 .filter-chip {
-    background: var(--theme-gradient);
-    border: 1px solid var(--line);
+    background: var(--control-gold);
+    border: 1px solid var(--control-gold-deep);
     border-radius: 999px;
-    color: var(--text);
+    color: var(--control-gold-text);
     display: inline-flex;
     padding: 0.85rem 1.2rem;
 }
 
 .style-link-row a:hover,
 .filter-chip:hover {
-    background: var(--theme-gradient-hover);
-    border-color: rgba(215, 189, 126, 0.42);
+    background: var(--control-gold);
+    border-color: var(--control-gold-deep);
+    color: var(--control-gold-text);
 }
 
 .filter-chip {
@@ -560,9 +562,9 @@ input {
 }
 
 .filter-chip.is-active {
-    background: var(--theme-gradient-hover);
-    border-color: rgba(215, 189, 126, 0.46);
-    color: #2f2a2c;
+    background: var(--control-gold);
+    border-color: var(--control-gold-deep);
+    color: var(--control-gold-text);
 }
 
 .split-feature .feature-panel {
@@ -678,7 +680,21 @@ input {
 }
 
 .product-card .btn {
+    background: var(--control-gold);
+    border: 1px solid var(--control-gold-deep);
+    border-radius: 6px;
+    color: var(--control-gold-text);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
     margin-top: auto;
+    padding: 10px 0;
+    text-transform: uppercase;
+    width: 100%;
+}
+
+.product-card .btn:hover {
+    background: var(--control-gold);
 }
 
 .product-stock.is-sold-out {
@@ -743,9 +759,7 @@ input {
 }
 
 .site-footer {
-    background:
-        radial-gradient(circle at 0% 0%, rgba(220, 232, 247, 0.66) 0%, rgba(220, 232, 247, 0) 24rem),
-        linear-gradient(135deg, #fffaf5 0%, #fdecea 100%);
+    background: var(--theme-gradient);
     color: var(--text);
     padding-bottom: 2rem;
     padding-top: 3rem;
@@ -770,6 +784,10 @@ input {
     color: var(--text);
     display: block;
     margin-bottom: 0.5rem;
+}
+
+.site-footer .footer-copy {
+    color: var(--muted);
 }
 
 .footer-note {
@@ -1033,10 +1051,10 @@ input {
     }
 
     .product-card .btn {
-        font-size: 0.68rem;
-        letter-spacing: 0.04em;
+        font-size: 11px;
+        letter-spacing: 0.1em;
         min-height: 42px;
-        padding: 0.7rem 0.55rem;
+        padding: 10px 0;
     }
 }
 

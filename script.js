@@ -331,7 +331,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 productBtn.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(item.whatsappText || "")}`;
                 productBtn.target = "_blank";
                 productBtn.rel = "noopener";
-                productBtn.textContent = "Order on WhatsApp 💬";
+                productBtn.textContent = "Shop on WhatsApp 💬";
             }
 
             productInfo.append(productTag, productName, productPrice, productDescription, productStock, productBtn);
