@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const PRODUCTS_URL = `https://opensheet.elk.sh/${SHEET_ID}/1`;
     const BRAND_CONTENT_URL = `https://opensheet.elk.sh/${SHEET_ID}/BrandContent`;
     const WHATSAPP_NUMBER = "919960144483";
-    const SHIPPING_MESSAGE = "Free Shipping on All Orders \ud83c\udf80";
+    const SHIPPING_MESSAGE = "Free Shipping on All Orders";
     const SHIPPING_DETAIL = "No minimums. No conditions. Every FLOAA piece ships free across India.";
     const POLICY_MESSAGE = "No exchange and no return policy";
 
@@ -330,10 +330,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             productDescription.className = "product-description";
             productDescription.textContent = item.description;
 
-            const productPolicy = document.createElement("p");
-            productPolicy.className = "product-policy";
-            productPolicy.textContent = POLICY_MESSAGE;
-
             const isSoldOut = item.stockStatus === "sold-out";
             const productStock = document.createElement("p");
             productStock.className = isSoldOut ? "product-stock is-sold-out" : "product-stock";
@@ -353,19 +349,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                 productBtn.textContent = "Shop on WhatsApp 💬";
             }
 
-            productInfo.append(productTag, productName, productPrice, productDescription, productPolicy, productStock, productBtn);
+            productInfo.append(productTag, productName, productPrice, productDescription, productStock, productBtn);
             productCard.append(productMedia, productInfo);
             container.append(productCard);
         });
     };
 
     const addShoppingPolicyContent = () => {
-        if (!document.querySelector(".utility-bar") && !document.querySelector(".shipping-policy-strip")) {
+        if (!document.querySelector(".utility-bar") && !document.querySelector(".top-shipping-strip")) {
             const header = document.querySelector(".site-header");
             const policyStrip = document.createElement("div");
-            policyStrip.className = "shipping-policy-strip";
-            policyStrip.innerHTML = `<span><strong>${SHIPPING_MESSAGE}</strong><small>${SHIPPING_DETAIL}</small></span><span>${POLICY_MESSAGE}</span>`;
-            header?.insertAdjacentElement("afterend", policyStrip);
+            policyStrip.className = "top-shipping-strip";
+            policyStrip.innerHTML = `<span><strong>${SHIPPING_MESSAGE}</strong><small>${SHIPPING_DETAIL}</small></span>`;
+            header?.insertAdjacentElement("beforebegin", policyStrip);
         }
 
         document.querySelectorAll(".site-footer").forEach((footer) => {
