@@ -93,9 +93,58 @@ input {
     text-transform: uppercase;
 }
 
+.utility-bar p {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+}
+
+.utility-bar p span {
+    color: var(--muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: none;
+}
+
 .utility-links {
     display: flex;
     gap: 1.5rem;
+}
+
+.shipping-policy-strip {
+    align-items: center;
+    background: #fffaf5;
+    border-bottom: 1px solid var(--line);
+    color: var(--control-gold-text);
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    font-weight: 700;
+    gap: 0.6rem 1.2rem;
+    justify-content: center;
+    letter-spacing: 0.12em;
+    padding: 0.85rem clamp(1.2rem, 4vw, 4rem);
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.shipping-policy-strip span + span::before {
+    color: var(--gold-deep);
+    content: "|";
+    margin-right: 1.2rem;
+}
+
+.shipping-policy-strip strong,
+.shipping-policy-strip small {
+    display: block;
+}
+
+.shipping-policy-strip small {
+    color: var(--muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    margin-top: 0.15rem;
+    text-transform: none;
 }
 
 .site-header {
@@ -669,6 +718,19 @@ input {
     min-height: 3.2rem;
 }
 
+.product-policy {
+    background: var(--blue-wash);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--control-gold-text);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.35;
+    margin: 0 0 0.85rem;
+    padding: 0.55rem 0.65rem;
+}
+
 .product-stock {
     color: var(--muted);
     font-size: 0.8rem;
@@ -794,6 +856,15 @@ input {
     border-top: 1px solid var(--line);
     color: var(--muted);
     padding-top: 1.3rem;
+}
+
+.footer-policy {
+    color: var(--control-gold-text);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 1.1rem;
+    text-transform: uppercase;
 }
 
 .compact-footer {
@@ -994,6 +1065,12 @@ input {
         min-height: 4.2rem;
     }
 
+    .product-policy {
+        font-size: 0.64rem;
+        margin-bottom: 0.65rem;
+        padding: 0.45rem 0.5rem;
+    }
+
     .product-stock {
         font-size: 0.68rem;
         margin: -0.2rem 0 0.55rem;
@@ -1061,6 +1138,24 @@ input {
 @media (max-width: 480px) {
     .utility-bar {
         display: none;
+    }
+
+    .shipping-policy-strip {
+        align-items: center;
+        font-size: 0.68rem;
+        gap: 0.35rem;
+        letter-spacing: 0.06em;
+        padding-bottom: 0.65rem;
+        padding-top: 0.65rem;
+    }
+
+    .shipping-policy-strip span {
+        width: 100%;
+    }
+
+    .shipping-policy-strip span + span::before {
+        content: "";
+        margin: 0;
     }
 
     .site-header {
@@ -1160,4 +1255,40 @@ input {
     fill: #25D366;
     object-fit: contain;
     flex: 0 0 auto;
+}
+/* Founder Story — About Page */
+.founder-story {
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding-top: clamp(3rem, 6vw, 5rem);
+    padding-bottom: clamp(3rem, 6vw, 5rem);
+}
+
+.founder-story .eyebrow {
+    color: #8B6914 !important;
+    font-weight: 600 !important;
+    margin-bottom: 1.5rem;
+}
+.founder-quote {
+    max-width: 42rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+}
+
+.founder-quote p:first-child {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1;
+    letter-spacing: 0.01em;
+}
+
+.founder-quote p:not(:first-child) {
+    font-size: clamp(1rem, 1.6vw, 1.15rem);
+    color: var(--muted);
+    line-height: 1.65;
+    max-width: 36rem;
 }

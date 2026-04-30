@@ -15,10 +15,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     const PRODUCTS_URL = `https://opensheet.elk.sh/${SHEET_ID}/1`;
     const BRAND_CONTENT_URL = `https://opensheet.elk.sh/${SHEET_ID}/BrandContent`;
     const WHATSAPP_NUMBER = "919960144483";
+    const SHIPPING_MESSAGE = "Free Shipping on All Orders \ud83c\udf80";
+    const SHIPPING_DETAIL = "No minimums. No conditions. Every FLOAA piece ships free across India.";
+    const POLICY_MESSAGE = "No exchange and no return policy";
 
     const normalizeValue = (value) => String(value || "").trim();
     const normalizeSlug = (value) => normalizeValue(value).toLowerCase();
-    const normalizeKey = (value) => normalizeSlug(value).replace(/[\s_-]+/g, "-");
+    const normalizeKey = (value) => {
+        const key = normalizeSlug(value).replace(/[\s_-]+/g, "-");
+        const aliases = {
+            colorstone: "colour-stone",
+            "color-stone": "colour-stone",
+            colourstone: "colour-stone"
+        };
+        return aliases[key] || key;
+    };
     const normalizeStatus = (value) => normalizeSlug(value).replace(/[\s-]+/g, "");
     const normalizeList = (value) => normalizeValue(value)
         .split(",")
@@ -69,11 +80,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     };
     const applyProductFilters = (items, { style = "", price = "", categoryFilter = "" } = {}) => {
-        let filteredItems = style ? items.filter((product) => product.style === style) : items;
+        const styleKey = normalizeKey(style);
+        const categoryFilterKey = normalizeKey(categoryFilter);
+        let filteredItems = styleKey ? items.filter((product) => product.style === styleKey) : items;
         filteredItems = filterProductsByPrice(filteredItems, price);
-        if (categoryFilter && categoryFilter !== "all") {
+        if (categoryFilterKey && categoryFilterKey !== "all") {
             filteredItems = filteredItems.filter((product) =>
-                product.filters.includes(categoryFilter) || filterProductsByPrice([product], categoryFilter).length > 0
+                product.filters.includes(categoryFilterKey) ||
+                product.style === categoryFilterKey ||
+                filterProductsByPrice([product], categoryFilterKey).length > 0
             );
         }
         return filteredItems;
@@ -129,8 +144,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             category,
             status,
             stockStatus,
-            filters: normalizeList(getRowValue(row, ["Filters"])).map(normalizeSlug),
-            style: normalizeSlug(getRowValue(row, ["Style"])),
+            filters: normalizeList(getRowValue(row, ["Filters"])).map(normalizeKey),
+            style: normalizeKey(getRowValue(row, ["Style"])),
             tag: normalizeValue(getRowValue(row, ["Tag"])) || category || "Jewellery"
         };
     };
@@ -315,6 +330,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             productDescription.className = "product-description";
             productDescription.textContent = item.description;
 
+            const productPolicy = document.createElement("p");
+            productPolicy.className = "product-policy";
+            productPolicy.textContent = POLICY_MESSAGE;
+
             const isSoldOut = item.stockStatus === "sold-out";
             const productStock = document.createElement("p");
             productStock.className = isSoldOut ? "product-stock is-sold-out" : "product-stock";
@@ -334,11 +353,36 @@ document.addEventListener("DOMContentLoaded", async () => {
                 productBtn.textContent = "Shop on WhatsApp 💬";
             }
 
-            productInfo.append(productTag, productName, productPrice, productDescription, productStock, productBtn);
+            productInfo.append(productTag, productName, productPrice, productDescription, productPolicy, productStock, productBtn);
             productCard.append(productMedia, productInfo);
             container.append(productCard);
         });
     };
+
+    const addShoppingPolicyContent = () => {
+        if (!document.querySelector(".utility-bar") && !document.querySelector(".shipping-policy-strip")) {
+            const header = document.querySelector(".site-header");
+            const policyStrip = document.createElement("div");
+            policyStrip.className = "shipping-policy-strip";
+            policyStrip.innerHTML = `<span><strong>${SHIPPING_MESSAGE}</strong><small>${SHIPPING_DETAIL}</small></span><span>${POLICY_MESSAGE}</span>`;
+            header?.insertAdjacentElement("afterend", policyStrip);
+        }
+
+        document.querySelectorAll(".site-footer").forEach((footer) => {
+            if (footer.querySelector(".footer-policy")) return;
+            const footerPolicy = document.createElement("p");
+            footerPolicy.className = "footer-policy";
+            footerPolicy.textContent = POLICY_MESSAGE;
+            const footerNote = footer.querySelector(".footer-note");
+            if (footerNote) {
+                footerNote.insertAdjacentElement("beforebegin", footerPolicy);
+            } else {
+                footer.append(footerPolicy);
+            }
+        });
+    };
+
+    addShoppingPolicyContent();
 
     const bodyPage = document.body.dataset.page;
     const [products, brandContent] = await Promise.all([
@@ -357,7 +401,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const params = new URLSearchParams(window.location.search);
         const style = params.get("style");
         const price = params.get("price");
-        const filtered = applyProductFilters(products, { style, price });
+        const categoryFilter = params.get("filter") || params.get("categoryFilter") || "";
+        const filtered = applyProductFilters(products, { style, price, categoryFilter });
         renderProducts(shopGrid, filtered, "shop.html");
 
         document.querySelectorAll(".filter-chip").forEach((chip) => {
@@ -366,7 +411,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             const chipUrl = new URL(chipHref, window.location.href);
             const chipStyle = chipUrl.searchParams.get("style");
             const chipPrice = chipUrl.searchParams.get("price");
-            if ((chipStyle === style || (!style && !chipStyle)) && (chipPrice === price || (!price && !chipPrice))) {
+            const chipFilter = chipUrl.searchParams.get("filter") || chipUrl.searchParams.get("categoryFilter") || "";
+            if (
+                (chipStyle === style || (!style && !chipStyle)) &&
+                (chipPrice === price || (!price && !chipPrice)) &&
+                (chipFilter === categoryFilter || (!categoryFilter && !chipFilter))
+            ) {
                 chip.classList.add("is-active");
             }
         });
