@@ -18,6 +18,83 @@ document.addEventListener("DOMContentLoaded", async () => {
     const SHIPPING_MESSAGE = "Free Shipping on All Orders";
     const SHIPPING_DETAIL = "No minimums. No conditions. Every FLOAA piece ships free across India.";
     const POLICY_MESSAGE = "No exchange and no return policy";
+    const initHeroSlider = () => {
+        const slider = document.querySelector(".hero-slider");
+        if (!slider) return;
+
+        const slides = Array.from(slider.querySelectorAll(".hero-slide"));
+        const dots = Array.from(slider.querySelectorAll(".hero-slider-dots button"));
+        const previousButton = slider.querySelector(".hero-slider-prev");
+        const nextButton = slider.querySelector(".hero-slider-next");
+        if (slides.length <= 1) return;
+
+        let activeIndex = Math.max(0, slides.findIndex((slide) => slide.classList.contains("is-active")));
+        let intervalId;
+
+        const showSlide = (index) => {
+            activeIndex = (index + slides.length) % slides.length;
+            slides.forEach((slide, slideIndex) => {
+                const isActive = slideIndex === activeIndex;
+                slide.classList.toggle("is-active", isActive);
+                slide.setAttribute("aria-hidden", String(!isActive));
+                slide.querySelectorAll("a, button").forEach((element) => {
+                    if (isActive) {
+                        element.removeAttribute("tabindex");
+                    } else {
+                        element.setAttribute("tabindex", "-1");
+                    }
+                });
+            });
+
+            dots.forEach((dot, dotIndex) => {
+                const isActive = dotIndex === activeIndex;
+                dot.classList.toggle("is-active", isActive);
+                if (isActive) {
+                    dot.setAttribute("aria-current", "true");
+                } else {
+                    dot.removeAttribute("aria-current");
+                }
+            });
+        };
+
+        const stopAutoSlide = () => {
+            if (intervalId) {
+                window.clearInterval(intervalId);
+                intervalId = null;
+            }
+        };
+
+        const startAutoSlide = () => {
+            stopAutoSlide();
+            intervalId = window.setInterval(() => showSlide(activeIndex + 1), 4000);
+        };
+
+        previousButton?.addEventListener("click", () => {
+            showSlide(activeIndex - 1);
+            startAutoSlide();
+        });
+
+        nextButton?.addEventListener("click", () => {
+            showSlide(activeIndex + 1);
+            startAutoSlide();
+        });
+
+        dots.forEach((dot, dotIndex) => {
+            dot.addEventListener("click", () => {
+                showSlide(dotIndex);
+                startAutoSlide();
+            });
+        });
+
+        slider.addEventListener("mouseenter", stopAutoSlide);
+        slider.addEventListener("mouseleave", startAutoSlide);
+        slider.addEventListener("focusin", stopAutoSlide);
+        slider.addEventListener("focusout", startAutoSlide);
+        showSlide(activeIndex);
+        startAutoSlide();
+    };
+
+    initHeroSlider();
 
     const normalizeValue = (value) => String(value || "").trim();
     const normalizeSlug = (value) => normalizeValue(value).toLowerCase();

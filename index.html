@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260429-1">
+    <link rel="stylesheet" href="styles.css?v=20260429-7">
 </head>
 <body data-page="home">
     <div class="utility-bar">
@@ -60,20 +60,56 @@
     </div>
 
     <main>
-        <section class="hero-cinema">
-            <video class="hero-cinema-video" autoplay muted loop playsinline>
-                <source src="Floaa%20Video_old.mp4" type="video/mp4">
-            </video>
-            <div class="hero-cinema-overlay">
-                <div class="hero-cinema-copy">
-                    <p class="hero-kicker">FLOAA Jewellery</p>
-                    <h1 hidden>Modern luxury designed for daily elegance.</h1>
-                    <p class="hero-subtitle" hidden>An ivory-soft shopping experience shaped around clean lines, colour stones, and pieces that move from everyday wear to occasion dressing.</p>
-                    <div class="hero-actions">
-                        <a href="shop.html" class="btn btn-primary">Shop the Collection</a>
-                       
+        <section class="hero-cinema hero-slider" aria-label="FLOAA featured collections">
+            <div class="hero-slider-track">
+                <article class="hero-slide is-active">
+                    <img src="assets/floaa-jew-pics/color%20pop%20elegance%20set.jpeg" alt="FLOAA colour pop jewellery set">
+                    <div class="hero-slide-overlay">
+                        <div class="hero-slide-copy">
+                            <p class="hero-kicker">NEW COLLECTION</p>
+                            <h1>Modern heirlooms for everyday wear.</h1>
+                            <a href="shop.html" class="btn btn-primary">Shop Now</a>
+                        </div>
                     </div>
-                </div>
+                </article>
+                <article class="hero-slide">
+                    <img src="assets/floaa-jew-pics/Ruby%20Royale%20drops.jpeg" alt="FLOAA ruby royale drop earrings">
+                    <div class="hero-slide-overlay">
+                        <div class="hero-slide-copy">
+                            <p class="hero-kicker">COLOUR STONES</p>
+                            <h1>Colour that moves with you.</h1>
+                            <a href="earrings.html" class="btn btn-primary">Shop Earrings</a>
+                        </div>
+                    </div>
+                </article>
+                <article class="hero-slide">
+                    <img src="assets/floaa-jew-pics/Ivory%20petal%20charm%20bracelet.jpeg" alt="FLOAA ivory petal charm bracelet">
+                    <div class="hero-slide-overlay">
+                        <div class="hero-slide-copy">
+                            <p class="hero-kicker">FREE SHIPPING</p>
+                            <h1>Free Shipping on All Orders 🎀</h1>
+                            <a href="shop.html" class="btn btn-primary">Shop Now</a>
+                        </div>
+                    </div>
+                </article>
+                <article class="hero-slide">
+                    <img src="assets/floaa-jew-pics/Lavender%20empress%20set.jpeg" alt="FLOAA lavender empress jewellery set">
+                    <div class="hero-slide-overlay">
+                        <div class="hero-slide-copy">
+                            <p class="hero-kicker">GIFTING</p>
+                            <h1>The gift she'll remember.</h1>
+                            <a href="shop.html" class="btn btn-primary">Shop Collection</a>
+                        </div>
+                    </div>
+                </article>
+            </div>
+            <button class="hero-slider-arrow hero-slider-prev" type="button" aria-label="Previous slide">&lsaquo;</button>
+            <button class="hero-slider-arrow hero-slider-next" type="button" aria-label="Next slide">&rsaquo;</button>
+            <div class="hero-slider-dots" aria-label="Hero slider navigation">
+                <button class="is-active" type="button" aria-label="Show slide 1" aria-current="true"></button>
+                <button type="button" aria-label="Show slide 2"></button>
+                <button type="button" aria-label="Show slide 3"></button>
+                <button type="button" aria-label="Show slide 4"></button>
             </div>
         </section>
 
@@ -179,6 +215,6 @@
         <p class="footer-note">Copyright 2026 FLOAA. All rights reserved.</p>
     </footer>
 
-    <script src="script.js?v=20260429-2"></script>
+    <script src="script.js?v=20260429-7"></script>
 </body>
 </html>
