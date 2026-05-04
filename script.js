@@ -181,7 +181,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
     const handleWhatsAppOrder = (item) => {
         const finalPrice = item.discountPrice || item.price;
-        const imageUrl = item.image ? new URL(item.image, window.location.href).href : "";
         const message = [
             "Hi FLOAA 👋",
             "I want to order:",
@@ -189,10 +188,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             `Product: ${item.name}`,
             `Price: ${finalPrice}`,
             "Quantity: 1",
-            imageUrl ? `Image: ${imageUrl}` : "",
             "",
             "Is this available? I’d like to place the order 😊"
-        ].filter(Boolean).join("\n");
+        ].join("\n");
 
         const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, "_blank", "noopener");
