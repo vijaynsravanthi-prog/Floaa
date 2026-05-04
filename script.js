@@ -179,6 +179,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         const price = normalizeValue(value);
         return price ? `₹${price.replace(/^₹\s*/, "")}` : "";
     };
+    const handleWhatsAppOrder = (item) => {
+        const finalPrice = item.discountPrice || item.price;
+        const imageUrl = item.image ? new URL(item.image, window.location.href).href : "";
+        const message = [
+            "Hi FLOAA 👋",
+            "I want to order:",
+            "",
+            `Product: ${item.name}`,
+            `Price: ${finalPrice}`,
+            "Quantity: 1",
+            imageUrl ? `Image: ${imageUrl}` : "",
+            "",
+            "Is this available? I’d like to place the order 😊"
+        ].filter(Boolean).join("\n");
+
+        const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, "_blank", "noopener");
+    };
     const getYouTubeVideoId = (value) => {
         try {
             const url = new URL(value);
@@ -412,18 +430,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             productStock.className = isSoldOut ? "product-stock is-sold-out" : "product-stock";
             productStock.textContent = isSoldOut ? "Sold Out" : "";
 
-            const productBtn = document.createElement("a");
+            const productBtn = document.createElement("button");
             productBtn.className = "btn btn-primary";
+            productBtn.type = "button";
             if (isSoldOut) {
-                productBtn.href = "#";
                 productBtn.classList.add("is-disabled");
+                productBtn.disabled = true;
                 productBtn.setAttribute("aria-disabled", "true");
                 productBtn.textContent = "Sold Out";
             } else {
-                productBtn.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(item.whatsappText || "")}`;
-                productBtn.target = "_blank";
-                productBtn.rel = "noopener";
-                productBtn.textContent = "Shop on WhatsApp 💬";
+                productBtn.textContent = "Buy on WhatsApp";
+                productBtn.addEventListener("click", () => handleWhatsAppOrder(item));
             }
 
             productInfo.append(productTag, productName, productPrice, productDescription, productStock, productBtn);
