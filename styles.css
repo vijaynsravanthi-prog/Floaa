@@ -1159,8 +1159,10 @@ input {
 
     .hero-slide img {
         mask-image: none;
-        opacity: 0.92;
-        padding: 1rem 1rem 9rem;
+        opacity: 1;
+        object-fit: cover;
+        object-position: center 24%;
+        padding: 0;
         -webkit-mask-image: none;
         width: 100%;
     }
@@ -1434,8 +1436,9 @@ input {
 
     .hero-slide img {
         filter: none;
-        object-position: center top;
-        padding: 0.75rem 0.75rem 15rem;
+        object-fit: cover;
+        object-position: center 20%;
+        padding: 0;
     }
 
     .hero-slide-copy {
