@@ -379,6 +379,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             combosTile.style.backgroundImage = `url("${normalizeImagePath(combosImage.value)}")`;
         }
 
+        const readAboutImage = content["read-about"] || content["read-about-image"];
+        const readAboutSurface = document.querySelector(".feature-surface-one");
+        if (readAboutSurface && readAboutImage?.value) {
+            readAboutSurface.style.backgroundImage = `url("${normalizeImagePath(readAboutImage.value)}")`;
+        }
+
         const heroVideo = content["hero-video"] || content.video || content["floaa-video"];
         const heroVideoPoster = content["hero-video-poster"] || content.poster || content["video-poster"];
         const heroVideoElement = document.querySelector(".hero-cinema-video");

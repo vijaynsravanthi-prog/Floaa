@@ -835,7 +835,7 @@ input {
 
 .feature-surface {
     min-height: 380px;
-    background: var(--bg-soft) url("assets/floaa-jew-pics/floaa-17.jpeg") center/contain no-repeat;
+    background: var(--bg-soft) center/contain no-repeat;
     border-radius: 1.4rem;
 }
 
