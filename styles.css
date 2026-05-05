@@ -425,22 +425,19 @@ input {
 
 .hero-slide img {
     display: block;
-    filter: saturate(1.04) contrast(0.98);
+    filter: saturate(1.02) contrast(1.01);
     height: 100%;
     margin-right: auto;
-    mask-image: linear-gradient(90deg, #000 0%, #000 58%, rgba(0, 0, 0, 0.78) 70%, transparent 100%);
-    mix-blend-mode: multiply;
     object-fit: contain;
     object-position: center left;
     padding: clamp(1.4rem, 3vw, 2.5rem) 0 clamp(3.2rem, 5vw, 4.6rem) clamp(2.8rem, 6vw, 6rem);
-    -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 58%, rgba(0, 0, 0, 0.78) 70%, transparent 100%);
     width: min(68vw, 1160px);
 }
 
 .hero-slide-overlay {
     align-items: center;
     background:
-        linear-gradient(90deg, rgba(255, 250, 244, 0) 0%, rgba(255, 250, 244, 0.24) 44%, rgba(255, 250, 244, 0.82) 62%, rgba(255, 250, 244, 0.98) 100%);
+        linear-gradient(90deg, rgba(255, 250, 244, 0) 0%, rgba(255, 250, 244, 0.1) 46%, rgba(255, 250, 244, 0.46) 66%, rgba(255, 250, 244, 0.82) 100%);
     display: flex;
     inset: 0;
     justify-content: flex-end;
@@ -1414,13 +1411,13 @@ input {
     }
 
     .hero-cinema-video {
-        height: 68vh;
-        min-height: 430px;
+        height: 74vh;
+        min-height: 520px;
     }
 
     .hero-cinema {
-        height: 68vh;
-        min-height: 430px;
+        height: 74vh;
+        min-height: 520px;
     }
 
     .hero-cinema-overlay {
@@ -1430,45 +1427,48 @@ input {
     .hero-slide-overlay {
         align-items: flex-end;
         background:
-            linear-gradient(180deg, rgba(255, 250, 244, 0.06) 0%, rgba(255, 250, 244, 0.78) 56%, rgba(255, 250, 244, 0.98) 100%);
+            linear-gradient(180deg, rgba(255, 250, 244, 0) 0%, rgba(255, 250, 244, 0.06) 48%, rgba(255, 250, 244, 0.48) 72%, rgba(255, 250, 244, 0.84) 100%);
         justify-content: center;
-        padding: 1rem 0.85rem 5.1rem;
+        padding: 1rem 0.9rem 4.8rem;
     }
 
     .hero-slide img {
+        filter: none;
         object-position: center top;
-        padding: 0.75rem 0.75rem 16.25rem;
+        padding: 0.75rem 0.75rem 15rem;
     }
 
     .hero-slide-copy {
-        background: rgba(255, 250, 244, 0.78);
-        border: 1px solid rgba(217, 197, 141, 0.28);
-        border-radius: 1.1rem;
-        box-shadow: 0 14px 30px rgba(92, 82, 88, 0.08);
+        background: rgba(255, 250, 244, 0.92);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(217, 197, 141, 0.26);
+        border-radius: 1.25rem;
+        box-shadow: 0 18px 34px rgba(92, 82, 88, 0.1);
         justify-content: flex-end;
-        max-width: 88vw;
-        padding: 1.1rem 1rem 1rem;
+        max-width: 92vw;
+        padding: 1rem 1rem 0.95rem;
     }
 
     .hero-slide-copy h1 {
-        font-size: clamp(1.75rem, 9vw, 2.4rem);
-        line-height: 1.04;
-        margin-bottom: 0.7rem;
+        font-size: clamp(1.6rem, 8.3vw, 2.15rem);
+        line-height: 1.08;
+        margin-bottom: 0.55rem;
+        max-width: 11ch;
     }
 
     .hero-slide-copy .hero-subtitle {
         color: rgba(47, 42, 44, 0.72);
-        font-size: 0.88rem;
-        line-height: 1.35;
-        margin-bottom: 0.8rem;
-        max-width: 18rem;
+        font-size: 0.84rem;
+        line-height: 1.4;
+        margin-bottom: 0.75rem;
+        max-width: 16rem;
     }
 
     .hero-slider-arrow {
-        height: 34px;
-        top: auto;
+        height: 32px;
+        top: 34%;
         transform: none;
-        width: 34px;
+        width: 32px;
     }
 
     .hero-slider-arrow:hover {
@@ -1476,21 +1476,29 @@ input {
     }
 
     .hero-slider-prev {
-        bottom: 0.9rem;
-        left: 0.65rem;
+        left: 0.55rem;
     }
 
     .hero-slider-next {
-        bottom: 0.9rem;
-        right: 0.65rem;
+        right: 0.55rem;
     }
 
     .hero-slider-dots {
-        bottom: 1.18rem;
+        bottom: 1rem;
     }
 
     .hero-slide-copy .btn {
         min-width: 100%;
+        min-height: 48px;
+    }
+
+    .hero-slider-dots button {
+        height: 8px;
+        width: 8px;
+    }
+
+    .hero-slider-dots button.is-active {
+        width: 24px;
     }
 
     .whatsapp-float {
