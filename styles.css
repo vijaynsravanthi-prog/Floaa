@@ -1432,29 +1432,43 @@ input {
         background:
             linear-gradient(180deg, rgba(255, 250, 244, 0.06) 0%, rgba(255, 250, 244, 0.78) 56%, rgba(255, 250, 244, 0.98) 100%);
         justify-content: center;
-        padding: 1.35rem 1rem 5.15rem;
+        padding: 1rem 0.85rem 5.1rem;
     }
 
     .hero-slide img {
         object-position: center top;
-        padding: 0.75rem 0.75rem 11.5rem;
+        padding: 0.75rem 0.75rem 16.25rem;
     }
 
     .hero-slide-copy {
+        background: rgba(255, 250, 244, 0.78);
+        border: 1px solid rgba(217, 197, 141, 0.28);
+        border-radius: 1.1rem;
+        box-shadow: 0 14px 30px rgba(92, 82, 88, 0.08);
         justify-content: flex-end;
-        max-width: 86vw;
+        max-width: 88vw;
+        padding: 1.1rem 1rem 1rem;
     }
 
     .hero-slide-copy h1 {
-        font-size: clamp(2.35rem, 12vw, 3.25rem);
-        margin-bottom: 1.2rem;
+        font-size: clamp(1.75rem, 9vw, 2.4rem);
+        line-height: 1.04;
+        margin-bottom: 0.7rem;
+    }
+
+    .hero-slide-copy .hero-subtitle {
+        color: rgba(47, 42, 44, 0.72);
+        font-size: 0.88rem;
+        line-height: 1.35;
+        margin-bottom: 0.8rem;
+        max-width: 18rem;
     }
 
     .hero-slider-arrow {
-        height: 40px;
+        height: 34px;
         top: auto;
         transform: none;
-        width: 40px;
+        width: 34px;
     }
 
     .hero-slider-arrow:hover {
@@ -1462,13 +1476,21 @@ input {
     }
 
     .hero-slider-prev {
-        bottom: 1.1rem;
-        left: 1rem;
+        bottom: 0.9rem;
+        left: 0.65rem;
     }
 
     .hero-slider-next {
-        bottom: 1.1rem;
-        right: 1rem;
+        bottom: 0.9rem;
+        right: 0.65rem;
+    }
+
+    .hero-slider-dots {
+        bottom: 1.18rem;
+    }
+
+    .hero-slide-copy .btn {
+        min-width: 100%;
     }
 
     .whatsapp-float {

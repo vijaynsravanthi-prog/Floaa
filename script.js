@@ -276,7 +276,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return rows.reduce((content, row) => {
                 const key = normalizeKey(getRowValue(row, ["Key", "Name", "Asset", "Type"]));
                 const value = normalizeValue(getRowValue(row, ["Value", "URL", "Url", "Path", "Image", "Video"]));
-                if (!key || !value) return content;
+                if (!key) return content;
 
                 content[key] = {
                     value,
@@ -317,6 +317,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             const slideSubtitle = content[`hero-slide-${slideNumber}-subtitle`] || content[`hero-slide-${slideNumber}-subtext`];
             const slideButtonText = content[`hero-slide-${slideNumber}-button-text`];
             const slideButtonLink = content[`hero-slide-${slideNumber}-button-link`];
+            const hasSlideKicker = Object.prototype.hasOwnProperty.call(content, `hero-slide-${slideNumber}-kicker`);
+            const hasSlideHeading = Object.prototype.hasOwnProperty.call(content, `hero-slide-${slideNumber}-heading`);
+            const hasSlideSubtitle =
+                Object.prototype.hasOwnProperty.call(content, `hero-slide-${slideNumber}-subtitle`) ||
+                Object.prototype.hasOwnProperty.call(content, `hero-slide-${slideNumber}-subtext`);
+            const hasSlideButtonText = Object.prototype.hasOwnProperty.call(content, `hero-slide-${slideNumber}-button-text`);
+            const hasSlideButtonLink = Object.prototype.hasOwnProperty.call(content, `hero-slide-${slideNumber}-button-link`);
 
             if (image && slideImage?.value) {
                 image.src = normalizeImagePath(slideImage.value);
@@ -324,18 +331,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (image && slideAlt?.value) {
                 image.alt = slideAlt.value;
             }
-            if (copy && slideKicker?.value) {
+            if (copy && hasSlideKicker) {
                 if (!kicker) {
                     kicker = document.createElement("p");
                     kicker.className = "hero-kicker";
                     copy.insertBefore(kicker, heading || copy.firstChild);
                 }
-                kicker.textContent = slideKicker.value;
+                kicker.textContent = slideKicker?.value || "";
+                kicker.style.display = slideKicker?.value ? "" : "none";
             }
-            if (heading && slideHeading?.value) {
-                heading.textContent = slideHeading.value;
+            if (heading && hasSlideHeading) {
+                heading.textContent = slideHeading?.value || "";
             }
-            if (copy && slideSubtitle?.value) {
+            if (copy && hasSlideSubtitle) {
                 if (!subtitle) {
                     subtitle = document.createElement("p");
                     subtitle.className = "hero-subtitle";
@@ -345,13 +353,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                         copy.append(subtitle);
                     }
                 }
-                subtitle.textContent = slideSubtitle.value;
+                subtitle.textContent = slideSubtitle?.value || "";
+                subtitle.style.display = slideSubtitle?.value ? "" : "none";
             }
-            if (button && slideButtonText?.value) {
-                button.textContent = slideButtonText.value;
+            if (button && hasSlideButtonText) {
+                button.textContent = slideButtonText?.value || "";
+                button.style.display = slideButtonText?.value ? "" : "none";
             }
-            if (button && slideButtonLink?.value) {
-                button.href = slideButtonLink.value;
+            if (button && hasSlideButtonLink) {
+                button.href = slideButtonLink?.value || "#";
             }
         });
 
