@@ -1442,9 +1442,9 @@ input {
 
     .hero-slide img {
         filter: none;
-        object-fit: cover;
-        object-position: center 18%;
-        padding: 0;
+        object-fit: contain;
+        object-position: center center;
+        padding: 0.65rem 0.9rem 0;
         height: 100%;
     }
 
