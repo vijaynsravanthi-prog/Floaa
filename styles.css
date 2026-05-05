@@ -469,6 +469,10 @@ input {
     margin-bottom: 1.35rem;
 }
 
+.hero-slide-copy .hero-subtitle {
+    color: rgba(47, 42, 44, 0.78);
+}
+
 .hero-slider-arrow {
     align-items: center;
     background: rgba(255, 250, 244, 0.64);

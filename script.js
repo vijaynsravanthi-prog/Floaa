@@ -301,6 +301,60 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         }
 
+        const heroSlides = Array.from(document.querySelectorAll(".hero-slide"));
+        heroSlides.forEach((slide, index) => {
+            const slideNumber = index + 1;
+            const image = slide.querySelector("img");
+            const copy = slide.querySelector(".hero-slide-copy");
+            const heading = copy?.querySelector("h1");
+            const button = copy?.querySelector(".btn");
+            let kicker = copy?.querySelector(".hero-kicker");
+            let subtitle = copy?.querySelector(".hero-subtitle");
+            const slideImage = content[`hero-slide-${slideNumber}-image`] || content[`hero-slide-${slideNumber}`];
+            const slideAlt = content[`hero-slide-${slideNumber}-alt`];
+            const slideKicker = content[`hero-slide-${slideNumber}-kicker`];
+            const slideHeading = content[`hero-slide-${slideNumber}-heading`];
+            const slideSubtitle = content[`hero-slide-${slideNumber}-subtitle`] || content[`hero-slide-${slideNumber}-subtext`];
+            const slideButtonText = content[`hero-slide-${slideNumber}-button-text`];
+            const slideButtonLink = content[`hero-slide-${slideNumber}-button-link`];
+
+            if (image && slideImage?.value) {
+                image.src = normalizeImagePath(slideImage.value);
+            }
+            if (image && slideAlt?.value) {
+                image.alt = slideAlt.value;
+            }
+            if (copy && slideKicker?.value) {
+                if (!kicker) {
+                    kicker = document.createElement("p");
+                    kicker.className = "hero-kicker";
+                    copy.insertBefore(kicker, heading || copy.firstChild);
+                }
+                kicker.textContent = slideKicker.value;
+            }
+            if (heading && slideHeading?.value) {
+                heading.textContent = slideHeading.value;
+            }
+            if (copy && slideSubtitle?.value) {
+                if (!subtitle) {
+                    subtitle = document.createElement("p");
+                    subtitle.className = "hero-subtitle";
+                    if (button) {
+                        copy.insertBefore(subtitle, button);
+                    } else {
+                        copy.append(subtitle);
+                    }
+                }
+                subtitle.textContent = slideSubtitle.value;
+            }
+            if (button && slideButtonText?.value) {
+                button.textContent = slideButtonText.value;
+            }
+            if (button && slideButtonLink?.value) {
+                button.href = slideButtonLink.value;
+            }
+        });
+
         ["earrings", "necklaces", "bracelets", "combos"].forEach((category) => {
             const categoryImage = content[`category-${category}`] || content[`${category}-image`];
             const categoryTile = document.querySelector(`.category-tile[href="${category}.html"] .category-tile-media`);
