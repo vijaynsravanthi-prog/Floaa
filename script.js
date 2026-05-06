@@ -78,6 +78,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         startAutoSlide();
     };
 
+    const setHeroSlideImage = (image, nextImageSrc) => {
+        if (!image || !nextImageSrc) return;
+
+        const slide = image.closest(".hero-slide");
+        slide?.classList.remove("is-image-ready");
+
+        if (image.getAttribute("src") === nextImageSrc) {
+            if (image.complete) {
+                slide?.classList.add("is-image-ready");
+            }
+            return;
+        }
+
+        const handleReady = () => {
+            slide?.classList.add("is-image-ready");
+        };
+
+        image.addEventListener("load", handleReady, { once: true });
+        image.src = nextImageSrc;
+
+        if (image.complete) {
+            handleReady();
+        }
+    };
+
     const prepareHeroImages = () => {
         const heroImages = Array.from(document.querySelectorAll(".hero-slide img"));
         if (!heroImages.length) return;
@@ -89,11 +114,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         heroImages.forEach((image, index) => {
             if (image.complete) {
                 markReady(image);
-            } else {
+            } else if (image.getAttribute("src")) {
                 image.addEventListener("load", () => markReady(image), { once: true });
             }
 
-            if (index > 0) {
+            if (index > 0 && image.getAttribute("src")) {
                 const preload = new Image();
                 preload.decoding = "async";
                 preload.src = image.currentSrc || image.src;
@@ -208,7 +233,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const finalPrice = item.discountPrice || item.price;
         const imageUrl = item.image ? new URL(encodeURI(item.image), window.location.href).href : "";
         const message = [
-            "Hi FLOAA 👋",
+            "Hi FLOAA,",
             "I want to order:",
             "",
             `Product: ${item.name}`,
@@ -216,7 +241,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             "Quantity: 1",
             imageUrl ? `Image: ${imageUrl}` : "",
             "",
-            "Is this available? I’d like to place the order 😊"
+            "Is this available? I'd like to place the order."
         ].filter(Boolean).join("\n");
 
         const whatsappUrl = buildWhatsAppUrl(whatsappNumber, message);
@@ -421,12 +446,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (image && slideImage?.value) {
                 const nextImageSrc = normalizeImagePath(slideImage.value);
-                if (nextImageSrc && image.getAttribute("src") !== nextImageSrc) {
-                    const preloadImage = new Image();
-                    preloadImage.onload = () => {
-                        image.src = nextImageSrc;
-                    };
-                    preloadImage.src = nextImageSrc;
+                if (nextImageSrc) {
+                    setHeroSlideImage(image, nextImageSrc);
                 }
             }
             if (image && slideAlt?.value) {
@@ -645,11 +666,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     addShoppingPolicyContent();
 
     const bodyPage = document.body.dataset.page;
-    const [products, brandContent] = await Promise.all([
-        fetchProducts(),
-        fetchBrandContent()
-    ]);
+    const productsPromise = fetchProducts();
+    const brandContentPromise = fetchBrandContent();
+
+    const brandContent = await brandContentPromise;
     applyBrandContent(brandContent);
+
+    const products = await productsPromise;
 
     const homeGrid = document.getElementById("home-product-grid");
     if (homeGrid) {
