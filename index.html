@@ -92,6 +92,80 @@
             <div class="hero-slider-track">
                 <article class="hero-slide is-active">
                     <img alt="Amber square glow drops" fetchpriority="high" loading="eager" decoding="sync">
+                    <script>
+                      (function () {
+                        var heroImage = document.currentScript.previousElementSibling;
+                        var heroSlide = heroImage && heroImage.closest(".hero-slide");
+                        if (!heroImage || !window.__floaaBrandRowsPromise) return;
+
+                        var normalizeValue = function (value) {
+                          return String(value || "").trim();
+                        };
+
+                        var cleanSheetValue = function (value) {
+                          return normalizeValue(value)
+                            .replace(/^"+|"+$/g, "")
+                            .replace(/^'+|'+$/g, "")
+                            .replace(/",$/, "")
+                            .trim();
+                        };
+
+                        var normalizeSlug = function (value) {
+                          return normalizeValue(value).toLowerCase();
+                        };
+
+                        var normalizeKey = function (value) {
+                          return normalizeSlug(value).replace(/[\s_-]+/g, "-");
+                        };
+
+                        var getRowValue = function (row, names) {
+                          var normalizedNames = names.map(normalizeSlug);
+                          var matchingKey = Object.keys(row).find(function (key) {
+                            return normalizedNames.includes(normalizeSlug(key));
+                          });
+                          return matchingKey ? row[matchingKey] : "";
+                        };
+
+                        var normalizeImagePath = function (value) {
+                          var image = cleanSheetValue(value);
+                          if (!image) return "";
+                          if (/^https?:\/\//i.test(image) || image.indexOf("assets/") === 0) return image;
+                          return "assets/floaa-jew-pics/" + image;
+                        };
+
+                        window.__floaaBrandRowsPromise.then(function (rows) {
+                          if (!Array.isArray(rows)) return;
+
+                          var slideRow = rows.find(function (row) {
+                            var key = normalizeKey(getRowValue(row, ["Key", "Name", "Asset", "Type"]));
+                            return key === "hero-slide-1-image" || key === "hero-slide-1";
+                          });
+
+                          if (!slideRow) return;
+
+                          var nextImageSrc = normalizeImagePath(getRowValue(slideRow, ["Value", "URL", "Url", "Path", "Image", "Video"]));
+                          if (!nextImageSrc) return;
+
+                          var safeImageSrc = /^https?:\/\//i.test(nextImageSrc) ? nextImageSrc : encodeURI(nextImageSrc);
+                          heroImage.addEventListener("load", function () {
+                            if (heroSlide) {
+                              heroSlide.classList.add("is-image-ready");
+                            }
+                          }, { once: true });
+                          heroImage.addEventListener("error", function () {
+                            heroImage.removeAttribute("src");
+                            if (heroSlide) {
+                              heroSlide.classList.remove("is-image-ready");
+                            }
+                          }, { once: true });
+                          heroImage.src = safeImageSrc;
+
+                          if (heroImage.complete) {
+                            heroSlide && heroSlide.classList.add("is-image-ready");
+                          }
+                        });
+                      })();
+                    </script>
                 <div class="hero-slide-overlay">
                         <div class="hero-slide-copy">
                             <p class="hero-kicker">Floaa Jewellery</p>
