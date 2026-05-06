@@ -326,7 +326,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             const hasSlideButtonLink = Object.prototype.hasOwnProperty.call(content, `hero-slide-${slideNumber}-button-link`);
 
             if (image && slideImage?.value) {
-                image.src = normalizeImagePath(slideImage.value);
+                const nextImageSrc = normalizeImagePath(slideImage.value);
+                if (nextImageSrc && image.getAttribute("src") !== nextImageSrc) {
+                    const preloadImage = new Image();
+                    preloadImage.onload = () => {
+                        image.src = nextImageSrc;
+                    };
+                    preloadImage.src = nextImageSrc;
+                }
             }
             if (image && slideAlt?.value) {
                 image.alt = slideAlt.value;
