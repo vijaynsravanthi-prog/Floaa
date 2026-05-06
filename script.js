@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", async () => {
+const initializePage = async () => {
     const SHEET_ID = "1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs";
     const PRODUCTS_URL = `https://opensheet.elk.sh/${SHEET_ID}/1`;
     const BRAND_CONTENT_URL = `https://opensheet.elk.sh/${SHEET_ID}/BrandContent`;
@@ -83,8 +83,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const slide = image.closest(".hero-slide");
         slide?.classList.remove("is-image-ready");
+        const safeImageSrc = /^https?:\/\//i.test(nextImageSrc) ? nextImageSrc : encodeURI(nextImageSrc);
 
-        if (image.getAttribute("src") === nextImageSrc) {
+        if (image.getAttribute("src") === safeImageSrc) {
             if (image.complete) {
                 slide?.classList.add("is-image-ready");
             }
@@ -94,9 +95,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         const handleReady = () => {
             slide?.classList.add("is-image-ready");
         };
+        const handleError = () => {
+            image.removeAttribute("src");
+            slide?.classList.remove("is-image-ready");
+        };
 
         image.addEventListener("load", handleReady, { once: true });
-        image.src = nextImageSrc;
+        image.addEventListener("error", handleError, { once: true });
+        image.src = safeImageSrc;
 
         if (image.complete) {
             handleReady();
@@ -317,12 +323,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const fetchBrandContent = async () => {
         try {
-            const response = await fetch(BRAND_CONTENT_URL);
-            if (!response.ok) {
-                throw new Error(`Brand content request failed: ${response.status}`);
-            }
+            const earlyRows = await window.__floaaBrandRowsPromise;
+            const rows = Array.isArray(earlyRows) && earlyRows.length
+                ? earlyRows
+                : await (async () => {
+                    const response = await fetch(BRAND_CONTENT_URL);
+                    if (!response.ok) {
+                        throw new Error(`Brand content request failed: ${response.status}`);
+                    }
 
-            const rows = await response.json();
+                    return response.json();
+                })();
             if (!Array.isArray(rows)) return {};
 
             return rows.reduce((content, row) => {
@@ -764,4 +775,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.body.append(whatsappButton);
     }
 
-});
+};
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializePage, { once: true });
+} else {
+    void initializePage();
+}

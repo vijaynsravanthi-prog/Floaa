@@ -436,8 +436,14 @@ input {
     width: min(68vw, 1160px);
 }
 
+.hero-slide img:not([src]),
+.hero-slide img[src=""] {
+    visibility: hidden;
+}
+
 .hero-slide.is-image-ready img {
     opacity: 1;
+    visibility: visible;
 }
 
 .hero-slide-overlay {

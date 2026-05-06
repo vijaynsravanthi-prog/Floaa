@@ -24,6 +24,16 @@
     <meta property="og:image" content="https://floaa.in/logo.png">
     <meta property="og:url" content="https://floaa.in">
     <meta property="og:type" content="website">
+    <script>
+      window.__floaaBrandRowsPromise = fetch("https://opensheet.elk.sh/1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs/BrandContent")
+        .then(function (response) {
+          return response.ok ? response.json() : [];
+        })
+        .catch(function () {
+          return [];
+        });
+    </script>
+    <link rel="preconnect" href="https://opensheet.elk.sh" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
