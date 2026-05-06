@@ -78,7 +78,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         startAutoSlide();
     };
 
+    const prepareHeroImages = () => {
+        const heroImages = Array.from(document.querySelectorAll(".hero-slide img"));
+        if (!heroImages.length) return;
+
+        const markReady = (image) => {
+            image.closest(".hero-slide")?.classList.add("is-image-ready");
+        };
+
+        heroImages.forEach((image, index) => {
+            if (image.complete) {
+                markReady(image);
+            } else {
+                image.addEventListener("load", () => markReady(image), { once: true });
+            }
+
+            if (index > 0) {
+                const preload = new Image();
+                preload.decoding = "async";
+                preload.src = image.currentSrc || image.src;
+            }
+        });
+    };
+
     initHeroSlider();
+    prepareHeroImages();
 
     const normalizeValue = (value) => String(value || "").trim();
     const cleanSheetValue = (value) => normalizeValue(value)
