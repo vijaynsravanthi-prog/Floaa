@@ -1,23 +1,7 @@
 document.addEventListener("DOMContentLoaded", async () => {
-    const montageImages = [
-        "assets/floaa-jew-pics/floaa-01.jpeg",
-        "assets/floaa-jew-pics/floaa-02.jpeg",
-        "assets/floaa-jew-pics/floaa-03.jpeg",
-        "assets/floaa-jew-pics/floaa-04.jpeg",
-        "assets/floaa-jew-pics/floaa-05.jpeg",
-        "assets/floaa-jew-pics/floaa-06.jpeg",
-        "assets/floaa-jew-pics/floaa-07.jpeg",
-        "assets/floaa-jew-pics/floaa-16.jpeg",
-        "assets/floaa-jew-pics/floaa-17.jpeg"
-    ];
-
     const SHEET_ID = "1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs";
     const PRODUCTS_URL = `https://opensheet.elk.sh/${SHEET_ID}/1`;
     const BRAND_CONTENT_URL = `https://opensheet.elk.sh/${SHEET_ID}/BrandContent`;
-    const WHATSAPP_NUMBER = "919960144483";
-    const SHIPPING_MESSAGE = "Free Shipping on All Orders";
-    const SHIPPING_DETAIL = "No minimums. No conditions. Every FLOAA piece ships free across India.";
-    const POLICY_MESSAGE = "No exchange and no return policy";
     const initHeroSlider = () => {
         const slider = document.querySelector(".hero-slider");
         if (!slider) return;
@@ -97,6 +81,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     initHeroSlider();
 
     const normalizeValue = (value) => String(value || "").trim();
+    const cleanSheetValue = (value) => normalizeValue(value)
+        .replace(/^"+|"+$/g, "")
+        .replace(/^'+|'+$/g, "")
+        .replace(/",$/, "")
+        .trim();
     const normalizeSlug = (value) => normalizeValue(value).toLowerCase();
     const normalizeKey = (value) => {
         const key = normalizeSlug(value).replace(/[\s_-]+/g, "-");
@@ -108,27 +97,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         return aliases[key] || key;
     };
     const normalizeStatus = (value) => normalizeSlug(value).replace(/[\s-]+/g, "");
-    const normalizeList = (value) => normalizeValue(value)
+    const normalizeList = (value) => cleanSheetValue(value)
         .split(",")
         .map((item) => item.trim())
         .filter(Boolean);
-    const getGeneratedImagePath = (name) => {
-        const imageName = normalizeSlug(name)
-            .replace(/[^a-z0-9\s-]/g, "")
-            .replace(/\s+/g, "-")
-            .replace(/-+/g, "-")
-            .replace(/^-|-$/g, "");
-        return imageName ? `assets/floaa-jew-pics/${imageName}.jpeg` : "";
-    };
     const normalizeImagePath = (value) => {
-        const image = normalizeValue(value);
+        const image = cleanSheetValue(value);
         if (!image || /^https?:\/\//i.test(image) || image.startsWith("assets/")) return image;
         return `assets/floaa-jew-pics/${image}`;
     };
-    const getProductImages = (value, name) => {
-        const images = normalizeList(value).map(normalizeImagePath).filter(Boolean);
-        return images.length ? images : [getGeneratedImagePath(name)].filter(Boolean);
-    };
+    const getProductImages = (value) => normalizeList(value).map(normalizeImagePath).filter(Boolean);
     const parsePrice = (value) => {
         const price = Number(normalizeValue(value).replace(/[^\d.]/g, ""));
         return Number.isFinite(price) ? price : 0;
@@ -159,9 +137,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const applyProductFilters = (items, { style = "", price = "", categoryFilter = "" } = {}) => {
         const styleKey = normalizeKey(style);
         const categoryFilterKey = normalizeKey(categoryFilter);
-        let filteredItems = styleKey ? items.filter((product) => product.style === styleKey) : items;
+        const hasStyleData = items.some((product) => product.style);
+        const hasFilterData = items.some((product) => product.filters?.length);
+        let filteredItems = styleKey && hasStyleData ? items.filter((product) => product.style === styleKey) : items;
         filteredItems = filterProductsByPrice(filteredItems, price);
-        if (categoryFilterKey && categoryFilterKey !== "all") {
+        if (categoryFilterKey && categoryFilterKey !== "all" && hasFilterData) {
             filteredItems = filteredItems.filter((product) =>
                 product.filters.includes(categoryFilterKey) ||
                 product.style === categoryFilterKey ||
@@ -176,10 +156,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         return matchingKey ? row[matchingKey] : "";
     };
     const formatPrice = (value) => {
-        const price = normalizeValue(value);
+        const price = cleanSheetValue(value);
         return price ? `₹${price.replace(/^₹\s*/, "")}` : "";
     };
-    const handleWhatsAppOrder = (item) => {
+    const getBrandEntry = (content, keys) => keys
+        .map((key) => content[normalizeKey(key)] || content[key])
+        .find((entry) => entry && (normalizeValue(entry.value) || normalizeValue(entry.alt)));
+    const getBrandValue = (content, keys) => cleanSheetValue(getBrandEntry(content, keys)?.value || "");
+    const getWhatsAppNumber = (content) => normalizeValue(getBrandValue(content, [
+        "whatsapp-number",
+        "whatsapp",
+        "contact-whatsapp",
+        "phone",
+        "contact-phone"
+    ])).replace(/[^\d]/g, "");
+    const getWhatsAppMessage = (content) => cleanSheetValue(getBrandValue(content, [
+        "whatsapp-default-message",
+        "whatsapp-message",
+        "contact-whatsapp-message"
+    ])) || "Hi FLOAA, I am interested in your collection";
+    const buildWhatsAppUrl = (number, message) => number
+        ? `https://wa.me/${number}?text=${encodeURIComponent(message)}`
+        : "";
+    const handleWhatsAppOrder = (item, brandContent) => {
+        const whatsappNumber = getWhatsAppNumber(brandContent);
+        if (!whatsappNumber) return;
         const finalPrice = item.discountPrice || item.price;
         const imageUrl = item.image ? new URL(encodeURI(item.image), window.location.href).href : "";
         const message = [
@@ -194,7 +195,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             "Is this available? I’d like to place the order 😊"
         ].filter(Boolean).join("\n");
 
-        const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+        const whatsappUrl = buildWhatsAppUrl(whatsappNumber, message);
         window.open(whatsappUrl, "_blank", "noopener");
     };
     const getYouTubeVideoId = (value) => {
@@ -218,11 +219,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         const name = normalizeValue(getRowValue(row, ["Name"]));
         const price = getRowValue(row, ["Price"]);
         const discountPrice = getRowValue(row, ["DiscountPrice", "Discount Price"]);
-        const images = getProductImages(getRowValue(row, ["Image", "Images"]), name);
-        const createdDate = normalizeValue(getRowValue(row, ["CreatedDate", "Created Date"]));
+        const images = getProductImages(getRowValue(row, ["Image", "Images"]));
+        const createdDate = cleanSheetValue(getRowValue(row, ["CreatedDate", "Created Date"]));
         const category = normalizeSlug(getRowValue(row, ["Category"]));
-        const status = normalizeStatus(getRowValue(row, ["Status"]));
-        const stockStatus = normalizeKey(getRowValue(row, ["StockStatus", "Stock Status"]));
+        const status = normalizeStatus(getRowValue(row, ["Status"])) || "active";
+        const stockStatus = normalizeKey(getRowValue(row, ["StockStatus", "Stock Status"])) || "in-stock";
+        const description = cleanSheetValue(getRowValue(row, ["Description"]));
+        const normalizedCategory = category || "shop";
 
         return {
             name,
@@ -234,14 +237,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             images,
             createdDate,
             isNew: isNewArrival(createdDate),
-            description: normalizeValue(getRowValue(row, ["Description"])),
-            whatsappText: normalizeValue(getRowValue(row, ["WhatsAppText", "WhatsApp Text"])) || `Hi FLOAA, I am interested in ${name || "this product"}`,
-            category,
+            description,
+            whatsappText: `Hi FLOAA, I am interested in ${name || "this product"}`,
+            category: normalizedCategory,
             status,
             stockStatus,
-            filters: normalizeList(getRowValue(row, ["Filters"])).map(normalizeKey),
-            style: normalizeKey(getRowValue(row, ["Style"])),
-            tag: normalizeValue(getRowValue(row, ["Tag"])) || category || "Jewellery"
+            filters: [],
+            style: "",
+            tag: normalizedCategory.charAt(0).toUpperCase() + normalizedCategory.slice(1)
         };
     };
 
@@ -256,7 +259,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!Array.isArray(rows)) return [];
             return rows
                 .map(transformProduct)
-                .filter((product) => product.name && product.status !== "inactive");
+                .filter((product) => product.name && product.image && product.status !== "inactive");
         } catch (error) {
             console.error(error);
             return [];
@@ -275,12 +278,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             return rows.reduce((content, row) => {
                 const key = normalizeKey(getRowValue(row, ["Key", "Name", "Asset", "Type"]));
-                const value = normalizeValue(getRowValue(row, ["Value", "URL", "Url", "Path", "Image", "Video"]));
+                const value = cleanSheetValue(getRowValue(row, ["Value", "URL", "Url", "Path", "Image", "Video"]));
                 if (!key) return content;
 
                 content[key] = {
                     value,
-                    alt: normalizeValue(getRowValue(row, ["Alt", "AltText", "Description"]))
+                    alt: cleanSheetValue(getRowValue(row, ["Alt", "AltText", "Description"]))
                 };
                 return content;
             }, {});
@@ -297,6 +300,73 @@ document.addEventListener("DOMContentLoaded", async () => {
                 image.src = logo.value;
                 if (logo.alt) {
                     image.alt = logo.alt;
+                }
+            });
+        }
+
+        const brandMessage = getBrandValue(content, ["brand-message", "brand-strip", "announcement"]);
+        if (brandMessage) {
+            document.querySelectorAll(".brand-message-strip span").forEach((element) => {
+                element.innerHTML = `<strong>${brandMessage}</strong>`;
+            });
+        }
+
+        const utilityMessage = getBrandValue(content, ["shipping-message", "top-strip-message"]);
+        const utilityDetail = getBrandValue(content, ["shipping-detail", "top-strip-detail"]);
+        if (utilityMessage || utilityDetail) {
+            document.querySelectorAll(".utility-bar p, .top-shipping-strip span").forEach((element) => {
+                const strongText = utilityMessage ? `<strong>${utilityMessage}</strong>` : "";
+                const detailText = utilityDetail ? `<small>${utilityDetail}</small>` : "";
+                element.innerHTML = `${strongText}${detailText}`;
+            });
+        }
+
+        const footerPolicyText = getBrandValue(content, ["policy-message", "footer-policy", "return-policy"]);
+        if (footerPolicyText) {
+            document.querySelectorAll(".footer-policy").forEach((policy) => {
+                policy.textContent = footerPolicyText;
+            });
+        }
+
+        const whatsappNumber = getWhatsAppNumber(content);
+        const whatsappMessage = getWhatsAppMessage(content);
+        const whatsappUrl = buildWhatsAppUrl(whatsappNumber, whatsappMessage);
+        const whatsappCatalogUrl = whatsappNumber ? `https://wa.me/c/${whatsappNumber}` : "";
+        const contactEmail = getBrandValue(content, ["contact-email", "email"]);
+        const contactPhone = getBrandValue(content, ["contact-phone-display", "phone-display", "phone"]);
+
+        if (contactEmail) {
+            document.querySelectorAll('a[href^="mailto:"]').forEach((link) => {
+                link.href = `mailto:${contactEmail}?subject=FLOAA%20Inquiry`;
+                link.textContent = contactEmail;
+            });
+        }
+
+        if (whatsappCatalogUrl) {
+            document.querySelectorAll('a[href^="https://wa.me/c/"]').forEach((link) => {
+                link.href = whatsappCatalogUrl;
+            });
+        }
+
+        if (whatsappUrl) {
+            document.querySelectorAll('a[href*="wa.me/"]').forEach((link) => {
+                if (link.href.includes("/c/")) return;
+                link.href = whatsappUrl;
+            });
+        }
+
+        if (contactPhone) {
+            document.querySelectorAll(".contact-card").forEach((card) => {
+                const heading = card.querySelector("h2");
+                if (heading?.textContent.trim().toLowerCase() !== "phone") return;
+                const link = card.querySelector('a[href*="wa.me/"]');
+                if (!link) return;
+
+                const textNode = Array.from(link.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
+                if (textNode) {
+                    textNode.textContent = ` ${contactPhone} `;
+                } else {
+                    link.append(document.createTextNode(` ${contactPhone} `));
                 }
             });
         }
@@ -517,7 +587,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 productBtn.textContent = "Sold Out";
             } else {
                 productBtn.textContent = "Buy on WhatsApp";
-                productBtn.addEventListener("click", () => handleWhatsAppOrder(item));
+                productBtn.addEventListener("click", () => handleWhatsAppOrder(item, brandContent));
             }
 
             productInfo.append(productTag, productName, productPrice, productDescription, productStock, productBtn);
@@ -531,7 +601,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const header = document.querySelector(".site-header");
             const policyStrip = document.createElement("div");
             policyStrip.className = "top-shipping-strip";
-            policyStrip.innerHTML = `<span><strong>${SHIPPING_MESSAGE}</strong><small>${SHIPPING_DETAIL}</small></span>`;
+            policyStrip.innerHTML = "<span></span>";
             header?.insertAdjacentElement("beforebegin", policyStrip);
         }
 
@@ -539,7 +609,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (footer.querySelector(".footer-policy")) return;
             const footerPolicy = document.createElement("p");
             footerPolicy.className = "footer-policy";
-            footerPolicy.textContent = POLICY_MESSAGE;
             const footerNote = footer.querySelector(".footer-note");
             if (footerNote) {
                 footerNote.insertAdjacentElement("beforebegin", footerPolicy);
@@ -613,26 +682,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    const mainMontage = document.getElementById("hero-montage-main");
-    const thumbMontage = Array.from(document.querySelectorAll(".hero-montage-thumb"));
-    if (mainMontage && thumbMontage.length === 3) {
-        let activeIndex = 0;
-
-        const renderMontage = () => {
-            mainMontage.src = montageImages[activeIndex];
-            thumbMontage.forEach((thumb, index) => {
-                const nextIndex = (activeIndex + index + 1) % montageImages.length;
-                thumb.src = montageImages[nextIndex];
-            });
-        };
-
-        renderMontage();
-        window.setInterval(() => {
-            activeIndex = (activeIndex + 1) % montageImages.length;
-            renderMontage();
-        }, 2200);
-    }
-
     const navToggle = document.querySelector(".nav-toggle");
     const mainNav = document.getElementById("site-nav");
     if (navToggle && mainNav) {
@@ -641,10 +690,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             navToggle.setAttribute("aria-expanded", String(isOpen));
         });
     }
-  /* 👇 ADD YOUR CODE RIGHT HERE */
     if (!document.querySelector(".whatsapp-float")) {
+        const whatsappUrl = buildWhatsAppUrl(getWhatsAppNumber(brandContent), getWhatsAppMessage(brandContent));
+        if (!whatsappUrl) return;
+
         const whatsappButton = document.createElement("a");
-        whatsappButton.href = "https://wa.me/919960144483?text=Hi%20FLOAA%2C%20I%20am%20interested%20in%20your%20collection";
+        whatsappButton.href = whatsappUrl;
         whatsappButton.className = "whatsapp-float";
         whatsappButton.target = "_blank";
         whatsappButton.rel = "noopener";
