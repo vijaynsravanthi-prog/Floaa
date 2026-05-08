@@ -721,7 +721,7 @@ const initializePage = async () => {
         const category = document.body.dataset.category;
         const categoryProducts = products.filter((product) => {
             if (category === "combos") {
-                return product.category === "combos" || product.category === "rings";
+                return product.category === "combos" || product.category === "comboset";
             }
 
             return product.category === category;

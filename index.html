@@ -133,41 +133,116 @@
                           return "assets/floaa-jew-pics/" + image;
                         };
 
+                        var getContentEntry = function (rows, keys) {
+                          for (var index = 0; index < rows.length; index += 1) {
+                            var row = rows[index];
+                            var key = normalizeKey(getRowValue(row, ["Key", "Name", "Asset", "Type"]));
+                            if (keys.indexOf(key) !== -1) {
+                              return {
+                                exists: true,
+                                value: cleanSheetValue(getRowValue(row, ["Value", "URL", "Url", "Path", "Image", "Video"]))
+                              };
+                            }
+                          }
+
+                          return {
+                            exists: false,
+                            value: ""
+                          };
+                        };
+
                         window.__floaaBrandRowsPromise.then(function (rows) {
-                          if (!Array.isArray(rows)) return;
+                          var heroCopy = heroSlide && heroSlide.querySelector(".hero-slide-copy");
+                          var heroKicker = heroCopy && heroCopy.querySelector(".hero-kicker");
+                          var heroHeading = heroCopy && heroCopy.querySelector("h1");
+                          var heroSubtitle = heroCopy && heroCopy.querySelector(".hero-subtitle");
+                          var heroButton = heroCopy && heroCopy.querySelector(".btn");
+                          var showCopy = function () {
+                            if (heroCopy) {
+                              heroCopy.style.visibility = "visible";
+                            }
+                          };
+
+                          if (!Array.isArray(rows)) {
+                            showCopy();
+                            return;
+                          }
+
+                          var kickerEntry = getContentEntry(rows, ["hero-slide-1-kicker"]);
+                          var headingEntry = getContentEntry(rows, ["hero-slide-1-heading"]);
+                          var subtitleEntry = getContentEntry(rows, ["hero-slide-1-subtitle", "hero-slide-1-subtext"]);
+                          var buttonTextEntry = getContentEntry(rows, ["hero-slide-1-button-text"]);
+                          var buttonLinkEntry = getContentEntry(rows, ["hero-slide-1-button-link"]);
+                          var altEntry = getContentEntry(rows, ["hero-slide-1-alt"]);
+
+                          if (heroKicker && kickerEntry.exists) {
+                            heroKicker.textContent = kickerEntry.value;
+                            heroKicker.style.display = kickerEntry.value ? "" : "none";
+                          }
+
+                          if (heroHeading && headingEntry.exists) {
+                            heroHeading.textContent = headingEntry.value;
+                          }
+
+                          if (heroSubtitle && subtitleEntry.exists) {
+                            heroSubtitle.textContent = subtitleEntry.value;
+                            heroSubtitle.style.display = subtitleEntry.value ? "" : "none";
+                          }
+
+                          if (heroButton && buttonTextEntry.exists) {
+                            heroButton.textContent = buttonTextEntry.value;
+                            heroButton.style.display = buttonTextEntry.value ? "" : "none";
+                          }
+
+                          if (heroButton && buttonLinkEntry.exists) {
+                            heroButton.href = buttonLinkEntry.value || "#";
+                          }
+
+                          if (altEntry.exists) {
+                            heroImage.alt = altEntry.value;
+                          }
 
                           var slideRow = rows.find(function (row) {
                             var key = normalizeKey(getRowValue(row, ["Key", "Name", "Asset", "Type"]));
                             return key === "hero-slide-1-image" || key === "hero-slide-1";
                           });
 
-                          if (!slideRow) return;
+                          if (!slideRow) {
+                            showCopy();
+                            return;
+                          }
 
                           var nextImageSrc = normalizeImagePath(getRowValue(slideRow, ["Value", "URL", "Url", "Path", "Image", "Video"]));
-                          if (!nextImageSrc) return;
+                          if (!nextImageSrc) {
+                            showCopy();
+                            return;
+                          }
 
                           var safeImageSrc = /^https?:\/\//i.test(nextImageSrc) ? nextImageSrc : encodeURI(nextImageSrc);
                           heroImage.addEventListener("load", function () {
                             if (heroSlide) {
                               heroSlide.classList.add("is-image-ready");
                             }
+                            showCopy();
                           }, { once: true });
                           heroImage.addEventListener("error", function () {
                             heroImage.removeAttribute("src");
                             if (heroSlide) {
                               heroSlide.classList.remove("is-image-ready");
                             }
+                            showCopy();
                           }, { once: true });
                           heroImage.src = safeImageSrc;
 
                           if (heroImage.complete) {
                             heroSlide && heroSlide.classList.add("is-image-ready");
+                            showCopy();
                           }
                         });
                       })();
                     </script>
                 <div class="hero-slide-overlay">
-                        <div class="hero-slide-copy">
+                        <div class="hero-slide-copy" style="visibility: hidden;">
                             <p class="hero-kicker">Floaa Jewellery</p>
                             <h1>Minimal earrings, bracelets, necklaces and sets under &#8377;3K in India.</h1>
                             <p class="hero-subtitle">Minimal. Effortless. Under &#8377;2,500</p>
