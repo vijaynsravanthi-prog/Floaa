@@ -1,17 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Google Tag Manager -->
-    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-    })(window,document,'script','dataLayer','GTM-TSV5NZ97');</script>
-    <!-- End Google Tag Manager -->
-
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-K6EF8T14DH"></script>
-
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
@@ -33,19 +24,22 @@
     <meta property="og:image" content="https://floaa.in/logo.png">
     <meta property="og:url" content="https://floaa.in">
     <meta property="og:type" content="website">
-    <link rel="preload" as="image" href="assets/floaa-jew-pics/Amber%20square%20glow%20drops.jpeg">
+    <script>
+      window.__floaaBrandRowsPromise = fetch("https://opensheet.elk.sh/1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs/BrandContent")
+        .then(function (response) {
+          return response.ok ? response.json() : [];
+        })
+        .catch(function () {
+          return [];
+        });
+    </script>
+    <link rel="preconnect" href="https://opensheet.elk.sh" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260429-7">
+    <link rel="stylesheet" href="styles.css?v=20260506-1">
 </head>
 <body data-page="home">
-
-    <!-- Google Tag Manager (noscript) -->
-<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TSV5NZ97"
-height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-<!-- End Google Tag Manager (noscript) -->
- 
     <div class="utility-bar">
         <p><strong>Free Shipping on All Orders</strong><span>No minimums. No conditions. Every FLOAA piece ships free across India.</span></p>
         <div class="utility-links">
@@ -97,18 +91,167 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <section class="hero-cinema hero-slider" aria-label="FLOAA featured collections">
             <div class="hero-slider-track">
                 <article class="hero-slide is-active">
-                    <img     alt="Amber square glow drops" fetchpriority="high" loading="eager" decoding="sync">
+                    <img alt="" fetchpriority="high" loading="eager" decoding="sync">
+                    <script>
+                      (function () {
+                        var heroImage = document.currentScript.previousElementSibling;
+                        var heroSlide = heroImage && heroImage.closest(".hero-slide");
+                        if (!heroImage || !window.__floaaBrandRowsPromise) return;
+
+                        var normalizeValue = function (value) {
+                          return String(value || "").trim();
+                        };
+
+                        var cleanSheetValue = function (value) {
+                          return normalizeValue(value)
+                            .replace(/^"+|"+$/g, "")
+                            .replace(/^'+|'+$/g, "")
+                            .replace(/",$/, "")
+                            .trim();
+                        };
+
+                        var normalizeSlug = function (value) {
+                          return normalizeValue(value).toLowerCase();
+                        };
+
+                        var normalizeKey = function (value) {
+                          return normalizeSlug(value).replace(/[\s_-]+/g, "-");
+                        };
+
+                        var getRowValue = function (row, names) {
+                          var normalizedNames = names.map(normalizeSlug);
+                          var matchingKey = Object.keys(row).find(function (key) {
+                            return normalizedNames.includes(normalizeSlug(key));
+                          });
+                          return matchingKey ? row[matchingKey] : "";
+                        };
+
+                        var normalizeImagePath = function (value) {
+                          var image = cleanSheetValue(value);
+                          if (!image) return "";
+                          if (/^https?:\/\//i.test(image) || image.indexOf("assets/") === 0) return image;
+                          return "assets/floaa-jew-pics/" + image;
+                        };
+
+                        var getContentEntry = function (rows, keys) {
+                          for (var index = 0; index < rows.length; index += 1) {
+                            var row = rows[index];
+                            var key = normalizeKey(getRowValue(row, ["Key", "Name", "Asset", "Type"]));
+                            if (keys.indexOf(key) !== -1) {
+                              return {
+                                exists: true,
+                                value: cleanSheetValue(getRowValue(row, ["Value", "URL", "Url", "Path", "Image", "Video"]))
+                              };
+                            }
+                          }
+
+                          return {
+                            exists: false,
+                            value: ""
+                          };
+                        };
+
+                        window.__floaaBrandRowsPromise.then(function (rows) {
+                          var heroCopy = heroSlide && heroSlide.querySelector(".hero-slide-copy");
+                          var heroKicker = heroCopy && heroCopy.querySelector(".hero-kicker");
+                          var heroHeading = heroCopy && heroCopy.querySelector("h1");
+                          var heroSubtitle = heroCopy && heroCopy.querySelector(".hero-subtitle");
+                          var heroButton = heroCopy && heroCopy.querySelector(".btn");
+                          var showCopy = function () {
+                            if (heroCopy) {
+                              heroCopy.style.visibility = "visible";
+                            }
+                          };
+
+                          if (!Array.isArray(rows)) {
+                            showCopy();
+                            return;
+                          }
+
+                          var kickerEntry = getContentEntry(rows, ["hero-slide-1-kicker"]);
+                          var headingEntry = getContentEntry(rows, ["hero-slide-1-heading"]);
+                          var subtitleEntry = getContentEntry(rows, ["hero-slide-1-subtitle", "hero-slide-1-subtext"]);
+                          var buttonTextEntry = getContentEntry(rows, ["hero-slide-1-button-text"]);
+                          var buttonLinkEntry = getContentEntry(rows, ["hero-slide-1-button-link"]);
+                          var altEntry = getContentEntry(rows, ["hero-slide-1-alt"]);
+
+                          if (heroKicker && kickerEntry.exists) {
+                            heroKicker.textContent = kickerEntry.value;
+                            heroKicker.style.display = kickerEntry.value ? "" : "none";
+                          }
+
+                          if (heroHeading && headingEntry.exists) {
+                            heroHeading.textContent = headingEntry.value;
+                          }
+
+                          if (heroSubtitle && subtitleEntry.exists) {
+                            heroSubtitle.textContent = subtitleEntry.value;
+                            heroSubtitle.style.display = subtitleEntry.value ? "" : "none";
+                          }
+
+                          if (heroButton && buttonTextEntry.exists) {
+                            heroButton.textContent = buttonTextEntry.value;
+                            heroButton.style.display = buttonTextEntry.value ? "" : "none";
+                          }
+
+                          if (heroButton && buttonLinkEntry.exists) {
+                            heroButton.href = buttonLinkEntry.value || "#";
+                          }
+
+                          if (altEntry.exists) {
+                            heroImage.alt = altEntry.value;
+                          }
+
+                          var slideRow = rows.find(function (row) {
+                            var key = normalizeKey(getRowValue(row, ["Key", "Name", "Asset", "Type"]));
+                            return key === "hero-slide-1-image" || key === "hero-slide-1";
+                          });
+
+                          if (!slideRow) {
+                            showCopy();
+                            return;
+                          }
+
+                          var nextImageSrc = normalizeImagePath(getRowValue(slideRow, ["Value", "URL", "Url", "Path", "Image", "Video"]));
+                          if (!nextImageSrc) {
+                            showCopy();
+                            return;
+                          }
+
+                          var safeImageSrc = /^https?:\/\//i.test(nextImageSrc) ? nextImageSrc : encodeURI(nextImageSrc);
+                          heroImage.addEventListener("load", function () {
+                            if (heroSlide) {
+                              heroSlide.classList.add("is-image-ready");
+                            }
+                            showCopy();
+                          }, { once: true });
+                          heroImage.addEventListener("error", function () {
+                            heroImage.removeAttribute("src");
+                            if (heroSlide) {
+                              heroSlide.classList.remove("is-image-ready");
+                            }
+                            showCopy();
+                          }, { once: true });
+                          heroImage.src = safeImageSrc;
+
+                          if (heroImage.complete) {
+                            heroSlide && heroSlide.classList.add("is-image-ready");
+                            showCopy();
+                          }
+                        });
+                      })();
+                    </script>
                 <div class="hero-slide-overlay">
-                        <div class="hero-slide-copy">
+                        <div class="hero-slide-copy" style="visibility: hidden;">
                             <p class="hero-kicker">Floaa Jewellery</p>
                             <h1>Minimal earrings, bracelets, necklaces and sets under &#8377;3K in India.</h1>
-                            <p class="hero-subtitle">Minimal. Effortless. Under ₹2,500</p>
+                            <p class="hero-subtitle">Minimal. Effortless. Under &#8377;2,500</p>
                             <a href="#home-products" class="btn btn-primary">Shop Bestsellers</a>
                         </div>
                     </div>
                 </article>
                 <article class="hero-slide">
-                    <img src="assets/floaa-jew-pics/Ruby%20Royale%20drops.jpeg" alt="FLOAA ruby royale drop earrings" loading="eager" decoding="async">
+                    <img alt="FLOAA ruby royale drop earrings" loading="eager" decoding="async">
                     <div class="hero-slide-overlay">
                         <div class="hero-slide-copy">
                             <p class="hero-kicker">COLOUR STONES</p>
@@ -118,17 +261,17 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     </div>
                 </article>
                 <article class="hero-slide">
-                    <img src="assets/floaa-jew-pics/Ivory%20petal%20charm%20bracelet.jpeg" alt="FLOAA ivory petal charm bracelet" loading="eager" decoding="async">
+                    <img alt="FLOAA ivory petal charm bracelet" loading="eager" decoding="async">
                     <div class="hero-slide-overlay">
                         <div class="hero-slide-copy">
                             <p class="hero-kicker">FREE SHIPPING</p>
-                            <h1>Free Shipping on All Orders 🎀</h1>
+                            <h1>Free Shipping on All Orders</h1>
                             <a href="shop.html" class="btn btn-primary">Shop Now</a>
                         </div>
                     </div>
                 </article>
                 <article class="hero-slide">
-                    <img src="assets/floaa-jew-pics/Lavender%20empress%20set.jpeg" alt="FLOAA lavender empress jewellery set" loading="eager" decoding="async">
+                    <img alt="FLOAA lavender empress jewellery set" loading="eager" decoding="async">
                     <div class="hero-slide-overlay">
                         <div class="hero-slide-copy">
                             <p class="hero-kicker">GIFTING</p>
@@ -250,6 +393,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <p class="footer-note">Copyright 2026 FLOAA. All rights reserved.</p>
     </footer>
 
-    <script src="script.js?v=20260429-7"></script>
+    <script src="script.js?v=20260506-1"></script>
 </body>
 </html>
