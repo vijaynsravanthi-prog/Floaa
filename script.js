@@ -646,7 +646,7 @@ const initializePage = async () => {
                 productBtn.setAttribute("aria-disabled", "true");
                 productBtn.textContent = "Sold Out";
             } else {
-                productBtn.textContent = "Buy on WhatsApp";
+                productBtn.textContent = "Order on WhatsApp";
                 productBtn.productName = item.name;
                 productBtn.productPrice = item.discountPrice || item.price;
                 productBtn.setAttribute("onclick", "gtag('event', 'whatsapp_order_click', {'product_name': this.productName, 'product_price': this.productPrice});");
