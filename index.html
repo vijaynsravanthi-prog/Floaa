@@ -704,5 +704,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         }, { passive: true });
       })();
     </script>
+    <script>
+      (function() {
+        var t0 = Date.now();
+        window.addEventListener('beforeunload', function() {
+          gtag('event', 'time_on_page', {
+            seconds: Math.round((Date.now() - t0) / 1000),
+            page: window.location.pathname
+          });
+        });
+      })();
+    </script>
 </body>
 </html>
