@@ -261,6 +261,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             <p class="hero-kicker">Floaa Jewellery</p>
                             <h1>Minimal earrings, bracelets, necklaces and sets under &#8377;3K in India.</h1>
                             <p class="hero-subtitle">Minimal. Effortless. Under &#8377;2,500</p>
+                            <p class="hero-social-proof" style="font-size: 0.85rem; letter-spacing: 0.08em; color: inherit; opacity: 0.85; margin-top: 0.5rem; margin-bottom: 0;">&#9733;&#9733;&#9733;&#9733;&#9733; Loved by 735+ customers across India</p>
                             <a href="#home-products" class="btn btn-primary">Shop Bestsellers</a>
                         </div>
                     </div>
@@ -679,12 +680,29 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <div>
                 <h3>Follow</h3>
                 <a href="https://www.instagram.com/thefloaa?utm_source=qr&amp;igsh=bmRqMTVlc2NrMmVl" target="_blank" rel="noopener">Instagram</a>
-                <a href="https://wa.me/c/919960144483" target="_blank" rel="noopener">WhatsApp</a>
+                <a href="https://wa.me/c/919960144483" target="_blank" rel="noopener" onclick="gtag('event', 'whatsapp_chat_click', {'location': 'footer'});">WhatsApp</a>
             </div>
         </div>
         <p class="footer-note">Copyright 2026 FLOAA. All rights reserved.</p>
     </footer>
 
     <script src="script.js?v=20260506-1"></script>
+    <script>
+      (function() {
+        var fired = {};
+        var depths = [25, 50, 75, 90];
+        window.addEventListener('scroll', function() {
+          var scrolled = window.scrollY + window.innerHeight;
+          var total = document.documentElement.scrollHeight;
+          var pct = Math.round((scrolled / total) * 100);
+          depths.forEach(function(d) {
+            if (pct >= d && !fired[d]) {
+              fired[d] = true;
+              gtag('event', 'scroll_depth', { depth_percent: d, page: 'home' });
+            }
+          });
+        }, { passive: true });
+      })();
+    </script>
 </body>
 </html>

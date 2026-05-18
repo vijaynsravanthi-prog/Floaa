@@ -493,6 +493,10 @@ const initializePage = async () => {
                 button.textContent = slideButtonText?.value || "";
                 button.style.display = slideButtonText?.value ? "" : "none";
             }
+            const socialProof = copy?.querySelector('.hero-social-proof');
+            if (socialProof && button) {
+                button.insertAdjacentElement('beforebegin', socialProof);
+            }
             if (button && hasSlideButtonLink) {
                 button.href = slideButtonLink?.value || "#";
             }
@@ -643,6 +647,9 @@ const initializePage = async () => {
                 productBtn.textContent = "Sold Out";
             } else {
                 productBtn.textContent = "Buy on WhatsApp";
+                productBtn.productName = item.name;
+                productBtn.productPrice = item.discountPrice || item.price;
+                productBtn.setAttribute("onclick", "gtag('event', 'whatsapp_order_click', {'product_name': this.productName, 'product_price': this.productPrice});");
                 productBtn.addEventListener("click", () => handleWhatsAppOrder(item, brandContent));
             }
 
@@ -758,6 +765,7 @@ const initializePage = async () => {
         whatsappButton.target = "_blank";
         whatsappButton.rel = "noopener";
         whatsappButton.setAttribute("aria-label", "Chat on WhatsApp");
+        whatsappButton.setAttribute("onclick", "gtag('event', 'whatsapp_chat_click', {'location': 'floating_button'});");
 
         const whatsappIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         whatsappIcon.setAttribute("viewBox", "0 0 32 32");
