@@ -551,9 +551,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         <p class="floaa-testimonials__review">"Absolutely love my Floaa earrings! The quality is stunning for the price. I've gotten so many compliments. Will definitely order again."</p>
                         <div class="floaa-testimonials__product">
                             <div class="floaa-testimonials__product-media">
-                                <img alt="Peach Princess Earrings" data-floaa-product-image="Peach Princess Earrings" loading="lazy" hidden>
+                                <img src="assets/floaa-jew-pics/Peach%20Princess%20Earrings.jpeg" alt="Peach Princess Earrings" width="1024" height="1536" loading="lazy" decoding="async">
                             </div>
-                            <a href="shop.html?product=peach-princess-earrings" data-floaa-product-link="Peach Princess Earrings">Peach Princess Earrings</a>
+                            <a href="shop.html?product=peach-princess-earrings">Peach Princess Earrings</a>
                         </div>
                     </article>
                     <article class="floaa-testimonials__card">
@@ -562,9 +562,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         <p class="floaa-testimonials__review">"The earrings arrived beautifully packed and look exactly like the photos. Such a delicate, elegant design &mdash; perfect for everyday wear."</p>
                         <div class="floaa-testimonials__product">
                             <div class="floaa-testimonials__product-media">
-                                <img alt="Starlight Dangles" data-floaa-product-image="Starlight Dangles" loading="lazy" hidden>
+                                <img src="assets/floaa-jew-pics/Starlight%20dangles.jpeg" alt="Starlight Dangles" width="1024" height="1536" loading="lazy" decoding="async">
                             </div>
-                            <a href="shop.html?product=starlight-dangles" data-floaa-product-link="Starlight Dangles">Starlight Dangles</a>
+                            <a href="shop.html?product=starlight-dangles">Starlight Dangles</a>
                         </div>
                     </article>
                     <article class="floaa-testimonials__card">
@@ -573,122 +573,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         <p class="floaa-testimonials__review">"Gifted these to my sister and she absolutely loved them! Gorgeous packaging, premium feel. Floaa is my go-to for gifting now."</p>
                         <div class="floaa-testimonials__product">
                             <div class="floaa-testimonials__product-media">
-                                <img alt="Forrest Flame Earrings" data-floaa-product-image="Forrest Flame Earrings" loading="lazy" hidden>
+                                <img src="assets/floaa-jew-pics/Forest%20Flame%20Earrings.jpeg" alt="Forrest Flame Earrings" width="735" height="1104" loading="lazy" decoding="async">
                             </div>
-                            <a href="shop.html?product=forrest-flame-earrings" data-floaa-product-link="Forrest Flame Earrings">Forrest Flame Earrings</a>
+                            <a href="shop.html?product=forrest-flame-earrings">Forrest Flame Earrings</a>
                         </div>
                     </article>
                 </div>
             </div>
-            <script>
-                (function () {
-                    var section = document.currentScript.closest(".floaa-testimonials");
-                    if (!section) return;
-
-                    var slugify = function (value) {
-                        return String(value || "")
-                            .trim()
-                            .toLowerCase()
-                            .replace(/&/g, "and")
-                            .replace(/[^a-z0-9]+/g, "-")
-                            .replace(/^-+|-+$/g, "");
-                    };
-
-                    var normalizeName = function (value) {
-                        return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
-                    };
-
-                    var normalizeProductName = function (value) {
-                        return normalizeName(value).replace(/^forest flame earrings$/, "forrest flame earrings");
-                    };
-
-                    var getRowValue = function (row, names) {
-                        var normalizedNames = names.map(function (name) {
-                            return String(name).trim().toLowerCase();
-                        });
-                        var matchingKey = Object.keys(row).find(function (key) {
-                            return normalizedNames.indexOf(String(key).trim().toLowerCase()) !== -1;
-                        });
-                        return matchingKey ? row[matchingKey] : "";
-                    };
-
-                    var cleanSheetValue = function (value) {
-                        return String(value || "")
-                            .trim()
-                            .replace(/^"+|"+$/g, "")
-                            .replace(/^'+|'+$/g, "")
-                            .replace(/",$/, "")
-                            .trim();
-                    };
-
-                    var getProductImages = function (value) {
-                        return cleanSheetValue(value)
-                            .split(",")
-                            .map(function (image) { return cleanSheetValue(image); })
-                            .filter(Boolean);
-                    };
-
-                    var normalizeImagePath = function (value) {
-                        var image = cleanSheetValue(value);
-                        if (!image || /^https?:\/\//i.test(image) || image.indexOf("assets/") === 0) return image;
-                        return "assets/floaa-jew-pics/" + image;
-                    };
-
-                    var getProductHref = function (product) {
-                        var href = cleanSheetValue(getRowValue(product, [
-                            "Product URL",
-                            "Product Url",
-                            "Product Link",
-                            "URL",
-                            "Url",
-                            "Link",
-                            "Page",
-                            "Page URL"
-                        ]));
-                        return href || "shop.html?product=" + slugify(getRowValue(product, ["Name"]));
-                    };
-
-                    fetch("https://opensheet.elk.sh/1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs/1")
-                        .then(function (response) {
-                            return response.ok ? response.json() : [];
-                        })
-                        .then(function (products) {
-                            if (!Array.isArray(products)) return;
-
-                            section.querySelectorAll("[data-floaa-product-image]").forEach(function (image) {
-                                var requestedName = normalizeProductName(image.getAttribute("data-floaa-product-image"));
-                                var product = products.find(function (row) {
-                                    return normalizeProductName(getRowValue(row, ["Name"])) === requestedName;
-                                });
-                                if (!product) return;
-
-                                var productImages = getProductImages(getRowValue(product, ["Image", "Images"]));
-                                var imageSrc = normalizeImagePath(productImages[0]);
-                                if (!imageSrc) return;
-
-                                image.addEventListener("load", function () {
-                                    image.hidden = false;
-                                }, { once: true });
-                                image.addEventListener("error", function () {
-                                    image.removeAttribute("src");
-                                    image.hidden = true;
-                                }, { once: true });
-                                image.src = /^https?:\/\//i.test(imageSrc) ? imageSrc : encodeURI(imageSrc);
-                            });
-
-                            section.querySelectorAll("[data-floaa-product-link]").forEach(function (link) {
-                                var requestedName = normalizeProductName(link.getAttribute("data-floaa-product-link"));
-                                var product = products.find(function (row) {
-                                    return normalizeProductName(getRowValue(row, ["Name"])) === requestedName;
-                                });
-                                if (product) {
-                                    link.href = getProductHref(product);
-                                }
-                            });
-                        })
-                        .catch(function () {});
-                })();
-            </script>
         </section>
         <!-- FLOAA TESTIMONIALS SECTION END -->
     </main>
