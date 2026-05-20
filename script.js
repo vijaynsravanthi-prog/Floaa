@@ -9,6 +9,7 @@ const initializePage = async () => {
         ["assets/floaa-jew-pics/tripti-blue-model.png", "assets/floaa-jew-pics/tripti-blue-model.webp"]
     ]);
     const getPreferredHeroImageSrc = (imagePath) => optimizedHeroImageMap.get(imagePath) || imagePath;
+    const getPreferredAltText = (name, description = "") => cleanSheetValue(description) || normalizeValue(name);
     const initHeroSlider = () => {
         const slider = document.querySelector(".hero-slider");
         if (!slider) return;
@@ -467,7 +468,7 @@ const initializePage = async () => {
                 }
             }
             if (image && slideAlt?.value) {
-                image.alt = slideAlt.value;
+                image.alt = getPreferredAltText(slideAlt.value, slideHeading?.value || slideSubtitle?.value);
             }
             if (copy && hasSlideKicker) {
                 if (!kicker) {
@@ -579,7 +580,7 @@ const initializePage = async () => {
             const productMedia = document.createElement("div");
             productMedia.className = "product-media";
             const productImage = document.createElement("img");
-            productImage.alt = item.name;
+            productImage.alt = getPreferredAltText(item.name, item.description);
             productImage.decoding = "async";
             productImage.src = item.image;
 
