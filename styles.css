@@ -911,6 +911,24 @@ input {
     grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.skeleton-card {
+    animation: shimmer 1.4s infinite;
+    aspect-ratio: 3/4;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    border-radius: 8px;
+    width: 100%;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+#category-product-grid:not(:empty) .skeleton-card {
+    display: none;
+}
+
 .product-card {
     border-radius: 1.5rem;
     display: flex;

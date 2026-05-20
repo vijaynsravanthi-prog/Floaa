@@ -670,6 +670,8 @@ const initializePage = async () => {
             productCard.append(productMedia, productInfo);
             container.append(productCard);
         });
+
+        document.querySelectorAll(".skeleton-card").forEach((element) => element.remove());
     };
 
     const addShoppingPolicyContent = () => {
