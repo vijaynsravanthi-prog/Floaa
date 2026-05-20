@@ -867,10 +867,14 @@ input {
 .product-media {
     aspect-ratio: 0.92;
     background-color: var(--bg-soft);
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: contain;
     margin: 1rem;
+}
+
+.product-media img {
+    display: block;
+    height: 100%;
+    object-fit: contain;
+    width: 100%;
 }
 
 .product-info {

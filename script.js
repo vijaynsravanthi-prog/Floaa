@@ -2,6 +2,13 @@ const initializePage = async () => {
     const SHEET_ID = "1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs";
     const PRODUCTS_URL = `https://opensheet.elk.sh/${SHEET_ID}/1`;
     const BRAND_CONTENT_URL = `https://opensheet.elk.sh/${SHEET_ID}/BrandContent`;
+    const optimizedHeroImageMap = new Map([
+        ["assets/floaa-jew-pics/lavender-empress-set.png", "assets/floaa-jew-pics/lavender-empress-set.webp"],
+        ["assets/floaa-jew-pics/pistachio-model.png", "assets/floaa-jew-pics/pistachio-model.webp"],
+        ["assets/floaa-jew-pics/ruby-model.png", "assets/floaa-jew-pics/ruby-model.webp"],
+        ["assets/floaa-jew-pics/tripti-blue-model.png", "assets/floaa-jew-pics/tripti-blue-model.webp"]
+    ]);
+    const getPreferredHeroImageSrc = (imagePath) => optimizedHeroImageMap.get(imagePath) || imagePath;
     const initHeroSlider = () => {
         const slider = document.querySelector(".hero-slider");
         if (!slider) return;
@@ -82,15 +89,8 @@ const initializePage = async () => {
         if (!image || !nextImageSrc) return;
 
         const slide = image.closest(".hero-slide");
-        slide?.classList.remove("is-image-ready");
-        const safeImageSrc = /^https?:\/\//i.test(nextImageSrc) ? nextImageSrc : encodeURI(nextImageSrc);
-
-        if (image.getAttribute("src") === safeImageSrc) {
-            if (image.complete) {
-                slide?.classList.add("is-image-ready");
-            }
-            return;
-        }
+        const preferredImageSrc = getPreferredHeroImageSrc(nextImageSrc);
+        const safeImageSrc = /^https?:\/\//i.test(preferredImageSrc) ? preferredImageSrc : encodeURI(preferredImageSrc);
 
         const handleReady = () => {
             slide?.classList.add("is-image-ready");
@@ -100,6 +100,17 @@ const initializePage = async () => {
             slide?.classList.remove("is-image-ready");
         };
 
+        if (image.getAttribute("src") === safeImageSrc) {
+            if (image.complete) {
+                handleReady();
+            } else {
+                image.addEventListener("load", handleReady, { once: true });
+                image.addEventListener("error", handleError, { once: true });
+            }
+            return;
+        }
+
+        slide?.classList.remove("is-image-ready");
         image.addEventListener("load", handleReady, { once: true });
         image.addEventListener("error", handleError, { once: true });
         image.src = safeImageSrc;
@@ -117,17 +128,11 @@ const initializePage = async () => {
             image.closest(".hero-slide")?.classList.add("is-image-ready");
         };
 
-        heroImages.forEach((image, index) => {
+        heroImages.forEach((image) => {
             if (image.complete) {
                 markReady(image);
             } else if (image.getAttribute("src")) {
                 image.addEventListener("load", () => markReady(image), { once: true });
-            }
-
-            if (index > 0 && image.getAttribute("src")) {
-                const preload = new Image();
-                preload.decoding = "async";
-                preload.src = image.currentSrc || image.src;
             }
         });
     };
@@ -567,13 +572,21 @@ const initializePage = async () => {
         if (!container) return;
         container.innerHTML = "";
 
-        items.forEach((item) => {
+        items.forEach((item, index) => {
             const productCard = document.createElement("article");
             productCard.className = "product-card";
 
             const productMedia = document.createElement("div");
             productMedia.className = "product-media";
-            productMedia.style.backgroundImage = `url("${item.image}")`;
+            const productImage = document.createElement("img");
+            productImage.alt = item.name;
+            productImage.decoding = "async";
+            productImage.src = item.image;
+
+            const shouldKeepEager = (container.id === "shop-product-grid" || container.id === "category-product-grid") && index < 2;
+            productImage.loading = shouldKeepEager ? "eager" : "lazy";
+
+            productMedia.append(productImage);
             if (item.images?.length > 1) {
                 let activeImageIndex = 0;
                 productMedia.setAttribute("role", "button");
@@ -582,7 +595,7 @@ const initializePage = async () => {
 
                 const showNextImage = () => {
                     activeImageIndex = (activeImageIndex + 1) % item.images.length;
-                    productMedia.style.backgroundImage = `url("${item.images[activeImageIndex]}")`;
+                    productImage.src = item.images[activeImageIndex];
                 };
 
                 productMedia.addEventListener("click", showNextImage);
