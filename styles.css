@@ -1138,6 +1138,27 @@ input {
     max-width: 48rem;
 }
 
+.category-banner-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.95rem 1.2rem;
+    margin-top: 1.3rem;
+}
+
+.category-banner-actions .btn {
+    min-height: 46px;
+}
+
+.category-secondary-link {
+    color: var(--control-gold-text);
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-top: 0;
+    text-transform: uppercase;
+}
+
 .contact-grid,
 .story-grid {
     display: grid;
@@ -1507,6 +1528,16 @@ input {
         border-radius: 0.75rem;
         padding: 0.8rem;
         width: 100%;
+    }
+
+    .category-banner-actions {
+        align-items: stretch;
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .category-secondary-link {
+        justify-self: center;
     }
 
     .brand-logo-link {

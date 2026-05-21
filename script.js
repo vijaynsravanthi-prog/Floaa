@@ -256,6 +256,13 @@ const initializePage = async () => {
     const buildWhatsAppUrl = (number, message) => number
         ? `https://wa.me/${number}?text=${encodeURIComponent(message)}`
         : "";
+    const trackEvent = (eventName, params = {}) => {
+        if (typeof window.gtag !== "function") return;
+        window.gtag("event", eventName, {
+            page_path: window.location.pathname,
+            ...params
+        });
+    };
     const handleWhatsAppOrder = (item, brandContent) => {
         const whatsappNumber = getWhatsAppNumber(brandContent);
         if (!whatsappNumber) return;
@@ -274,6 +281,12 @@ const initializePage = async () => {
         ].filter(Boolean).join("\n");
 
         const whatsappUrl = buildWhatsAppUrl(whatsappNumber, message);
+        trackEvent("whatsapp_order_click", {
+            product_name: item.name,
+            product_price: finalPrice,
+            product_category: item.category,
+            location: "product_card"
+        });
         window.open(whatsappUrl, "_blank", "noopener");
     };
     const getYouTubeVideoId = (value) => {
@@ -437,9 +450,14 @@ const initializePage = async () => {
         if (whatsappUrl) {
             document.querySelectorAll('a[href*="wa.me/"]').forEach((link) => {
                 if (link.href.includes("/c/")) return;
-                link.href = whatsappUrl;
+                link.href = buildWhatsAppUrl(whatsappNumber, link.dataset.whatsappMessage || whatsappMessage);
             });
         }
+
+        document.querySelectorAll(".category-whatsapp-cta").forEach((link) => {
+            if (!whatsappNumber) return;
+            link.href = buildWhatsAppUrl(whatsappNumber, link.dataset.whatsappMessage || whatsappMessage);
+        });
 
         if (contactPhone) {
             document.querySelectorAll(".contact-card").forEach((card) => {
@@ -631,6 +649,8 @@ const initializePage = async () => {
                 if (!item?.name || !item?.image) return;
                 const productCard = document.createElement("article");
                 productCard.className = "product-card";
+                productCard.dataset.productName = item.name;
+                productCard.dataset.productCategory = item.category;
 
                 const productMedia = document.createElement("div");
                 productMedia.className = "product-media";
@@ -718,9 +738,17 @@ const initializePage = async () => {
                     productBtn.textContent = "Order on WhatsApp";
                     productBtn.productName = item.name;
                     productBtn.productPrice = item.discountPrice || item.price;
-                    productBtn.setAttribute("onclick", "gtag('event', 'whatsapp_order_click', {'product_name': this.productName, 'product_price': this.productPrice});");
                     productBtn.addEventListener("click", () => handleWhatsAppOrder(item, brandContent));
                 }
+
+                productCard.addEventListener("click", (event) => {
+                    if (event.target.closest("button")) return;
+                    trackEvent("product_card_click", {
+                        product_name: item.name,
+                        product_category: item.category,
+                        click_target: event.target.closest(".product-media") ? "product_image" : "product_details"
+                    });
+                });
 
                 productInfo.append(productTag, productName, productPrice, productDescription, productStock, productBtn);
                 productCard.append(productMedia, productInfo);
@@ -821,6 +849,11 @@ const initializePage = async () => {
             button.addEventListener("click", () => {
                 const filterValue = button.dataset.filter;
                 const nextItems = applyProductFilters(categoryProducts, { categoryFilter: filterValue });
+                trackEvent("category_filter_click", {
+                    category,
+                    filter_value: filterValue,
+                    matching_products: nextItems.length
+                });
 
                 filterButtons.forEach((item) => {
                     item.classList.remove("is-active");
@@ -844,6 +877,24 @@ const initializePage = async () => {
             navToggle.setAttribute("aria-expanded", String(isOpen));
         });
     }
+    document.querySelectorAll('.instagram-link, a[href*="instagram.com/thefloaa"]').forEach((link) => {
+        link.addEventListener("click", () => {
+            trackEvent("instagram_click", {
+                location: link.classList.contains("mobile-icon-link")
+                    ? "mobile_header"
+                    : link.classList.contains("desktop-instagram-link")
+                        ? "desktop_header"
+                        : "footer"
+            });
+        });
+    });
+    document.querySelectorAll(".category-whatsapp-cta").forEach((link) => {
+        link.addEventListener("click", () => {
+            trackEvent("whatsapp_chat_click", {
+                location: link.dataset.trackingLocation || "category_banner"
+            });
+        });
+    });
     if (!document.querySelector(".whatsapp-float")) {
         const whatsappUrl = buildWhatsAppUrl(getWhatsAppNumber(brandContent), getWhatsAppMessage(brandContent));
         if (!whatsappUrl) return;
@@ -854,7 +905,11 @@ const initializePage = async () => {
         whatsappButton.target = "_blank";
         whatsappButton.rel = "noopener";
         whatsappButton.setAttribute("aria-label", "Chat on WhatsApp");
-        whatsappButton.setAttribute("onclick", "gtag('event', 'whatsapp_chat_click', {'location': 'floating_button'});");
+        whatsappButton.addEventListener("click", () => {
+            trackEvent("whatsapp_chat_click", {
+                location: "floating_button"
+            });
+        });
 
         const whatsappIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         whatsappIcon.setAttribute("viewBox", "0 0 32 32");
