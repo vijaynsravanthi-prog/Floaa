@@ -852,9 +852,11 @@ input {
     background: var(--control-gold);
     border: 1px solid var(--control-gold-deep);
     border-radius: 999px;
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
     color: var(--control-gold-text);
     display: inline-flex;
     padding: 0.85rem 1.2rem;
+    transition: box-shadow 0.18s ease, transform 0.18s ease;
 }
 
 .style-link-row a:hover,
@@ -865,13 +867,19 @@ input {
 }
 
 .filter-chip {
+    align-items: center;
     cursor: pointer;
+    justify-content: center;
+    min-height: 44px;
+    text-align: center;
 }
 
 .filter-chip.is-active {
     background: var(--control-gold);
     border-color: var(--control-gold-deep);
+    box-shadow: inset 0 0 0 1px rgba(106, 72, 9, 0.24), 0 6px 16px rgba(184, 137, 36, 0.14);
     color: var(--control-gold-text);
+    transform: translateY(-1px);
 }
 
 .split-feature .feature-panel {
@@ -906,9 +914,16 @@ input {
 }
 
 .product-grid {
+    align-items: start;
     display: grid;
     gap: 1.3rem;
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    min-height: 18rem;
+}
+
+.product-grid.is-refreshed .product-card,
+.product-grid.is-refreshed .product-grid-notice {
+    animation: product-grid-refresh 0.22s ease;
 }
 
 .skeleton-card {
@@ -925,14 +940,45 @@ input {
     100% { background-position: -200% 0; }
 }
 
+@keyframes product-grid-refresh {
+    0% {
+        opacity: 0.78;
+        transform: translateY(4px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 #category-product-grid:not(:empty) .skeleton-card {
     display: none;
+}
+
+.product-grid-notice {
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 1.5rem;
+    color: var(--muted);
+    display: flex;
+    grid-column: 1 / -1;
+    justify-content: center;
+    min-height: 18rem;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.product-grid-notice.is-error {
+    color: var(--text);
 }
 
 .product-card {
     border-radius: 1.5rem;
     display: flex;
     flex-direction: column;
+    height: 100%;
+    min-width: 0;
     overflow: hidden;
 }
 
@@ -940,12 +986,22 @@ input {
     aspect-ratio: 0.92;
     background-color: var(--bg-soft);
     margin: 1rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.product-media::before {
+    content: "";
+    display: block;
+    padding-top: 108.6957%;
 }
 
 .product-media img {
     display: block;
     height: 100%;
+    inset: 0;
     object-fit: contain;
+    position: absolute;
     width: 100%;
 }
 
@@ -953,6 +1009,7 @@ input {
     display: flex;
     flex: 1;
     flex-direction: column;
+    min-width: 0;
     padding: 0 1.25rem 1.4rem;
 }
 
@@ -961,12 +1018,16 @@ input {
     display: inline-block;
     font-size: 0.78rem;
     letter-spacing: 0.22em;
-    margin-bottom: 0.7rem;
+    margin: 0 0 0.7rem;
     text-transform: uppercase;
 }
 
 .product-name {
     font-size: 2rem;
+    line-height: 1;
+    margin: 0;
+    min-height: 3.84rem;
+    overflow-wrap: anywhere;
 }
 
 .product-price {
@@ -979,6 +1040,7 @@ input {
     font-weight: 700;
     letter-spacing: 0.08em;
     margin: 0.4rem 0 0.6rem;
+    min-height: 1.3rem;
     text-transform: uppercase;
 }
 
@@ -994,8 +1056,16 @@ input {
 
 .product-description {
     color: var(--muted);
-    margin-bottom: 1rem;
+    overflow-wrap: anywhere;
+    margin: 0 0 1rem;
     min-height: 3.2rem;
+}
+
+@media (min-width: 1680px) {
+    .product-grid {
+        gap: 1.5rem;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
 }
 
 .product-stock {
@@ -1338,6 +1408,12 @@ input {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .filter-row {
+        display: grid;
+        gap: 0.8rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .product-card {
         border-radius: 0.75rem;
     }
@@ -1358,6 +1434,8 @@ input {
 
     .product-name {
         font-size: 1.3rem;
+        line-height: 1.02;
+        min-height: 2.5rem;
     }
 
     .product-price {
@@ -1365,6 +1443,7 @@ input {
         gap: 0.3rem;
         letter-spacing: 0.04em;
         margin: 0.3rem 0 0.45rem;
+        min-height: 1.9rem;
     }
 
     .product-price-original {
@@ -1422,6 +1501,12 @@ input {
         min-height: 4rem;
         padding: 0.8rem;
         text-align: center;
+    }
+
+    .filter-chip {
+        border-radius: 0.75rem;
+        padding: 0.8rem;
+        width: 100%;
     }
 
     .brand-logo-link {
@@ -1497,6 +1582,11 @@ input {
 
     .site-header {
         min-height: 84px;
+    }
+
+    .filter-row,
+    .style-link-row {
+        gap: 0.7rem;
     }
 
     .brand-logo-link {

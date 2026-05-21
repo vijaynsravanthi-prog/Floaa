@@ -195,6 +195,24 @@ const initializePage = async () => {
             return true;
         });
     };
+    const matchesCategoryFilter = (product, categoryFilterKey) => {
+        const candidates = new Set([categoryFilterKey]);
+        if (categoryFilterKey.endsWith("s")) {
+            candidates.add(categoryFilterKey.slice(0, -1));
+        }
+
+        const searchableFields = [
+            ...(product.filters || []),
+            product.style,
+            normalizeKey(product.tag),
+            normalizeKey(product.name),
+            normalizeKey(product.description)
+        ].filter(Boolean);
+
+        return Array.from(candidates).some((candidate) =>
+            searchableFields.some((value) => value === candidate || value.includes(candidate))
+        );
+    };
     const applyProductFilters = (items, { style = "", price = "", categoryFilter = "" } = {}) => {
         const styleKey = normalizeKey(style);
         const categoryFilterKey = normalizeKey(categoryFilter);
@@ -202,12 +220,11 @@ const initializePage = async () => {
         const hasFilterData = items.some((product) => product.filters?.length);
         let filteredItems = styleKey && hasStyleData ? items.filter((product) => product.style === styleKey) : items;
         filteredItems = filterProductsByPrice(filteredItems, price);
-        if (categoryFilterKey && categoryFilterKey !== "all" && hasFilterData) {
-            filteredItems = filteredItems.filter((product) =>
-                product.filters.includes(categoryFilterKey) ||
-                product.style === categoryFilterKey ||
-                filterProductsByPrice([product], categoryFilterKey).length > 0
-            );
+        if (categoryFilterKey && categoryFilterKey !== "all") {
+            const matchingItems = filteredItems.filter((product) => matchesCategoryFilter(product, categoryFilterKey));
+            if (matchingItems.length || hasFilterData) {
+                filteredItems = matchingItems.length ? matchingItems : filteredItems;
+            }
         }
         return filteredItems;
     };
@@ -286,6 +303,9 @@ const initializePage = async () => {
         const status = normalizeStatus(getRowValue(row, ["Status"])) || "active";
         const stockStatus = normalizeKey(getRowValue(row, ["StockStatus", "Stock Status"])) || "in-stock";
         const description = cleanSheetValue(getRowValue(row, ["Description"]));
+        const filters = normalizeList(getRowValue(row, ["Filters", "Filter"])).map(normalizeKey);
+        const style = normalizeKey(getRowValue(row, ["Style", "Styles"]));
+        const tag = cleanSheetValue(getRowValue(row, ["Tag", "Label"]));
         const normalizedCategory = category || "shop";
 
         return {
@@ -303,9 +323,9 @@ const initializePage = async () => {
             category: normalizedCategory,
             status,
             stockStatus,
-            filters: [],
-            style: "",
-            tag: normalizedCategory.charAt(0).toUpperCase() + normalizedCategory.slice(1)
+            filters,
+            style,
+            tag: tag || normalizedCategory.charAt(0).toUpperCase() + normalizedCategory.slice(1)
         };
     };
 
@@ -569,110 +589,158 @@ const initializePage = async () => {
         }
     };
 
-    const renderProducts = (container, items, href) => {
+    const clearGridSkeletons = (container) => {
+        container?.querySelectorAll(".skeleton-card").forEach((element) => element.remove());
+    };
+    const signalGridRefresh = (container) => {
+        if (!container) return;
+        container.classList.remove("is-refreshed");
+        container.setAttribute("aria-busy", "true");
+        void container.offsetWidth;
+        container.classList.add("is-refreshed");
+        window.setTimeout(() => {
+            container.classList.remove("is-refreshed");
+            container.setAttribute("aria-busy", "false");
+        }, 220);
+    };
+    const renderGridNotice = (container, message, tone = "info") => {
         if (!container) return;
         container.innerHTML = "";
+        clearGridSkeletons(container);
+        const notice = document.createElement("div");
+        notice.className = `product-grid-notice${tone === "error" ? " is-error" : ""}`;
+        notice.textContent = message;
+        container.append(notice);
+        signalGridRefresh(container);
+    };
+    const renderProducts = (container, items, href) => {
+        if (!container) return;
+        if (!Array.isArray(items)) {
+            renderGridNotice(container, "Products are loading. Please try again in a moment.", "error");
+            return;
+        }
+        if (!items.length) {
+            renderGridNotice(container, "No products match this selection right now.");
+            return;
+        }
 
-        items.forEach((item, index) => {
-            const productCard = document.createElement("article");
-            productCard.className = "product-card";
+        const fragment = document.createDocumentFragment();
 
-            const productMedia = document.createElement("div");
-            productMedia.className = "product-media";
-            const productImage = document.createElement("img");
-            productImage.alt = getPreferredAltText(item.name, item.description);
-            productImage.decoding = "async";
-            productImage.src = item.image;
+        try {
+            items.forEach((item, index) => {
+                if (!item?.name || !item?.image) return;
+                const productCard = document.createElement("article");
+                productCard.className = "product-card";
 
-            const shouldKeepEager = (container.id === "shop-product-grid" || container.id === "category-product-grid") && index < 2;
-            productImage.loading = shouldKeepEager ? "eager" : "lazy";
+                const productMedia = document.createElement("div");
+                productMedia.className = "product-media";
+                const productImage = document.createElement("img");
+                productImage.alt = getPreferredAltText(item.name, item.description);
+                productImage.decoding = "async";
+                productImage.src = item.image;
 
-            productMedia.append(productImage);
-            if (item.images?.length > 1) {
-                let activeImageIndex = 0;
-                productMedia.setAttribute("role", "button");
-                productMedia.setAttribute("tabindex", "0");
-                productMedia.setAttribute("aria-label", `View more images of ${item.name}`);
+                const shouldKeepEager = (container.id === "shop-product-grid" || container.id === "category-product-grid") && index < 2;
+                productImage.loading = shouldKeepEager ? "eager" : "lazy";
 
-                const showNextImage = () => {
-                    activeImageIndex = (activeImageIndex + 1) % item.images.length;
-                    productImage.src = item.images[activeImageIndex];
-                };
+                productMedia.append(productImage);
+                if (item.images?.length > 1) {
+                    let activeImageIndex = 0;
+                    productMedia.setAttribute("role", "button");
+                    productMedia.setAttribute("tabindex", "0");
+                    productMedia.setAttribute("aria-label", `View more images of ${item.name}`);
 
-                productMedia.addEventListener("click", showNextImage);
-                productMedia.addEventListener("keydown", (event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        showNextImage();
-                    }
-                });
-            }
-            if (item.isNew) {
-                const newBadge = document.createElement("span");
-                newBadge.textContent = "New";
-                newBadge.style.cssText = "position:absolute;top:0.75rem;left:0.75rem;z-index:1;background:#fffdf8;color:#2f2a2c;border:1px solid rgba(215,189,126,0.5);border-radius:999px;padding:0.25rem 0.55rem;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;box-shadow:0 8px 18px rgba(92,82,88,0.12);";
-                productMedia.style.position = "relative";
-                productMedia.append(newBadge);
-            }
+                    const showNextImage = () => {
+                        activeImageIndex = (activeImageIndex + 1) % item.images.length;
+                        productImage.src = item.images[activeImageIndex];
+                    };
 
-            const productInfo = document.createElement("div");
-            productInfo.className = "product-info";
+                    productMedia.addEventListener("click", showNextImage);
+                    productMedia.addEventListener("keydown", (event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            showNextImage();
+                        }
+                    });
+                }
+                if (item.isNew) {
+                    const newBadge = document.createElement("span");
+                    newBadge.textContent = "New";
+                    newBadge.style.cssText = "position:absolute;top:0.75rem;left:0.75rem;z-index:1;background:#fffdf8;color:#2f2a2c;border:1px solid rgba(215,189,126,0.5);border-radius:999px;padding:0.25rem 0.55rem;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;box-shadow:0 8px 18px rgba(92,82,88,0.12);";
+                    productMedia.style.position = "relative";
+                    productMedia.append(newBadge);
+                }
 
-            const productTag = document.createElement("span");
-            productTag.className = "product-tag";
-            productTag.textContent = item.tag;
+                const productInfo = document.createElement("div");
+                productInfo.className = "product-info";
 
-            const productName = document.createElement("h3");
-            productName.className = "product-name";
-            productName.textContent = item.name;
+                const productTag = document.createElement("span");
+                productTag.className = "product-tag";
+                productTag.textContent = item.tag;
 
-            const productPrice = document.createElement("p");
-            productPrice.className = "product-price";
-            if (item.discountPrice) {
-                const originalPrice = document.createElement("span");
-                originalPrice.className = "product-price-original";
-                originalPrice.textContent = item.price;
+                const productName = document.createElement("h3");
+                productName.className = "product-name";
+                productName.textContent = item.name;
 
-                const discountPrice = document.createElement("span");
-                discountPrice.className = "product-price-discount";
-                discountPrice.textContent = item.discountPrice;
+                const productPrice = document.createElement("p");
+                productPrice.className = "product-price";
+                if (item.discountPrice) {
+                    const originalPrice = document.createElement("span");
+                    originalPrice.className = "product-price-original";
+                    originalPrice.textContent = item.price;
 
-                productPrice.append(discountPrice, originalPrice);
-            } else {
-                productPrice.textContent = item.price;
-            }
+                    const discountPrice = document.createElement("span");
+                    discountPrice.className = "product-price-discount";
+                    discountPrice.textContent = item.discountPrice;
 
-            const productDescription = document.createElement("p");
-            productDescription.className = "product-description";
-            productDescription.textContent = item.description;
+                    productPrice.append(discountPrice, originalPrice);
+                } else {
+                    productPrice.textContent = item.price;
+                }
 
-            const isSoldOut = item.stockStatus === "sold-out";
-            const productStock = document.createElement("p");
-            productStock.className = isSoldOut ? "product-stock is-sold-out" : "product-stock";
-            productStock.textContent = isSoldOut ? "Sold Out" : "";
+                const productDescription = document.createElement("p");
+                productDescription.className = "product-description";
+                productDescription.textContent = item.description;
 
-            const productBtn = document.createElement("button");
-            productBtn.className = "btn btn-primary";
-            productBtn.type = "button";
-            if (isSoldOut) {
-                productBtn.classList.add("is-disabled");
-                productBtn.disabled = true;
-                productBtn.setAttribute("aria-disabled", "true");
-                productBtn.textContent = "Sold Out";
-            } else {
-                productBtn.textContent = "Order on WhatsApp";
-                productBtn.productName = item.name;
-                productBtn.productPrice = item.discountPrice || item.price;
-                productBtn.setAttribute("onclick", "gtag('event', 'whatsapp_order_click', {'product_name': this.productName, 'product_price': this.productPrice});");
-                productBtn.addEventListener("click", () => handleWhatsAppOrder(item, brandContent));
-            }
+                const isSoldOut = item.stockStatus === "sold-out";
+                const productStock = document.createElement("p");
+                productStock.className = isSoldOut ? "product-stock is-sold-out" : "product-stock";
+                productStock.textContent = isSoldOut ? "Sold Out" : "";
 
-            productInfo.append(productTag, productName, productPrice, productDescription, productStock, productBtn);
-            productCard.append(productMedia, productInfo);
-            container.append(productCard);
-        });
+                const productBtn = document.createElement("button");
+                productBtn.className = "btn btn-primary";
+                productBtn.type = "button";
+                if (isSoldOut) {
+                    productBtn.classList.add("is-disabled");
+                    productBtn.disabled = true;
+                    productBtn.setAttribute("aria-disabled", "true");
+                    productBtn.textContent = "Sold Out";
+                } else {
+                    productBtn.textContent = "Order on WhatsApp";
+                    productBtn.productName = item.name;
+                    productBtn.productPrice = item.discountPrice || item.price;
+                    productBtn.setAttribute("onclick", "gtag('event', 'whatsapp_order_click', {'product_name': this.productName, 'product_price': this.productPrice});");
+                    productBtn.addEventListener("click", () => handleWhatsAppOrder(item, brandContent));
+                }
 
-        document.querySelectorAll(".skeleton-card").forEach((element) => element.remove());
+                productInfo.append(productTag, productName, productPrice, productDescription, productStock, productBtn);
+                productCard.append(productMedia, productInfo);
+                fragment.append(productCard);
+            });
+        } catch (error) {
+            console.error("renderProducts failed", error);
+            renderGridNotice(container, "We couldn't load these products right now. Please refresh and try again.", "error");
+            return;
+        }
+
+        if (!fragment.childNodes.length) {
+            renderGridNotice(container, "We couldn't load these products right now. Please refresh and try again.", "error");
+            return;
+        }
+
+        container.innerHTML = "";
+        clearGridSkeletons(container);
+        container.append(fragment);
+        signalGridRefresh(container);
     };
 
     const addShoppingPolicyContent = () => {
@@ -699,13 +767,10 @@ const initializePage = async () => {
 
     addShoppingPolicyContent();
 
+    let brandContent = {};
     const bodyPage = document.body.dataset.page;
     const productsPromise = fetchProducts();
     const brandContentPromise = fetchBrandContent();
-
-    const brandContent = await brandContentPromise;
-    applyBrandContent(brandContent);
-
     const products = await productsPromise;
 
     const homeGrid = document.getElementById("home-product-grid");
@@ -742,6 +807,7 @@ const initializePage = async () => {
     const categoryGrid = document.getElementById("category-product-grid");
     if (categoryGrid) {
         const category = document.body.dataset.category;
+        const filterButtons = Array.from(document.querySelectorAll("[data-filter]"));
         const categoryProducts = products.filter((product) => {
             if (category === "combos") {
                 return product.category === "combos" || product.category === "comboset";
@@ -750,18 +816,25 @@ const initializePage = async () => {
             return product.category === category;
         });
         renderProducts(categoryGrid, categoryProducts, "contact.html");
-
-        document.querySelectorAll("[data-filter]").forEach((button) => {
+        filterButtons.forEach((button) => {
+            button.setAttribute("aria-pressed", button.dataset.filter === "all" ? "true" : "false");
             button.addEventListener("click", () => {
                 const filterValue = button.dataset.filter;
                 const nextItems = applyProductFilters(categoryProducts, { categoryFilter: filterValue });
 
-                document.querySelectorAll("[data-filter]").forEach((item) => item.classList.remove("is-active"));
+                filterButtons.forEach((item) => {
+                    item.classList.remove("is-active");
+                    item.setAttribute("aria-pressed", "false");
+                });
                 button.classList.add("is-active");
+                button.setAttribute("aria-pressed", "true");
                 renderProducts(categoryGrid, nextItems, "contact.html");
             });
         });
     }
+
+    brandContent = await brandContentPromise;
+    applyBrandContent(brandContent);
 
     const navToggle = document.querySelector(".nav-toggle");
     const mainNav = document.getElementById("site-nav");
