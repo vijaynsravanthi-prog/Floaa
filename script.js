@@ -253,6 +253,7 @@ const initializePage = async () => {
         "whatsapp-message",
         "contact-whatsapp-message"
     ])) || "Hi FLOAA, I am interested in your collection";
+    const getLinkWhatsAppMessage = (link, fallbackMessage) => cleanSheetValue(link?.dataset?.whatsappMessage || "") || fallbackMessage;
     const buildWhatsAppUrl = (number, message) => number
         ? `https://wa.me/${number}?text=${encodeURIComponent(message)}`
         : "";
@@ -450,13 +451,13 @@ const initializePage = async () => {
         if (whatsappUrl) {
             document.querySelectorAll('a[href*="wa.me/"]').forEach((link) => {
                 if (link.href.includes("/c/")) return;
-                link.href = buildWhatsAppUrl(whatsappNumber, link.dataset.whatsappMessage || whatsappMessage);
+                link.href = buildWhatsAppUrl(whatsappNumber, getLinkWhatsAppMessage(link, whatsappMessage));
             });
         }
 
         document.querySelectorAll(".category-whatsapp-cta").forEach((link) => {
             if (!whatsappNumber) return;
-            link.href = buildWhatsAppUrl(whatsappNumber, link.dataset.whatsappMessage || whatsappMessage);
+            link.href = buildWhatsAppUrl(whatsappNumber, getLinkWhatsAppMessage(link, whatsappMessage));
         });
 
         if (contactPhone) {
