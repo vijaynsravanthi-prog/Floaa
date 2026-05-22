@@ -479,12 +479,12 @@ input {
 
 .hero-slide img {
     display: block;
-    filter: saturate(1.02) contrast(1.01);
+    filter: saturate(0.98) contrast(1) brightness(0.98);
     height: 100%;
     margin-right: auto;
     opacity: 0;
     object-fit: cover;
-    object-position: left center;
+    object-position: center center;
     padding: 0;
     transition: opacity 0.24s ease;
     width: 100%;
@@ -503,11 +503,11 @@ input {
 .hero-slide-overlay {
     align-items: center;
     background:
-        linear-gradient(90deg, rgba(255, 250, 244, 0) 0%, rgba(255, 250, 244, 0.1) 46%, rgba(255, 250, 244, 0.46) 66%, rgba(255, 250, 244, 0.82) 100%);
+        linear-gradient(90deg, rgba(255, 250, 244, 0.02) 0%, rgba(255, 250, 244, 0.12) 42%, rgba(255, 250, 244, 0.48) 64%, rgba(255, 250, 244, 0.84) 100%);
     display: flex;
     inset: 0;
     justify-content: flex-end;
-    padding: clamp(2rem, 5vw, 4.5rem) clamp(4rem, 8vw, 8rem) clamp(5.5rem, 7vw, 7rem) clamp(2rem, 5vw, 4.5rem);
+    padding: clamp(2rem, 5vw, 4.75rem) clamp(4rem, 8vw, 8rem) clamp(5.65rem, 7vw, 7.2rem) clamp(2rem, 5vw, 4.5rem);
     position: absolute;
 }
 
@@ -517,8 +517,8 @@ input {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    max-width: min(40rem, 43vw);
-    padding-left: clamp(1rem, 3vw, 3rem);
+    max-width: min(34rem, 39vw);
+    padding-left: clamp(1.2rem, 3vw, 3.2rem);
     text-align: center;
 }
 
@@ -534,6 +534,18 @@ input {
 
 .hero-slide-copy .hero-subtitle {
     color: rgba(47, 42, 44, 0.78);
+}
+
+.hero-slide--signature img {
+    object-position: 18% 38%;
+}
+
+.hero-slide--colour img {
+    object-position: 32% 36%;
+}
+
+.hero-slide--gifting img {
+    object-position: 28% 34%;
 }
 
 .hero-slider-arrow {
@@ -1349,7 +1361,7 @@ input {
         mask-image: none;
         opacity: 1;
         object-fit: cover;
-        object-position: center 24%;
+        object-position: center 20%;
         padding: 0;
         -webkit-mask-image: none;
         width: 100%;
@@ -1357,13 +1369,25 @@ input {
 
     .hero-slide-copy {
         align-items: center;
-        max-width: min(34rem, 82vw);
+        max-width: min(30rem, 76vw);
         padding-left: 0;
         text-align: center;
     }
 
     .hero-slide-copy h1 {
         font-size: clamp(2.6rem, 9vw, 4rem);
+    }
+
+    .hero-slide--signature img {
+        object-position: 44% 22%;
+    }
+
+    .hero-slide--colour img {
+        object-position: 52% 20%;
+    }
+
+    .hero-slide--gifting img {
+        object-position: 50% 18%;
     }
 
     .site-header {
@@ -1659,10 +1683,10 @@ input {
     }
 
     .hero-slide img {
-        filter: none;
-        object-fit: contain;
-        object-position: center center;
-        padding: 0.65rem 0.9rem 0;
+        filter: saturate(0.98) contrast(1) brightness(0.98);
+        object-fit: cover;
+        object-position: center 18%;
+        padding: 0;
         height: 100%;
         width: 100%;
     }
@@ -1691,6 +1715,18 @@ input {
         line-height: 1.4;
         margin-bottom: 0.75rem;
         max-width: 16rem;
+    }
+
+    .hero-slide--signature img {
+        object-position: 42% 16%;
+    }
+
+    .hero-slide--colour img {
+        object-position: 56% 18%;
+    }
+
+    .hero-slide--gifting img {
+        object-position: 50% 14%;
     }
 
     .hero-slider-arrow {

@@ -14,11 +14,20 @@ const initializePage = async () => {
         const slider = document.querySelector(".hero-slider");
         if (!slider) return;
 
-        const slides = Array.from(slider.querySelectorAll(".hero-slide"));
+        const allSlides = Array.from(slider.querySelectorAll(".hero-slide"));
+        const slides = allSlides.filter((slide) => slide.dataset.heroDisabled !== "true");
         const dots = Array.from(slider.querySelectorAll(".hero-slider-dots button"));
         const previousButton = slider.querySelector(".hero-slider-prev");
         const nextButton = slider.querySelector(".hero-slider-next");
         if (slides.length <= 1) return;
+
+        allSlides.forEach((slide) => {
+            if (slide.dataset.heroDisabled !== "true") return;
+            slide.setAttribute("aria-hidden", "true");
+            slide.querySelectorAll("a, button").forEach((element) => {
+                element.setAttribute("tabindex", "-1");
+            });
+        });
 
         let activeIndex = Math.max(0, slides.findIndex((slide) => slide.classList.contains("is-active")));
         let intervalId;
