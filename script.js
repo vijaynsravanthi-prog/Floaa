@@ -270,6 +270,10 @@ const initializePage = async () => {
         if (typeof window.fbq !== "function") return;
         window.fbq("trackCustom", "WhatsAppClick");
     };
+    const trackMetaCustomEvent = (eventName) => {
+        if (typeof window.fbq !== "function") return;
+        window.fbq("trackCustom", eventName);
+    };
     const trackEvent = (eventName, params = {}) => {
         if (typeof window.gtag !== "function") return;
         window.gtag("event", eventName, {
@@ -277,33 +281,464 @@ const initializePage = async () => {
             ...params
         });
     };
-    const handleWhatsAppOrder = (item, brandContent) => {
-        const whatsappNumber = getWhatsAppNumber(brandContent);
-        if (!whatsappNumber) return;
+    const getProductWhatsAppPayload = (item) => {
         const finalPrice = item.discountPrice || item.price;
         const imageUrl = item.image ? new URL(encodeURI(item.image), window.location.href).href : "";
-        const message = [
-            "Hi FLOAA,",
-            "I want to order:",
-            "",
-            `Product: ${item.name}`,
-            `Price: ${finalPrice}`,
-            "Quantity: 1",
-            imageUrl ? `Image: ${imageUrl}` : "",
-            "",
-            "Is this available? I'd like to place the order."
-        ].filter(Boolean).join("\n");
+        return {
+            finalPrice,
+            imageUrl
+        };
+    };
+    const createWhatsAppIntentPopup = () => {
+        const popup = document.createElement("div");
+        popup.className = "whatsapp-intent-popup";
+        popup.hidden = true;
+        popup.innerHTML = `
+            <div class="whatsapp-intent-popup__backdrop" data-popup-close="true"></div>
+            <div class="whatsapp-intent-popup__dialog" role="dialog" aria-modal="true" aria-labelledby="whatsapp-intent-title">
+                <button class="whatsapp-intent-popup__close" type="button" aria-label="Close popup" data-popup-close="true">&times;</button>
+                <div class="whatsapp-intent-popup__content">
+                    <div class="whatsapp-intent-popup__panel whatsapp-intent-popup__panel--choices">
+                        <p class="whatsapp-intent-popup__eyebrow">FLOAA WhatsApp</p>
+                        <h2 id="whatsapp-intent-title" class="whatsapp-intent-popup__title">How would you like to continue?</h2>
+                        <p class="whatsapp-intent-popup__subtitle">Our team can help with questions, styling or reserving your piece.</p>
+                        <div class="whatsapp-intent-popup__product"></div>
+                        <div class="whatsapp-intent-popup__actions">
+                            <button class="btn btn-secondary whatsapp-intent-popup__action" type="button" data-intent-action="question">Ask a Question</button>
+                            <button class="btn btn-primary whatsapp-intent-popup__action" type="button" data-intent-action="reserve">Reserve This Piece</button>
+                        </div>
+                    </div>
+                    <div class="whatsapp-intent-popup__panel whatsapp-intent-popup__panel--form" hidden>
+                        <button class="whatsapp-intent-popup__back" type="button" data-intent-back="true">Back</button>
+                        <p class="whatsapp-intent-popup__eyebrow">Reserve This Piece</p>
+                        <h2 class="whatsapp-intent-popup__title">Complete your WhatsApp order</h2>
+                        <p class="whatsapp-intent-popup__subtitle">Share your details so we can confirm your piece and send the payment link.</p>
+                        <form class="whatsapp-intent-popup__form" novalidate>
+                            <label class="whatsapp-intent-popup__field">
+                                <span>Name</span>
+                                <input type="text" name="customerName" autocomplete="name" required>
+                            </label>
+                            <label class="whatsapp-intent-popup__field">
+                                <span>Delivery address</span>
+                                <textarea name="customerAddress" rows="4" autocomplete="street-address" required></textarea>
+                            </label>
+                            <p class="whatsapp-intent-popup__error" aria-live="polite" hidden></p>
+                            <button class="btn btn-primary whatsapp-intent-popup__submit" type="submit">Continue on WhatsApp</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.append(popup);
 
+        const dialog = popup.querySelector(".whatsapp-intent-popup__dialog");
+        const productSummary = popup.querySelector(".whatsapp-intent-popup__product");
+        const choicesPanel = popup.querySelector(".whatsapp-intent-popup__panel--choices");
+        const formPanel = popup.querySelector(".whatsapp-intent-popup__panel--form");
+        const form = popup.querySelector(".whatsapp-intent-popup__form");
+        const nameInput = form.querySelector('input[name="customerName"]');
+        const addressInput = form.querySelector('textarea[name="customerAddress"]');
+        const errorMessage = popup.querySelector(".whatsapp-intent-popup__error");
+        const askButton = popup.querySelector('[data-intent-action="question"]');
+        const reserveButton = popup.querySelector('[data-intent-action="reserve"]');
+        const backButton = popup.querySelector('[data-intent-back="true"]');
+        let activeItem = null;
+        let activeBrandContent = null;
+        let previousActiveElement = null;
+
+        const setProductSummary = (item) => {
+            const { finalPrice } = getProductWhatsAppPayload(item);
+            productSummary.innerHTML = `
+                <p class="whatsapp-intent-popup__product-name">${item.name}</p>
+                <p class="whatsapp-intent-popup__product-meta">${finalPrice}</p>
+            `;
+        };
+
+        const openWhatsAppFromMessage = (message) => {
+            const whatsappNumber = getWhatsAppNumber(activeBrandContent || {});
+            if (!whatsappNumber) return;
+            const whatsappUrl = buildWhatsAppUrl(whatsappNumber, message);
+            trackMetaWhatsAppClick();
+            window.open(whatsappUrl, "_blank", "noopener");
+        };
+
+        const resetForm = () => {
+            form.reset();
+            errorMessage.hidden = true;
+            errorMessage.textContent = "";
+        };
+
+        const showChoices = () => {
+            choicesPanel.hidden = false;
+            formPanel.hidden = true;
+            resetForm();
+        };
+
+        const showForm = () => {
+            choicesPanel.hidden = true;
+            formPanel.hidden = false;
+            errorMessage.hidden = true;
+            errorMessage.textContent = "";
+            window.setTimeout(() => nameInput.focus(), 0);
+        };
+
+        const closePopup = () => {
+            popup.hidden = true;
+            popup.classList.remove("is-open");
+            document.body.classList.remove("has-whatsapp-intent-popup");
+            showChoices();
+            activeItem = null;
+            activeBrandContent = null;
+            if (previousActiveElement instanceof HTMLElement) {
+                previousActiveElement.focus();
+            }
+        };
+
+        const openPopup = (item, brandContent, trigger) => {
+            activeItem = item;
+            activeBrandContent = brandContent;
+            previousActiveElement = trigger instanceof HTMLElement ? trigger : document.activeElement;
+            setProductSummary(item);
+            showChoices();
+            popup.hidden = false;
+            popup.classList.add("is-open");
+            document.body.classList.add("has-whatsapp-intent-popup");
+            window.setTimeout(() => askButton.focus(), 0);
+        };
+
+        popup.addEventListener("click", (event) => {
+            const closeTarget = event.target.closest("[data-popup-close='true']");
+            if (closeTarget) {
+                closePopup();
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && !popup.hidden) {
+                closePopup();
+            }
+        });
+
+        askButton.addEventListener("click", () => {
+            if (!activeItem) return;
+            const { finalPrice, imageUrl } = getProductWhatsAppPayload(activeItem);
+            const message = [
+                "Hi FLOAA! I have a question about this piece 😊",
+                "",
+                `Product: ${activeItem.name}`,
+                `Price: ${finalPrice}`,
+                "Quantity: 1",
+                imageUrl ? `Image: ${imageUrl}` : "",
+                "",
+                "Could you help me out?"
+            ].filter(Boolean).join("\n");
+            trackMetaCustomEvent("whatsapp_enquiry_click");
+            openWhatsAppFromMessage(message);
+            closePopup();
+        });
+
+        reserveButton.addEventListener("click", showForm);
+        backButton.addEventListener("click", showChoices);
+
+        form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            if (!activeItem) return;
+
+            const customerName = nameInput.value.trim();
+            const customerAddress = addressInput.value.trim();
+            if (!customerName || !customerAddress) {
+                errorMessage.textContent = "Please enter your name and delivery address to continue.";
+                errorMessage.hidden = false;
+                if (!customerName) {
+                    nameInput.focus();
+                } else {
+                    addressInput.focus();
+                }
+                return;
+            }
+
+            const { finalPrice, imageUrl } = getProductWhatsAppPayload(activeItem);
+            const message = [
+                "Hi FLOAA! I'd like to order this 🛍️",
+                "",
+                `Product: ${activeItem.name}`,
+                `Price: ${finalPrice}`,
+                "Quantity: 1",
+                imageUrl ? `Image: ${imageUrl}` : "",
+                `Name: ${customerName}`,
+                `Address: ${customerAddress}`,
+                "",
+                "Please confirm and share the payment link 🙏"
+            ].filter(Boolean).join("\n");
+
+            trackMetaCustomEvent("whatsapp_order_submit");
+            trackEvent("whatsapp_order_click", {
+                product_name: activeItem.name,
+                product_price: finalPrice,
+                product_category: activeItem.category,
+                location: "product_card"
+            });
+            openWhatsAppFromMessage(message);
+            closePopup();
+        });
+
+        return {
+            open(item, brandContent, trigger) {
+                openPopup(item, brandContent, trigger);
+            }
+        };
+    };
+    const whatsappIntentPopup = null;
+    const openWhatsAppMessage = (brandContent, message) => {
+        const whatsappNumber = getWhatsAppNumber(brandContent || {});
+        if (!whatsappNumber) return;
         const whatsappUrl = buildWhatsAppUrl(whatsappNumber, message);
         trackMetaWhatsAppClick();
-        trackEvent("whatsapp_order_click", {
-            product_name: item.name,
-            product_price: finalPrice,
-            product_category: item.category,
-            location: "product_card"
-        });
         window.open(whatsappUrl, "_blank", "noopener");
     };
+    const createWhatsAppQuestionModal = () => {
+        const popup = document.createElement("div");
+        popup.className = "whatsapp-intent-popup whatsapp-question-popup";
+        popup.hidden = true;
+        popup.innerHTML = `
+            <div class="whatsapp-intent-popup__backdrop" data-popup-close="true"></div>
+            <div class="whatsapp-intent-popup__dialog whatsapp-question-popup__dialog" role="dialog" aria-modal="true" aria-labelledby="whatsapp-question-title">
+                <button class="whatsapp-intent-popup__close" type="button" aria-label="Close popup" data-popup-close="true">&times;</button>
+                <div class="whatsapp-intent-popup__content">
+                    <div class="whatsapp-intent-popup__panel">
+                        <h2 id="whatsapp-question-title" class="whatsapp-intent-popup__title">Ask a Question</h2>
+                        <div class="whatsapp-intent-popup__product"></div>
+                        <form class="whatsapp-intent-popup__form" novalidate>
+                            <label class="whatsapp-intent-popup__field">
+                                <span class="sr-only">Your question</span>
+                                <textarea name="customerQuestion" rows="3" placeholder="Type your question..." required></textarea>
+                            </label>
+                            <p class="whatsapp-intent-popup__error" aria-live="polite" hidden></p>
+                            <button class="btn btn-primary whatsapp-intent-popup__submit" type="submit">Continue on WhatsApp</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.append(popup);
+
+        const productSummary = popup.querySelector(".whatsapp-intent-popup__product");
+        const form = popup.querySelector(".whatsapp-intent-popup__form");
+        const questionInput = form.querySelector('textarea[name="customerQuestion"]');
+        const errorMessage = popup.querySelector(".whatsapp-intent-popup__error");
+        let activeItem = null;
+        let activeBrandContent = null;
+        let previousActiveElement = null;
+
+        const resetForm = () => {
+            form.reset();
+            errorMessage.hidden = true;
+            errorMessage.textContent = "";
+        };
+
+        const closePopup = () => {
+            popup.hidden = true;
+            popup.classList.remove("is-open");
+            document.body.classList.remove("has-whatsapp-intent-popup");
+            resetForm();
+            activeItem = null;
+            activeBrandContent = null;
+            if (previousActiveElement instanceof HTMLElement) {
+                previousActiveElement.focus();
+            }
+        };
+
+        popup.addEventListener("click", (event) => {
+            if (event.target.closest("[data-popup-close='true']")) {
+                closePopup();
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && !popup.hidden) {
+                closePopup();
+            }
+        });
+
+        form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            if (!activeItem) return;
+
+            const customerQuestion = questionInput.value.trim();
+            if (!customerQuestion) {
+                errorMessage.textContent = "Please type your question to continue.";
+                errorMessage.hidden = false;
+                questionInput.focus();
+                return;
+            }
+
+            const { imageUrl } = getProductWhatsAppPayload(activeItem);
+            const message = [
+                "Hi FLOAA! \\u{1F60A}",
+                "",
+                "I have a question about this piece:",
+                "",
+                `Product: ${activeItem.name}`,
+                imageUrl ? `Image: ${imageUrl}` : "",
+                "",
+                "My question:",
+                customerQuestion
+            ].filter(Boolean).join("\n");
+
+            trackMetaCustomEvent("whatsapp_enquiry_click");
+            openWhatsAppMessage(activeBrandContent, message);
+            closePopup();
+        });
+
+        return {
+            open(item, brandContent, trigger) {
+                activeItem = item;
+                activeBrandContent = brandContent;
+                previousActiveElement = trigger instanceof HTMLElement ? trigger : document.activeElement;
+                productSummary.innerHTML = `
+                    <p class="whatsapp-intent-popup__product-name">${item.name}</p>
+                `;
+                resetForm();
+                popup.hidden = false;
+                popup.classList.add("is-open");
+                document.body.classList.add("has-whatsapp-intent-popup");
+                window.setTimeout(() => questionInput.focus(), 0);
+            }
+        };
+    };
+    const whatsappQuestionModal = createWhatsAppQuestionModal();
+    const createWhatsAppReserveModal = () => {
+        const popup = document.createElement("div");
+        popup.className = "whatsapp-intent-popup whatsapp-reserve-popup";
+        popup.hidden = true;
+        popup.innerHTML = `
+            <div class="whatsapp-intent-popup__backdrop" data-popup-close="true"></div>
+            <div class="whatsapp-intent-popup__dialog whatsapp-reserve-popup__dialog" role="dialog" aria-modal="true" aria-labelledby="whatsapp-reserve-title">
+                <button class="whatsapp-intent-popup__close" type="button" aria-label="Close popup" data-popup-close="true">&times;</button>
+                <div class="whatsapp-intent-popup__content">
+                    <div class="whatsapp-intent-popup__panel">
+                        <p class="whatsapp-intent-popup__eyebrow">Order This Piece</p>
+                        <h2 id="whatsapp-reserve-title" class="whatsapp-intent-popup__title">Order This Piece</h2>
+                        <p class="whatsapp-intent-popup__subtitle">Share your details so we can confirm your piece and send the payment link.</p>
+                        <div class="whatsapp-intent-popup__product"></div>
+                        <form class="whatsapp-intent-popup__form" novalidate>
+                            <label class="whatsapp-intent-popup__field">
+                                <span>Name</span>
+                                <input type="text" name="customerName" autocomplete="name" required>
+                            </label>
+                            <label class="whatsapp-intent-popup__field">
+                                <span>Delivery Address</span>
+                                <textarea name="customerAddress" rows="4" autocomplete="street-address" required></textarea>
+                            </label>
+                            <p class="whatsapp-intent-popup__error" aria-live="polite" hidden></p>
+                            <button class="btn btn-primary whatsapp-intent-popup__submit" type="submit">Continue on WhatsApp</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.append(popup);
+
+        const productSummary = popup.querySelector(".whatsapp-intent-popup__product");
+        const form = popup.querySelector(".whatsapp-intent-popup__form");
+        const nameInput = form.querySelector('input[name="customerName"]');
+        const addressInput = form.querySelector('textarea[name="customerAddress"]');
+        const errorMessage = popup.querySelector(".whatsapp-intent-popup__error");
+        let activeItem = null;
+        let activeBrandContent = null;
+        let previousActiveElement = null;
+
+        const resetForm = () => {
+            form.reset();
+            errorMessage.hidden = true;
+            errorMessage.textContent = "";
+        };
+
+        const closePopup = () => {
+            popup.hidden = true;
+            popup.classList.remove("is-open");
+            document.body.classList.remove("has-whatsapp-intent-popup");
+            resetForm();
+            activeItem = null;
+            activeBrandContent = null;
+            if (previousActiveElement instanceof HTMLElement) {
+                previousActiveElement.focus();
+            }
+        };
+
+        popup.addEventListener("click", (event) => {
+            if (event.target.closest("[data-popup-close='true']")) {
+                closePopup();
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && !popup.hidden) {
+                closePopup();
+            }
+        });
+
+        form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            if (!activeItem) return;
+
+            const customerName = nameInput.value.trim();
+            const customerAddress = addressInput.value.trim();
+            if (!customerName || !customerAddress) {
+                errorMessage.textContent = "Please enter your name and delivery address to continue.";
+                errorMessage.hidden = false;
+                if (!customerName) {
+                    nameInput.focus();
+                } else {
+                    addressInput.focus();
+                }
+                return;
+            }
+
+            const { finalPrice, imageUrl } = getProductWhatsAppPayload(activeItem);
+            const message = [
+                "Hi FLOAA! I'd like to order this \\u{1F6CD}\\u{FE0F}",
+                "",
+                `Product: ${activeItem.name}`,
+                `Price: ${finalPrice}`,
+                "Quantity: 1",
+                imageUrl ? `Image: ${imageUrl}` : "",
+                `Name: ${customerName}`,
+                `Address: ${customerAddress}`,
+                "",
+                "Please confirm and share the payment link \\u{1F64F}"
+            ].filter(Boolean).join("\n");
+
+            trackMetaCustomEvent("whatsapp_order_submit");
+            trackEvent("whatsapp_order_click", {
+                product_name: activeItem.name,
+                product_price: finalPrice,
+                product_category: activeItem.category,
+                location: "product_card"
+            });
+            openWhatsAppMessage(activeBrandContent, message);
+            closePopup();
+        });
+
+        return {
+            open(item, brandContent, trigger) {
+                const { finalPrice } = getProductWhatsAppPayload(item);
+                activeItem = item;
+                activeBrandContent = brandContent;
+                previousActiveElement = trigger instanceof HTMLElement ? trigger : document.activeElement;
+                productSummary.innerHTML = `
+                    <p class="whatsapp-intent-popup__product-name">${item.name}</p>
+                    <p class="whatsapp-intent-popup__product-meta">${finalPrice}</p>
+                `;
+                resetForm();
+                popup.hidden = false;
+                popup.classList.add("is-open");
+                document.body.classList.add("has-whatsapp-intent-popup");
+                window.setTimeout(() => nameInput.focus(), 0);
+            }
+        };
+    };
+    const whatsappReserveModal = createWhatsAppReserveModal();
     const getYouTubeVideoId = (value) => {
         try {
             const url = new URL(value);
@@ -745,19 +1180,31 @@ const initializePage = async () => {
                 productStock.className = isSoldOut ? "product-stock is-sold-out" : "product-stock";
                 productStock.textContent = isSoldOut ? "Sold Out" : "";
 
-                const productBtn = document.createElement("button");
-                productBtn.className = "btn btn-primary";
-                productBtn.type = "button";
+                const productCtaGroup = document.createElement("div");
+                productCtaGroup.className = "product-cta-group";
                 if (isSoldOut) {
+                    const productBtn = document.createElement("button");
+                    productBtn.className = "btn btn-primary";
+                    productBtn.type = "button";
                     productBtn.classList.add("is-disabled");
                     productBtn.disabled = true;
                     productBtn.setAttribute("aria-disabled", "true");
                     productBtn.textContent = "Sold Out";
+                    productCtaGroup.append(productBtn);
                 } else {
-                    productBtn.textContent = "Order on WhatsApp";
-                    productBtn.productName = item.name;
-                    productBtn.productPrice = item.discountPrice || item.price;
-                    productBtn.addEventListener("click", () => handleWhatsAppOrder(item, brandContent));
+                    const reserveBtn = document.createElement("button");
+                    reserveBtn.className = "btn btn-primary";
+                    reserveBtn.type = "button";
+                    reserveBtn.textContent = "ORDER ON WHATSAPP";
+                    reserveBtn.addEventListener("click", () => whatsappReserveModal.open(item, brandContent, reserveBtn));
+
+                    const questionBtn = document.createElement("button");
+                    questionBtn.className = "btn btn-whatsapp-secondary";
+                    questionBtn.type = "button";
+                    questionBtn.textContent = "ASK A QUESTION";
+                    questionBtn.addEventListener("click", () => whatsappQuestionModal.open(item, brandContent, questionBtn));
+
+                    productCtaGroup.append(reserveBtn, questionBtn);
                 }
 
                 productCard.addEventListener("click", (event) => {
@@ -769,7 +1216,7 @@ const initializePage = async () => {
                     });
                 });
 
-                productInfo.append(productTag, productName, productPrice, productDescription, productStock, productBtn);
+                productInfo.append(productTag, productName, productPrice, productDescription, productStock, productCtaGroup);
                 productCard.append(productMedia, productInfo);
                 fragment.append(productCard);
             });

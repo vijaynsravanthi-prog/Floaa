@@ -1113,6 +1113,223 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
     background: var(--control-gold);
 }
 
+.product-cta-group {
+    display: grid;
+    gap: 0.6rem;
+    margin-top: auto;
+}
+
+.product-cta-group .btn {
+    margin-top: 0;
+}
+
+.product-card .btn-whatsapp-secondary {
+    background: transparent;
+    border-color: rgba(184, 137, 36, 0.42);
+    box-shadow: none;
+    color: var(--control-gold-text);
+}
+
+.product-card .btn-whatsapp-secondary:hover {
+    background: rgba(245, 237, 208, 0.52);
+}
+
+.has-whatsapp-intent-popup {
+    overflow: hidden;
+}
+
+.whatsapp-intent-popup {
+    inset: 0;
+    position: fixed;
+    z-index: 10000;
+}
+
+.whatsapp-intent-popup[hidden] {
+    display: none;
+}
+
+.whatsapp-intent-popup__backdrop {
+    background: rgba(36, 34, 37, 0.42);
+    inset: 0;
+    position: absolute;
+}
+
+.whatsapp-intent-popup__dialog {
+    background: linear-gradient(180deg, #fffdf8 0%, #fffaf5 100%);
+    border: 1px solid rgba(215, 189, 126, 0.38);
+    border-radius: 1.4rem;
+    box-shadow: 0 24px 60px rgba(54, 46, 49, 0.18);
+    color: var(--text);
+    left: 50%;
+    max-height: min(90vh, 720px);
+    max-width: min(34rem, calc(100vw - 2rem));
+    overflow: auto;
+    padding: 1.5rem;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+}
+
+.whatsapp-reserve-popup__dialog {
+    max-width: min(29rem, calc(100vw - 2rem));
+    padding: 1.3rem;
+}
+
+.whatsapp-question-popup__dialog {
+    max-width: min(26rem, calc(100vw - 2rem));
+    padding: 1.2rem;
+}
+
+.whatsapp-intent-popup__close,
+.whatsapp-intent-popup__back {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0;
+}
+
+.whatsapp-intent-popup__close {
+    font-size: 1.9rem;
+    line-height: 1;
+    position: absolute;
+    right: 1rem;
+    top: 0.8rem;
+}
+
+.whatsapp-intent-popup__back {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 1.25rem;
+    text-transform: uppercase;
+}
+
+.whatsapp-intent-popup__content {
+    display: grid;
+}
+
+.whatsapp-intent-popup__panel {
+    display: grid;
+}
+
+.whatsapp-intent-popup__eyebrow {
+    color: var(--control-gold-deep);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    margin: 0 0 0.9rem;
+    text-transform: uppercase;
+}
+
+.whatsapp-intent-popup__title {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(2rem, 4.3vw, 3rem);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 0.98;
+    margin: 0 0 0.9rem;
+}
+
+.whatsapp-intent-popup__subtitle,
+.whatsapp-intent-popup__product-meta,
+.whatsapp-intent-popup__field span,
+.whatsapp-intent-popup__field input,
+.whatsapp-intent-popup__field textarea,
+.whatsapp-intent-popup__error {
+    color: var(--muted);
+}
+
+.whatsapp-intent-popup__subtitle {
+    font-size: 1rem;
+    line-height: 1.5;
+    margin: 0 0 1.25rem;
+}
+
+.whatsapp-intent-popup__product {
+    background: rgba(255, 250, 245, 0.84);
+    border: 1px solid rgba(215, 189, 126, 0.28);
+    border-radius: 1rem;
+    margin-bottom: 1.35rem;
+    padding: 0.95rem 1rem;
+}
+
+.whatsapp-intent-popup__product-name {
+    font-family: "Cormorant Garamond", serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    margin: 0 0 0.2rem;
+}
+
+.whatsapp-intent-popup__product-meta {
+    font-size: 0.92rem;
+    margin: 0;
+}
+
+.whatsapp-intent-popup__actions,
+.whatsapp-intent-popup__form {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.whatsapp-intent-popup__action,
+.whatsapp-intent-popup__submit {
+    min-height: 48px;
+}
+
+.whatsapp-intent-popup__action.btn-secondary {
+    background: rgba(255, 250, 245, 0.92);
+    color: var(--control-gold-text);
+}
+
+.whatsapp-intent-popup__field {
+    display: grid;
+    gap: 0.42rem;
+}
+
+.whatsapp-intent-popup__field span {
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.whatsapp-intent-popup__field input,
+.whatsapp-intent-popup__field textarea {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(215, 189, 126, 0.42);
+    border-radius: 0.9rem;
+    padding: 0.9rem 1rem;
+}
+
+.whatsapp-intent-popup__field textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.whatsapp-question-popup .whatsapp-intent-popup__product {
+    margin-bottom: 1rem;
+}
+
+.whatsapp-question-popup .whatsapp-intent-popup__field textarea {
+    min-height: 96px;
+}
+
+.whatsapp-intent-popup__field input:focus,
+.whatsapp-intent-popup__field textarea:focus {
+    border-color: var(--control-gold-deep);
+    box-shadow: 0 0 0 3px rgba(215, 189, 126, 0.2);
+    outline: none;
+}
+
+.whatsapp-intent-popup__error {
+    font-size: 0.92rem;
+    margin: 0;
+}
+
 .product-stock.is-sold-out {
     color: #9f2f2f;
 }
@@ -1604,6 +1821,11 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
         min-height: 42px;
         padding: 10px 0;
     }
+
+    .whatsapp-intent-popup__dialog {
+        max-width: min(30rem, calc(100vw - 1.5rem));
+        padding: 1.2rem;
+    }
 }
 
 @media (max-width: 480px) {
@@ -1648,6 +1870,25 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
 
     .brand-message-strip {
         display: none;
+    }
+
+    .whatsapp-intent-popup__dialog {
+        border-radius: 1.1rem;
+        max-width: calc(100vw - 1rem);
+        padding: 1rem;
+    }
+
+    .whatsapp-intent-popup__title {
+        font-size: clamp(1.7rem, 8vw, 2.2rem);
+    }
+
+    .whatsapp-intent-popup__subtitle {
+        font-size: 0.95rem;
+    }
+
+    .whatsapp-intent-popup__field input,
+    .whatsapp-intent-popup__field textarea {
+        font-size: 16px;
     }
 
     .shipping-policy-strip span {
