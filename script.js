@@ -266,6 +266,10 @@ const initializePage = async () => {
     const buildWhatsAppUrl = (number, message) => number
         ? `https://wa.me/${number}?text=${encodeURIComponent(message)}`
         : "";
+    const trackMetaWhatsAppClick = () => {
+        if (typeof window.fbq !== "function") return;
+        window.fbq("trackCustom", "WhatsAppClick");
+    };
     const trackEvent = (eventName, params = {}) => {
         if (typeof window.gtag !== "function") return;
         window.gtag("event", eventName, {
@@ -291,6 +295,7 @@ const initializePage = async () => {
         ].filter(Boolean).join("\n");
 
         const whatsappUrl = buildWhatsAppUrl(whatsappNumber, message);
+        trackMetaWhatsAppClick();
         trackEvent("whatsapp_order_click", {
             product_name: item.name,
             product_price: finalPrice,
@@ -920,6 +925,7 @@ const initializePage = async () => {
         whatsappButton.rel = "noopener";
         whatsappButton.setAttribute("aria-label", "Chat on WhatsApp");
         whatsappButton.addEventListener("click", () => {
+            trackMetaWhatsAppClick();
             trackEvent("whatsapp_chat_click", {
                 location: "floating_button"
             });

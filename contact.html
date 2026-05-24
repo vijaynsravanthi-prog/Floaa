@@ -1,6 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '27496466689939320');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=27496466689939320&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-K6EF8T14DH"></script>
     <script>
@@ -99,6 +116,7 @@
                 <h2>WhatsApp Ordering</h2>
         
     <a href="https://wa.me/919960144483?text=Hi%20FLOAA%2C%20I%20am%20interested%20in%20your%20collection"
+       onclick="fbq('trackCustom', 'WhatsAppClick');"
        target="_blank"
        class="whatsapp-link">
 
@@ -123,6 +141,7 @@
 
 <!-- 👇 THIS IS THE ONLY NEW BLOCK -->
 <a href="https://wa.me/919960144483?text=Hi%20FLOAA%2C%20I%20am%20interested%20in%20your%20collection"
+   onclick="fbq('trackCustom', 'WhatsAppClick');"
    class="whatsapp-float"
    target="_blank"
    rel="noopener"
