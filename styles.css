@@ -1343,7 +1343,7 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
 
 .page-hero-soft,
 .category-banner {
-    padding-top: clamp(3rem, 6vw, 5rem);
+    padding-top: clamp(2.15rem, 4.3vw, 3.65rem);
 }
 
 .category-banner {
@@ -1351,36 +1351,37 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
     border-bottom: 1px solid var(--line);
     margin-bottom: 0;
     max-width: none;
-    padding-bottom: 2.4rem;
+    padding-bottom: 1.7rem;
     width: 100%;
 }
 
 .category-banner .eyebrow {
     line-height: 1;
-    margin-bottom: 1.15rem;
+    margin-bottom: 0.9rem;
 }
 
 .category-banner h1 {
     font-size: clamp(2.5rem, 4.6vw, 4.15rem);
     letter-spacing: 0.005em;
     line-height: 1.01;
-    margin-bottom: 0.85rem;
-    max-width: 18ch;
+    margin-bottom: 0.7rem;
+    max-width: 22ch;
     text-wrap: balance;
 }
 
 .category-banner .category-banner-title {
     font-size: clamp(2.3rem, 4.15vw, 3.85rem);
     letter-spacing: 0.004em;
-    line-height: 1.04;
-    margin-bottom: 0.9rem;
-    max-width: 17ch;
+    line-height: 1.02;
+    margin-bottom: 0.72rem;
+    max-width: 22ch;
 }
 
 .category-banner p {
+    color: rgba(88, 80, 84, 0.82);
     font-size: clamp(1rem, 1.6vw, 1.2rem);
-    line-height: 1.45;
-    max-width: 48rem;
+    line-height: 1.42;
+    max-width: 38rem;
 }
 
 .category-banner-note {
@@ -1805,6 +1806,20 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
         justify-self: center;
     }
 
+    .category-banner {
+        padding-bottom: 1.45rem;
+        padding-top: 1.95rem;
+    }
+
+    .category-banner h1,
+    .category-banner .category-banner-title {
+        max-width: 14ch;
+    }
+
+    .category-banner p {
+        max-width: 31rem;
+    }
+
     .brand-logo-link {
         height: 62px;
         width: clamp(160px, 46vw, 220px);
@@ -1870,6 +1885,31 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
 
     .brand-message-strip {
         display: none;
+    }
+
+    .category-banner {
+        padding-bottom: 1.2rem;
+        padding-top: 1.7rem;
+    }
+
+    .category-banner h1 {
+        font-size: clamp(2rem, 7.5vw, 2.55rem);
+        line-height: 1.03;
+        margin-bottom: 0.58rem;
+        max-width: 12.75ch;
+    }
+
+    .category-banner .category-banner-title {
+        font-size: clamp(1.9rem, 7.1vw, 2.4rem);
+        line-height: 1.04;
+        margin-bottom: 0.58rem;
+        max-width: 12.75ch;
+    }
+
+    .category-banner p {
+        font-size: 0.98rem;
+        line-height: 1.4;
+        max-width: 19rem;
     }
 
     .whatsapp-intent-popup__dialog {
