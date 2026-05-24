@@ -178,6 +178,11 @@ input {
     font-weight: 600;
 }
 
+body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
+    opacity: 0;
+    visibility: hidden;
+}
+
 .shipping-policy-strip small {
     color: var(--muted);
     font-size: 0.72rem;
@@ -1139,15 +1144,34 @@ input {
 }
 
 .category-banner h1 {
-    line-height: 1.06;
-    margin-bottom: 0.75rem;
-    max-width: 48rem;
+    font-size: clamp(2.5rem, 4.6vw, 4.15rem);
+    letter-spacing: 0.005em;
+    line-height: 1.01;
+    margin-bottom: 0.85rem;
+    max-width: 18ch;
+    text-wrap: balance;
+}
+
+.category-banner .category-banner-title {
+    font-size: clamp(2.3rem, 4.15vw, 3.85rem);
+    letter-spacing: 0.004em;
+    line-height: 1.04;
+    margin-bottom: 0.9rem;
+    max-width: 17ch;
 }
 
 .category-banner p {
     font-size: clamp(1rem, 1.6vw, 1.2rem);
     line-height: 1.45;
     max-width: 48rem;
+}
+
+.category-banner-note {
+    color: rgba(88, 80, 84, 0.88);
+    font-size: 0.92rem;
+    line-height: 1.4;
+    margin-top: 0.6rem;
+    max-width: 32rem;
 }
 
 .category-banner-actions {

@@ -420,6 +420,10 @@ const initializePage = async () => {
             });
         }
 
+        document.querySelectorAll(".brand-message-strip[data-brand-pending='true']").forEach((element) => {
+            element.removeAttribute("data-brand-pending");
+        });
+
         const utilityMessage = getBrandValue(content, ["shipping-message", "top-strip-message"]);
         const utilityDetail = getBrandValue(content, ["shipping-detail", "top-strip-detail"]);
         if (utilityMessage || utilityDetail) {
