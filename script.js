@@ -299,6 +299,492 @@ const initializePage = async () => {
             imageUrl
         };
     };
+    const isVideoAsset = (value) => /\.(mp4|webm|ogg|mov)(?:[?#].*)?$/i.test(normalizeValue(value));
+    const isImageAsset = (value) => /\.(avif|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/i.test(normalizeValue(value));
+    const buildProductGalleryItems = (item) => {
+        const rawSources = [item.image, ...(Array.isArray(item.images) ? item.images : [])]
+            .map(normalizeValue)
+            .filter(Boolean);
+        const uniqueSources = [];
+        const seenSources = new Set();
+
+        rawSources.forEach((source) => {
+            if (seenSources.has(source)) return;
+            seenSources.add(source);
+            uniqueSources.push(source);
+        });
+
+        return uniqueSources
+            .filter((source) => isImageAsset(source) || isVideoAsset(source))
+            .map((source, index) => ({
+                src: source,
+                thumb: source,
+                type: isVideoAsset(source) ? "video" : "image",
+                alt: getPreferredAltText(item.name, item.description),
+                label: `${item.name} ${index + 1}`
+            }));
+    };
+    const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
+    const preloadGalleryAsset = (item) => {
+        if (!item || item.type !== "image" || !item.src) return;
+        const image = new Image();
+        image.decoding = "async";
+        image.src = item.src;
+    };
+    const createProductGalleryLightbox = () => {
+        const popup = document.createElement("div");
+        popup.className = "product-gallery-lightbox";
+        popup.hidden = true;
+        popup.innerHTML = `
+            <div class="product-gallery-lightbox__backdrop" data-gallery-close="true"></div>
+            <div class="product-gallery-lightbox__dialog" role="dialog" aria-modal="true" aria-labelledby="product-gallery-title">
+                <button class="product-gallery-lightbox__close" type="button" aria-label="Close gallery" data-gallery-close="true">&times;</button>
+                <h2 id="product-gallery-title" class="sr-only"></h2>
+                <div class="product-gallery-lightbox__stage">
+                    <button class="product-gallery-lightbox__nav product-gallery-lightbox__nav--prev" type="button" aria-label="Previous media">
+                        <span aria-hidden="true">&#8249;</span>
+                    </button>
+                    <div class="product-gallery-lightbox__viewport">
+                        <div class="product-gallery-lightbox__media-frame is-loading">
+                            <img class="product-gallery-lightbox__image" alt="" hidden>
+                            <video class="product-gallery-lightbox__video" controls playsinline preload="metadata" hidden></video>
+                            <div class="product-gallery-lightbox__shimmer" aria-hidden="true"></div>
+                        </div>
+                    </div>
+                    <button class="product-gallery-lightbox__nav product-gallery-lightbox__nav--next" type="button" aria-label="Next media">
+                        <span aria-hidden="true">&#8250;</span>
+                    </button>
+                </div>
+                <div class="product-gallery-lightbox__thumbs" role="tablist" aria-label="Product media thumbnails"></div>
+            </div>
+        `;
+        document.body.append(popup);
+
+        const dialog = popup.querySelector(".product-gallery-lightbox__dialog");
+        const title = popup.querySelector("#product-gallery-title");
+        const viewport = popup.querySelector(".product-gallery-lightbox__viewport");
+        const mediaFrame = popup.querySelector(".product-gallery-lightbox__media-frame");
+        const image = popup.querySelector(".product-gallery-lightbox__image");
+        const video = popup.querySelector(".product-gallery-lightbox__video");
+        const thumbs = popup.querySelector(".product-gallery-lightbox__thumbs");
+        const previousButton = popup.querySelector(".product-gallery-lightbox__nav--prev");
+        const nextButton = popup.querySelector(".product-gallery-lightbox__nav--next");
+
+        const state = {
+            item: null,
+            galleryItems: [],
+            activeIndex: 0,
+            scale: 1,
+            translateX: 0,
+            translateY: 0,
+            panLimitX: 0,
+            panLimitY: 0,
+            hoverZoom: false,
+            hoverX: "50%",
+            hoverY: "50%",
+            previousActiveElement: null,
+            touchMode: "",
+            touchStartX: 0,
+            touchStartY: 0,
+            touchStartTranslateX: 0,
+            touchStartTranslateY: 0,
+            touchStartScale: 1,
+            touchStartDistance: 0,
+            lastTapTime: 0,
+            isDragging: false,
+            pointerId: null,
+            pointerStartX: 0,
+            pointerStartY: 0,
+            dragStartTranslateX: 0,
+            dragStartTranslateY: 0
+        };
+
+        const isTouchViewport = () => window.matchMedia("(pointer: coarse)").matches;
+        const currentMedia = () => state.galleryItems[state.activeIndex] || null;
+
+        const syncCursor = () => {
+            if (image.hidden) return;
+            if (state.isDragging) {
+                image.style.cursor = "grabbing";
+            } else if (state.scale > 1) {
+                image.style.cursor = "grab";
+            } else {
+                image.style.cursor = "zoom-in";
+            }
+        };
+
+        const updatePanLimits = () => {
+            const activeMedia = currentMedia();
+            if (!activeMedia || activeMedia.type !== "image" || state.scale <= 1) {
+                state.panLimitX = 0;
+                state.panLimitY = 0;
+                return;
+            }
+
+            const frameRect = mediaFrame.getBoundingClientRect();
+            const width = frameRect.width || 0;
+            const height = frameRect.height || 0;
+            state.panLimitX = Math.max(0, ((width * state.scale) - width) / 2);
+            state.panLimitY = Math.max(0, ((height * state.scale) - height) / 2);
+        };
+
+        const applyImageTransform = () => {
+            if (image.hidden) return;
+
+            updatePanLimits();
+            if (state.scale > 1) {
+                state.translateX = clampValue(state.translateX, -state.panLimitX, state.panLimitX);
+                state.translateY = clampValue(state.translateY, -state.panLimitY, state.panLimitY);
+                image.style.transformOrigin = "50% 50%";
+                image.style.transform = `translate3d(${state.translateX}px, ${state.translateY}px, 0) scale(${state.scale})`;
+                mediaFrame.classList.remove("is-hover-zoom");
+                syncCursor();
+                return;
+            }
+
+            state.translateX = 0;
+            state.translateY = 0;
+            if (state.hoverZoom && !isTouchViewport()) {
+                image.style.transformOrigin = `${state.hoverX} ${state.hoverY}`;
+                image.style.transform = "scale(1.72)";
+                mediaFrame.classList.add("is-hover-zoom");
+            } else {
+                image.style.transformOrigin = "50% 50%";
+                image.style.transform = "translate3d(0, 0, 0) scale(1)";
+                mediaFrame.classList.remove("is-hover-zoom");
+            }
+            syncCursor();
+        };
+
+        const resetZoomState = () => {
+            state.scale = 1;
+            state.translateX = 0;
+            state.translateY = 0;
+            state.hoverZoom = false;
+            applyImageTransform();
+        };
+
+        const setLoadingState = (isLoading) => {
+            mediaFrame.classList.toggle("is-loading", isLoading);
+        };
+
+        const syncGalleryChrome = () => {
+            const hasMultipleItems = state.galleryItems.length > 1;
+            thumbs.hidden = !hasMultipleItems;
+            previousButton.hidden = !hasMultipleItems;
+            nextButton.hidden = !hasMultipleItems;
+        };
+
+        const renderThumbs = () => {
+            thumbs.innerHTML = "";
+            syncGalleryChrome();
+            if (state.galleryItems.length <= 1) return;
+            const fragment = document.createDocumentFragment();
+
+            state.galleryItems.forEach((galleryItem, index) => {
+                const thumbButton = document.createElement("button");
+                thumbButton.className = "product-gallery-lightbox__thumb";
+                thumbButton.type = "button";
+                thumbButton.setAttribute("role", "tab");
+                thumbButton.setAttribute("aria-selected", String(index === state.activeIndex));
+                thumbButton.setAttribute("aria-label", `${galleryItem.type === "video" ? "Video" : "Image"} ${index + 1}`);
+                thumbButton.classList.toggle("is-active", index === state.activeIndex);
+
+                if (galleryItem.type === "video") {
+                    const badge = document.createElement("span");
+                    badge.className = "product-gallery-lightbox__thumb-video";
+                    badge.textContent = "Play";
+                    thumbButton.append(badge);
+                } else {
+                    const thumbImage = document.createElement("img");
+                    thumbImage.src = galleryItem.thumb;
+                    thumbImage.alt = galleryItem.alt;
+                    thumbImage.loading = "lazy";
+                    thumbImage.decoding = "async";
+                    thumbButton.append(thumbImage);
+                }
+
+                thumbButton.addEventListener("click", () => showMedia(index));
+                fragment.append(thumbButton);
+            });
+
+            thumbs.append(fragment);
+            thumbs.querySelector(".product-gallery-lightbox__thumb.is-active")?.scrollIntoView({
+                behavior: "smooth",
+                block: "nearest",
+                inline: "center"
+            });
+        };
+
+        const showMedia = (index) => {
+            if (!state.galleryItems.length) return;
+
+            state.activeIndex = (index + state.galleryItems.length) % state.galleryItems.length;
+            const galleryItem = currentMedia();
+            resetZoomState();
+            setLoadingState(galleryItem.type === "image");
+
+            image.hidden = galleryItem.type !== "image";
+            video.hidden = galleryItem.type !== "video";
+            syncGalleryChrome();
+
+            if (galleryItem.type === "image") {
+                video.pause();
+                video.removeAttribute("src");
+                video.load();
+                image.alt = galleryItem.alt;
+                image.src = galleryItem.src;
+                if (image.complete) {
+                    setLoadingState(false);
+                }
+                preloadGalleryAsset(state.galleryItems[state.activeIndex - 1]);
+                preloadGalleryAsset(state.galleryItems[state.activeIndex + 1]);
+            } else {
+                image.removeAttribute("src");
+                video.src = galleryItem.src;
+                video.load();
+                setLoadingState(false);
+            }
+
+            renderThumbs();
+        };
+
+        const closeGallery = () => {
+            popup.hidden = true;
+            popup.classList.remove("is-open");
+            document.body.classList.remove("has-product-gallery-open");
+            video.pause();
+            video.removeAttribute("src");
+            image.removeAttribute("src");
+            thumbs.innerHTML = "";
+            state.galleryItems = [];
+            state.item = null;
+            state.touchMode = "";
+            state.lastTapTime = 0;
+            state.isDragging = false;
+            state.pointerId = null;
+            setLoadingState(false);
+            resetZoomState();
+            if (state.previousActiveElement instanceof HTMLElement) {
+                state.previousActiveElement.focus();
+            }
+        };
+
+        const openGallery = (item, trigger) => {
+            const galleryItems = buildProductGalleryItems(item);
+            if (!galleryItems.length) return;
+
+            state.item = item;
+            state.galleryItems = galleryItems;
+            state.activeIndex = 0;
+            state.previousActiveElement = trigger instanceof HTMLElement ? trigger : document.activeElement;
+            title.textContent = item.name;
+            popup.hidden = false;
+            popup.classList.add("is-open");
+            document.body.classList.add("has-product-gallery-open");
+            syncGalleryChrome();
+            showMedia(0);
+            window.setTimeout(() => popup.querySelector(".product-gallery-lightbox__close")?.focus(), 0);
+        };
+
+        const moveMedia = (direction) => {
+            if (state.galleryItems.length <= 1) return;
+            showMedia(state.activeIndex + direction);
+        };
+
+        const distanceBetweenTouches = (touches) => {
+            const [firstTouch, secondTouch] = touches;
+            return Math.hypot(secondTouch.clientX - firstTouch.clientX, secondTouch.clientY - firstTouch.clientY);
+        };
+
+        const updateZoomAroundPoint = (nextScale, clientX, clientY) => {
+            const activeMedia = currentMedia();
+            if (!activeMedia || activeMedia.type !== "image") return;
+
+            const frameRect = mediaFrame.getBoundingClientRect();
+            const originX = frameRect.width ? ((clientX - frameRect.left) / frameRect.width) * 100 : 50;
+            const originY = frameRect.height ? ((clientY - frameRect.top) / frameRect.height) * 100 : 50;
+            image.style.transformOrigin = `${originX}% ${originY}%`;
+            state.scale = clampValue(nextScale, 1, 4);
+            if (state.scale === 1) {
+                state.translateX = 0;
+                state.translateY = 0;
+            }
+            applyImageTransform();
+        };
+
+        const startPointerDrag = (event) => {
+            if (image.hidden || event.pointerType !== "mouse" || state.scale <= 1) return;
+            event.preventDefault();
+            state.isDragging = true;
+            state.pointerId = event.pointerId;
+            state.pointerStartX = event.clientX;
+            state.pointerStartY = event.clientY;
+            state.dragStartTranslateX = state.translateX;
+            state.dragStartTranslateY = state.translateY;
+            image.setPointerCapture?.(event.pointerId);
+            syncCursor();
+        };
+
+        const movePointerDrag = (event) => {
+            if (!state.isDragging || state.pointerId !== event.pointerId) return;
+            event.preventDefault();
+            state.translateX = state.dragStartTranslateX + (event.clientX - state.pointerStartX);
+            state.translateY = state.dragStartTranslateY + (event.clientY - state.pointerStartY);
+            applyImageTransform();
+        };
+
+        const endPointerDrag = (event) => {
+            if (state.pointerId !== null && state.pointerId !== event.pointerId) return;
+            state.isDragging = false;
+            state.pointerId = null;
+            syncCursor();
+        };
+
+        image.addEventListener("load", () => {
+            setLoadingState(false);
+            applyImageTransform();
+        });
+
+        image.addEventListener("error", () => {
+            setLoadingState(false);
+            mediaFrame.classList.remove("is-hover-zoom");
+        });
+
+        image.addEventListener("dblclick", (event) => {
+            event.preventDefault();
+            const nextScale = state.scale > 1 ? 1 : 2.4;
+            updateZoomAroundPoint(nextScale, event.clientX, event.clientY);
+        });
+
+        viewport.addEventListener("wheel", (event) => {
+            if (image.hidden) return;
+            event.preventDefault();
+            const direction = event.deltaY < 0 ? 0.32 : -0.32;
+            const nextScale = state.scale + direction;
+            updateZoomAroundPoint(nextScale, event.clientX, event.clientY);
+        }, { passive: false });
+
+        image.addEventListener("pointerdown", startPointerDrag);
+        image.addEventListener("pointermove", movePointerDrag);
+        image.addEventListener("pointerup", endPointerDrag);
+        image.addEventListener("pointercancel", endPointerDrag);
+        image.addEventListener("lostpointercapture", () => {
+            state.isDragging = false;
+            state.pointerId = null;
+            syncCursor();
+        });
+
+        mediaFrame.addEventListener("mousemove", (event) => {
+            if (isTouchViewport() || image.hidden || state.scale > 1) return;
+            const rect = mediaFrame.getBoundingClientRect();
+            state.hoverZoom = true;
+            state.hoverX = `${((event.clientX - rect.left) / rect.width) * 100}%`;
+            state.hoverY = `${((event.clientY - rect.top) / rect.height) * 100}%`;
+            applyImageTransform();
+        });
+
+        mediaFrame.addEventListener("mouseleave", () => {
+            state.hoverZoom = false;
+            applyImageTransform();
+        });
+
+        viewport.addEventListener("touchstart", (event) => {
+            if (image.hidden) return;
+            if (event.touches.length === 2) {
+                event.preventDefault();
+                state.touchMode = "pinch";
+                state.touchStartScale = state.scale;
+                state.touchStartDistance = distanceBetweenTouches(event.touches);
+                return;
+            }
+
+            if (event.touches.length !== 1) return;
+
+            const touch = event.touches[0];
+            state.touchStartX = touch.clientX;
+            state.touchStartY = touch.clientY;
+            state.touchStartTranslateX = state.translateX;
+            state.touchStartTranslateY = state.translateY;
+            state.touchMode = state.scale > 1 ? "pan" : "swipe";
+        }, { passive: false });
+
+        viewport.addEventListener("touchmove", (event) => {
+            if (image.hidden) return;
+            if (state.touchMode === "pinch" && event.touches.length === 2) {
+                event.preventDefault();
+                const nextDistance = distanceBetweenTouches(event.touches);
+                const nextScale = state.touchStartScale * (nextDistance / state.touchStartDistance);
+                const centerX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+                const centerY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+                updateZoomAroundPoint(nextScale, centerX, centerY);
+                return;
+            }
+
+            if (state.touchMode === "pan" && event.touches.length === 1) {
+                event.preventDefault();
+                const touch = event.touches[0];
+                state.translateX = state.touchStartTranslateX + (touch.clientX - state.touchStartX);
+                state.translateY = state.touchStartTranslateY + (touch.clientY - state.touchStartY);
+                applyImageTransform();
+            }
+        }, { passive: false });
+
+        viewport.addEventListener("touchend", (event) => {
+            if (image.hidden) return;
+
+            if (state.touchMode === "swipe" && !event.touches.length) {
+                const deltaX = (event.changedTouches[0]?.clientX || 0) - state.touchStartX;
+                const deltaY = (event.changedTouches[0]?.clientY || 0) - state.touchStartY;
+                const tapTime = Date.now();
+                const isTap = Math.abs(deltaX) < 12 && Math.abs(deltaY) < 12;
+
+                if (isTap) {
+                    if (tapTime - state.lastTapTime < 280) {
+                        updateZoomAroundPoint(state.scale > 1 ? 1 : 2.4, event.changedTouches[0].clientX, event.changedTouches[0].clientY);
+                        state.lastTapTime = 0;
+                    } else {
+                        state.lastTapTime = tapTime;
+                    }
+                } else if (Math.abs(deltaX) > 54 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                    moveMedia(deltaX < 0 ? 1 : -1);
+                }
+            }
+
+            if (state.touchMode === "pinch" && event.touches.length < 2 && state.scale <= 1.02) {
+                resetZoomState();
+            }
+
+            if (!event.touches.length) {
+                state.touchMode = "";
+            }
+        });
+
+        previousButton.addEventListener("click", () => moveMedia(-1));
+        nextButton.addEventListener("click", () => moveMedia(1));
+
+        popup.addEventListener("click", (event) => {
+            if (event.target.closest("[data-gallery-close='true']")) {
+                closeGallery();
+            }
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (popup.hidden) return;
+            if (event.key === "Escape") {
+                closeGallery();
+            } else if (event.key === "ArrowRight") {
+                moveMedia(1);
+            } else if (event.key === "ArrowLeft") {
+                moveMedia(-1);
+            }
+        });
+
+        return {
+            open: openGallery
+        };
+    };
+    const productGalleryLightbox = createProductGalleryLightbox();
     const createWhatsAppIntentPopup = () => {
         const popup = document.createElement("div");
         popup.className = "whatsapp-intent-popup";
@@ -1138,25 +1624,18 @@ const initializePage = async () => {
                 productImage.loading = shouldKeepEager ? "eager" : "lazy";
 
                 productMedia.append(productImage);
-                if (item.images?.length > 1) {
-                    let activeImageIndex = 0;
-                    productMedia.setAttribute("role", "button");
-                    productMedia.setAttribute("tabindex", "0");
-                    productMedia.setAttribute("aria-label", `View more images of ${item.name}`);
-
-                    const showNextImage = () => {
-                        activeImageIndex = (activeImageIndex + 1) % item.images.length;
-                        productImage.src = item.images[activeImageIndex];
-                    };
-
-                    productMedia.addEventListener("click", showNextImage);
-                    productMedia.addEventListener("keydown", (event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            showNextImage();
-                        }
-                    });
-                }
+                productMedia.setAttribute("role", "button");
+                productMedia.setAttribute("tabindex", "0");
+                productMedia.setAttribute("aria-label", `Open gallery for ${item.name}`);
+                productMedia.addEventListener("click", () => {
+                    productGalleryLightbox.open(item, productMedia);
+                });
+                productMedia.addEventListener("keydown", (event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        productGalleryLightbox.open(item, productMedia);
+                    }
+                });
                 if (item.isNew) {
                     const newBadge = document.createElement("span");
                     newBadge.textContent = "New";
