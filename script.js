@@ -283,7 +283,17 @@ const initializePage = async () => {
     };
     const getProductWhatsAppPayload = (item) => {
         const finalPrice = item.discountPrice || item.price;
-        const imageUrl = item.image ? new URL(encodeURI(item.image), window.location.href).href : "";
+        let imageUrl = "";
+
+        if (item.image) {
+            const publicSiteUrl = "https://floaa.in/";
+            const resolvedImageUrl = new URL(encodeURI(item.image), window.location.href);
+            const isLocalHostImage = /^(localhost|127\.0\.0\.1)$/i.test(resolvedImageUrl.hostname);
+            imageUrl = isLocalHostImage
+                ? new URL(resolvedImageUrl.pathname.replace(/^\/+/, ""), publicSiteUrl).href
+                : resolvedImageUrl.href;
+        }
+
         return {
             finalPrice,
             imageUrl
@@ -423,13 +433,16 @@ const initializePage = async () => {
             if (!activeItem) return;
             const { finalPrice, imageUrl } = getProductWhatsAppPayload(activeItem);
             const message = [
-                "Hi FLOAA! I have a question about this piece 😊",
+                "Hi FLOAA! I have a question about this piece.",
                 "",
                 `Product: ${activeItem.name}`,
                 `Price: ${finalPrice}`,
                 "Quantity: 1",
-                imageUrl ? `Image: ${imageUrl}` : "",
                 "",
+                imageUrl ? "View Product Image:" : "",
+                imageUrl || "",
+                "",
+                "Question:",
                 "Could you help me out?"
             ].filter(Boolean).join("\n");
             trackMetaCustomEvent("whatsapp_enquiry_click");
@@ -459,16 +472,19 @@ const initializePage = async () => {
 
             const { finalPrice, imageUrl } = getProductWhatsAppPayload(activeItem);
             const message = [
-                "Hi FLOAA! I'd like to order this 🛍️",
+                "Hi FLOAA! I'd like to order this.",
                 "",
                 `Product: ${activeItem.name}`,
                 `Price: ${finalPrice}`,
                 "Quantity: 1",
-                imageUrl ? `Image: ${imageUrl}` : "",
+                "",
+                imageUrl ? "View Product Image:" : "",
+                imageUrl || "",
+                "",
                 `Name: ${customerName}`,
                 `Address: ${customerAddress}`,
                 "",
-                "Please confirm and share the payment link 🙏"
+                "Please confirm and share the payment link."
             ].filter(Boolean).join("\n");
 
             trackMetaCustomEvent("whatsapp_order_submit");
@@ -572,16 +588,18 @@ const initializePage = async () => {
                 return;
             }
 
-            const { imageUrl } = getProductWhatsAppPayload(activeItem);
+            const { finalPrice, imageUrl } = getProductWhatsAppPayload(activeItem);
             const message = [
-                "Hi FLOAA! \\u{1F60A}",
-                "",
-                "I have a question about this piece:",
+                "Hi FLOAA! I have a question about this piece.",
                 "",
                 `Product: ${activeItem.name}`,
-                imageUrl ? `Image: ${imageUrl}` : "",
+                `Price: ${finalPrice}`,
+                "Quantity: 1",
                 "",
-                "My question:",
+                imageUrl ? "View Product Image:" : "",
+                imageUrl || "",
+                "",
+                "Question:",
                 customerQuestion
             ].filter(Boolean).join("\n");
 
@@ -697,16 +715,19 @@ const initializePage = async () => {
 
             const { finalPrice, imageUrl } = getProductWhatsAppPayload(activeItem);
             const message = [
-                "Hi FLOAA! I'd like to order this \\u{1F6CD}\\u{FE0F}",
+                "Hi FLOAA! I'd like to order this.",
                 "",
                 `Product: ${activeItem.name}`,
                 `Price: ${finalPrice}`,
                 "Quantity: 1",
-                imageUrl ? `Image: ${imageUrl}` : "",
+                "",
+                imageUrl ? "View Product Image:" : "",
+                imageUrl || "",
+                "",
                 `Name: ${customerName}`,
                 `Address: ${customerAddress}`,
                 "",
-                "Please confirm and share the payment link \\u{1F64F}"
+                "Please confirm and share the payment link."
             ].filter(Boolean).join("\n");
 
             trackMetaCustomEvent("whatsapp_order_submit");
