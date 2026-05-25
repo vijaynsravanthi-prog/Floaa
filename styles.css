@@ -2585,7 +2585,7 @@ body[data-page="home"] #home-product-grid .product-stock {
         gap: 14px;
         grid-row: 2;
         inset: auto;
-        min-height: 292px;
+        min-height: 420px;
         position: static;
         padding: 22px 20px 24px;
         text-align: center;
@@ -2600,7 +2600,7 @@ body[data-page="home"] #home-product-grid .product-stock {
         display: flex;
         flex-direction: column;
         gap: 14px;
-        min-height: 246px;
+        min-height: 360px;
         justify-content: flex-start;
         margin: 0 auto;
         max-width: 340px;
