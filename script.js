@@ -67,7 +67,7 @@ const initializePage = async () => {
 
         const startAutoSlide = () => {
             stopAutoSlide();
-            intervalId = window.setInterval(() => showSlide(activeIndex + 1), 4000);
+            intervalId = window.setInterval(() => showSlide(activeIndex + 1), 5600);
         };
 
         previousButton?.addEventListener("click", () => {
