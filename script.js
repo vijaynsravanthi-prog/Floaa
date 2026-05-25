@@ -1622,6 +1622,66 @@ const initializePage = async () => {
         container.append(notice);
         signalGridRefresh(container);
     };
+    const injectProductSchema = (container, items) => {
+        const existingSchema = document.getElementById("floaa-product-schema");
+        existingSchema?.remove();
+
+        if (!container || !Array.isArray(items)) return;
+        if (container.id !== "shop-product-grid" && container.id !== "category-product-grid") return;
+
+        const productCards = Array.from(container.querySelectorAll(".product-card"));
+        if (!productCards.length) return;
+
+        const validItems = items.filter((item) => item?.name && item?.image);
+        const itemListElement = validItems.slice(0, productCards.length).map((item, index) => {
+            const productCard = productCards[index];
+            const anchorId = productCard?.id || "";
+            const productUrl = anchorId
+                ? `${window.location.href.split("#")[0]}#${encodeURIComponent(anchorId)}`
+                : window.location.href.split("#")[0];
+            const imageUrl = item.image
+                ? new URL(encodeURI(item.image), "https://floaa.in/").href
+                : "";
+            const price = item.discountPriceValue || item.priceValue || 0;
+
+            return {
+                "@type": "ListItem",
+                position: index + 1,
+                url: productUrl,
+                item: {
+                    "@type": "Product",
+                    name: item.name,
+                    image: imageUrl,
+                    description: item.description,
+                    brand: {
+                        "@type": "Organization",
+                        name: "FLOAA"
+                    },
+                    offers: {
+                        "@type": "Offer",
+                        priceCurrency: "INR",
+                        price,
+                        availability: item.stockStatus === "sold-out"
+                            ? "https://schema.org/OutOfStock"
+                            : "https://schema.org/InStock",
+                        url: productUrl
+                    }
+                }
+            };
+        });
+
+        if (!itemListElement.length) return;
+
+        const schemaScript = document.createElement("script");
+        schemaScript.id = "floaa-product-schema";
+        schemaScript.type = "application/ld+json";
+        schemaScript.textContent = JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            itemListElement
+        });
+        document.head.append(schemaScript);
+    };
     const renderProducts = (container, items, href) => {
         if (!container) return;
         if (!Array.isArray(items)) {
@@ -1782,6 +1842,7 @@ const initializePage = async () => {
         container.append(fragment);
         signalGridRefresh(container);
         scrollToProductAnchor(container);
+        injectProductSchema(container, items);
     };
 
     const addShoppingPolicyContent = () => {
