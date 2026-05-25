@@ -2531,6 +2531,7 @@ body[data-page="home"] #home-product-grid .product-stock {
     }
 
     .hero-slide {
+        grid-template-rows: 232px auto;
         height: auto;
         position: static;
     }
@@ -2540,7 +2541,7 @@ body[data-page="home"] #home-product-grid .product-stock {
     }
 
     .hero-slide.is-active {
-        display: block;
+        display: grid;
         z-index: auto;
     }
 
@@ -2553,19 +2554,27 @@ body[data-page="home"] #home-product-grid .product-stock {
 
     .hero-slide img {
         background: #fffaf4;
-        height: auto;
-        object-fit: contain;
-        object-position: center top;
+        display: block;
+        grid-row: 1;
+        height: 232px;
+        object-fit: cover;
+        object-position: center 16%;
         opacity: 1;
         padding: 0;
         position: static;
         width: 100%;
     }
 
-    .hero-slide--signature img,
-    .hero-slide--colour img,
+    .hero-slide--signature img {
+        object-position: 43% 16%;
+    }
+
+    .hero-slide--colour img {
+        object-position: 45% 16%;
+    }
+
     .hero-slide--gifting img {
-        object-position: center top;
+        object-position: 54% 15%;
     }
 
     .hero-slide-overlay {
@@ -2573,10 +2582,12 @@ body[data-page="home"] #home-product-grid .product-stock {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 24px;
+        gap: 14px;
+        grid-row: 2;
         inset: auto;
+        min-height: 292px;
         position: static;
-        padding: 40px 24px 48px;
+        padding: 22px 20px 24px;
         text-align: center;
     }
 
@@ -2588,10 +2599,11 @@ body[data-page="home"] #home-product-grid .product-stock {
         box-shadow: none;
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: 14px;
+        min-height: 246px;
         justify-content: flex-start;
         margin: 0 auto;
-        max-width: 360px;
+        max-width: 340px;
         padding: 0;
         text-align: center;
         width: 100%;
@@ -2603,23 +2615,23 @@ body[data-page="home"] #home-product-grid .product-stock {
 
     .hero-kicker {
         color: var(--gold-deep);
-        font-size: 0.84rem;
+        font-size: 0.78rem;
         letter-spacing: 0.28em;
         margin-bottom: 0;
     }
 
     .hero-slide-copy h1 {
-        font-size: clamp(2rem, 5vw, 2.25rem);
-        line-height: 1.08;
+        font-size: clamp(1.72rem, 4.5vw, 1.94rem);
+        line-height: 1.03;
         margin-top: 0;
-        max-width: 15ch;
+        max-width: 13.5ch;
         text-wrap: balance;
     }
 
     .hero-slide-copy .hero-subtitle {
-        font-size: 1rem;
-        line-height: 1.45;
-        max-width: 360px;
+        font-size: 0.92rem;
+        line-height: 1.34;
+        max-width: 320px;
     }
 
     .hero-social-proof {
@@ -2629,18 +2641,18 @@ body[data-page="home"] #home-product-grid .product-stock {
     .hero-slide-copy .btn,
     .hero-slide-copy .btn-primary {
         align-self: center;
-        margin-top: 0;
+        margin-top: auto;
         max-width: 320px;
-        min-height: 46px;
+        min-height: 41px;
         min-width: min(80%, 320px);
-        padding: 0.92rem 1.25rem;
+        padding: 0.78rem 1.15rem;
         white-space: nowrap;
         width: min(80%, 320px);
     }
 
     .hero-slider-arrow {
         height: 28px;
-        top: 160px;
+        top: 116px;
         transform: translateY(-50%);
         width: 28px;
     }
@@ -2657,7 +2669,7 @@ body[data-page="home"] #home-product-grid .product-stock {
         gap: 0.65rem;
         justify-content: center;
         margin-bottom: 0;
-        margin-top: 20px;
+        margin-top: 12px;
         position: static;
         transform: none;
     }
