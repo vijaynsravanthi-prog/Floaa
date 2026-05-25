@@ -157,6 +157,12 @@ const initializePage = async () => {
         .replace(/",$/, "")
         .trim();
     const normalizeSlug = (value) => normalizeValue(value).toLowerCase();
+    const buildAnchorSlug = (value) => normalizeValue(value)
+        .toLowerCase()
+        .replace(/&/g, " and ")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .replace(/-{2,}/g, "-");
     const normalizeKey = (value) => {
         const key = normalizeSlug(value).replace(/[\s_-]+/g, "-");
         const aliases = {
@@ -1571,6 +1577,30 @@ const initializePage = async () => {
     const clearGridSkeletons = (container) => {
         container?.querySelectorAll(".skeleton-card").forEach((element) => element.remove());
     };
+    const shouldEnableProductAnchors = (container) => {
+        if (!container) return false;
+        if (container.id === "shop-product-grid") return true;
+        if (container.id !== "category-product-grid") return false;
+
+        const category = normalizeKey(document.body.dataset.category);
+        return ["earrings", "bracelets", "necklaces", "combos"].includes(category);
+    };
+    const scrollToProductAnchor = (container) => {
+        if (!container || !window.location.hash) return;
+
+        const anchorId = decodeURIComponent(window.location.hash.slice(1)).trim();
+        if (!anchorId) return;
+
+        const target = document.getElementById(anchorId);
+        if (!target || !container.contains(target)) return;
+
+        window.requestAnimationFrame(() => {
+            target.scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+            });
+        });
+    };
     const signalGridRefresh = (container) => {
         if (!container) return;
         container.classList.remove("is-refreshed");
@@ -1604,6 +1634,8 @@ const initializePage = async () => {
         }
 
         const fragment = document.createDocumentFragment();
+        const shouldAddProductAnchors = shouldEnableProductAnchors(container);
+        const usedAnchorIds = new Set();
 
         try {
             items.forEach((item, index) => {
@@ -1612,6 +1644,20 @@ const initializePage = async () => {
                 productCard.className = "product-card";
                 productCard.dataset.productName = item.name;
                 productCard.dataset.productCategory = item.category;
+
+                if (shouldAddProductAnchors) {
+                    const baseAnchorId = buildAnchorSlug(item.name);
+                    if (baseAnchorId) {
+                        let anchorId = baseAnchorId;
+                        let duplicateIndex = 2;
+                        while (usedAnchorIds.has(anchorId)) {
+                            anchorId = `${baseAnchorId}-${duplicateIndex}`;
+                            duplicateIndex += 1;
+                        }
+                        usedAnchorIds.add(anchorId);
+                        productCard.id = anchorId;
+                    }
+                }
 
                 const productMedia = document.createElement("div");
                 productMedia.className = "product-media";
@@ -1735,6 +1781,7 @@ const initializePage = async () => {
         clearGridSkeletons(container);
         container.append(fragment);
         signalGridRefresh(container);
+        scrollToProductAnchor(container);
     };
 
     const addShoppingPolicyContent = () => {

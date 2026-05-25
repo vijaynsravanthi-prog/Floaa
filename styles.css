@@ -1054,6 +1054,14 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
     overflow: hidden;
 }
 
+body[data-page="category"][data-category="earrings"] .product-card[id],
+body[data-page="category"][data-category="bracelets"] .product-card[id],
+body[data-page="category"][data-category="necklaces"] .product-card[id],
+body[data-page="category"][data-category="combos"] .product-card[id],
+body[data-page="shop-all"] .product-card[id] {
+    scroll-margin-top: 110px;
+}
+
 .product-media {
     aspect-ratio: 0.92;
     background-color: var(--bg-soft);
