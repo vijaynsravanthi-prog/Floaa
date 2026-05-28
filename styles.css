@@ -1087,6 +1087,18 @@ body[data-page="shop-all"] .product-card[id] {
     width: 100%;
 }
 
+/* Fallback visuals when an image fails to load */
+img.img--failed {
+    background-color: var(--bg-soft);
+    object-fit: contain;
+    opacity: 1;
+}
+
+.hero-slide.is-image-failed img {
+    /* keep the hero slide visible when image failed */
+    opacity: 1;
+}
+
 .product-media:hover img {
     transform: scale(1.04);
 }

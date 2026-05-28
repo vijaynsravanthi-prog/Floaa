@@ -8,6 +8,23 @@
             ["assets/floaa-jew-pics/ruby-model.png", "assets/floaa-jew-pics/ruby-model.webp"],
             ["assets/floaa-jew-pics/tripti-blue-model.png", "assets/floaa-jew-pics/tripti-blue-model.webp"]
         ]);
+        const IMAGE_PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice"><rect width="100%" height="100%" fill="#f6f6f6"/></svg>');
+
+        const applyImageFallback = (img, context = '') => {
+            try {
+                if (!img || img.dataset.__fallbackApplied) return;
+                img.dataset.__fallbackApplied = '1';
+                // only apply fallback if the original src was not a remote data: placeholder
+                img.src = IMAGE_PLACEHOLDER;
+                img.classList.add('img--failed');
+                // keep layout reserved via existing CSS; log in dev for visibility
+                if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+                    console.warn('[ImageFallback] applied', context || 'unknown', img);
+                }
+            } catch (e) {
+                // swallow errors to avoid breaking rendering
+            }
+        };
         const getPreferredHeroImageSrc = (imagePath) => optimizedHeroImageMap.get(imagePath) || imagePath;
         const getPreferredAltText = (name, description = "") => cleanSheetValue(description) || normalizeValue(name);
         const initHeroSlider = () => {
@@ -106,8 +123,10 @@
                 slide?.classList.add("is-image-ready");
             };
             const handleError = () => {
-                image.removeAttribute("src");
-                slide?.classList.remove("is-image-ready");
+                // apply a safe fallback so the slide doesn't appear blank
+                applyImageFallback(image, 'hero');
+                slide?.classList.add("is-image-ready");
+                slide?.classList.add("is-image-failed");
             };
 
             if (image.getAttribute("src") === safeImageSrc) {
@@ -619,45 +638,25 @@
                 applyImageTransform();
             };
 
-            // Perform a smooth double-tap zoom/reset around a point.
             const performDoubleTapZoom = (clientX, clientY) => {
                 if (image.hidden) return;
-                const targetScale = state.scale > 1 ? 1 : 2.0;
-                // Add a short transition for the double-tap animation only
+
                 image.classList.add("is-double-tap-anim");
-                updateZoomAroundPoint(targetScale, clientX, clientY);
-                // Remove transition after animation so pinch/pan remain responsive
+
+                if (state.scale > 1) {
+                    state.scale = 1;
+                    state.translateX = 0;
+                    state.translateY = 0;
+                    image.style.transformOrigin = "50% 50%";
+                    applyImageTransform();
+                } else {
+                    updateZoomAroundPoint(2, clientX, clientY);
+                }
+
                 window.setTimeout(() => {
                     image.classList.remove("is-double-tap-anim");
-                }, 260);
+                }, 250);
             };
-                // Perform a smooth double-tap zoom or reset around a point.
-                const performDoubleTapZoom = (clientX, clientY) => {
-                    if (image.hidden) return;
-                    const isReset = state.scale > 1;
-                    // Add a short transition for the double-tap animation only
-                    image.classList.add("is-double-tap-anim");
-
-                    if (isReset) {
-                        // Reset fully: scale=1, translateX=0, translateY=0
-                        state.scale = 1;
-                        state.translateX = 0;
-                        state.translateY = 0;
-                        // Ensure transform origin is centered so reset returns to original position
-                        image.style.transformOrigin = "50% 50%";
-                        applyImageTransform();
-                    } else {
-                        // Zoom in around tapped point (~2x)
-                        updateZoomAroundPoint(2.0, clientX, clientY);
-                    }
-
-                    // Remove transition after animation so pinch/pan remain responsive
-                    window.setTimeout(() => {
-                        image.classList.remove("is-double-tap-anim");
-                        // Clear inline transformOrigin set during animation to allow hover/pinch logic to control it
-                        if (isReset) image.style.transformOrigin = "";
-                    }, 240);
-                };
 
             const startPointerDrag = (event) => {
                 if (image.hidden || event.pointerType !== "mouse" || state.scale <= 1) return;
@@ -693,14 +692,17 @@
             });
 
             image.addEventListener("error", () => {
+                // Ensure the lightbox shows a neutral fallback instead of remaining blank
+                applyImageFallback(image, 'lightbox');
                 setLoadingState(false);
                 mediaFrame.classList.remove("is-hover-zoom");
+                // unhide image so fallback is visible
+                image.hidden = false;
             });
 
             image.addEventListener("dblclick", (event) => {
                 event.preventDefault();
-                const nextScale = state.scale > 1 ? 1 : 2.4;
-                updateZoomAroundPoint(nextScale, event.clientX, event.clientY);
+                performDoubleTapZoom(event.clientX, event.clientY);
             });
 
             viewport.addEventListener("wheel", (event) => {
@@ -1770,6 +1772,11 @@
 
                     const shouldKeepEager = (container.id === "shop-product-grid" || container.id === "category-product-grid") && index < 2;
                     productImage.loading = shouldKeepEager ? "eager" : "lazy";
+
+                    // add safe error handling for product images so one broken image doesn't break the section
+                    productImage.addEventListener('error', () => {
+                        applyImageFallback(productImage, `product:${item?.name || 'unknown'}`);
+                    }, { once: true });
 
                     productMedia.append(productImage);
                     productMedia.setAttribute("role", "button");
