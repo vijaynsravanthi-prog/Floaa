@@ -631,6 +631,33 @@
                     image.classList.remove("is-double-tap-anim");
                 }, 260);
             };
+                // Perform a smooth double-tap zoom or reset around a point.
+                const performDoubleTapZoom = (clientX, clientY) => {
+                    if (image.hidden) return;
+                    const isReset = state.scale > 1;
+                    // Add a short transition for the double-tap animation only
+                    image.classList.add("is-double-tap-anim");
+
+                    if (isReset) {
+                        // Reset fully: scale=1, translateX=0, translateY=0
+                        state.scale = 1;
+                        state.translateX = 0;
+                        state.translateY = 0;
+                        // Ensure transform origin is centered so reset returns to original position
+                        image.style.transformOrigin = "50% 50%";
+                        applyImageTransform();
+                    } else {
+                        // Zoom in around tapped point (~2x)
+                        updateZoomAroundPoint(2.0, clientX, clientY);
+                    }
+
+                    // Remove transition after animation so pinch/pan remain responsive
+                    window.setTimeout(() => {
+                        image.classList.remove("is-double-tap-anim");
+                        // Clear inline transformOrigin set during animation to allow hover/pinch logic to control it
+                        if (isReset) image.style.transformOrigin = "";
+                    }, 240);
+                };
 
             const startPointerDrag = (event) => {
                 if (image.hidden || event.pointerType !== "mouse" || state.scale <= 1) return;
