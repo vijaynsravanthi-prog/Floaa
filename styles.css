@@ -2413,6 +2413,11 @@ body[data-page="home"] #home-product-grid .product-stock {
 
 }
 
+/* Double-tap zoom animation (applied only briefly) */
+.product-gallery-lightbox__image.is-double-tap-anim {
+    transition: transform 220ms ease-out;
+}
+
 /* Trust section styles - isolated using trust- prefix */
 .trust-section {
     background: linear-gradient(180deg, var(--bg-soft) 0%, #fffaf5 100%);
