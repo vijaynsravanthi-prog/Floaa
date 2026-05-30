@@ -53,11 +53,13 @@ const toBase64Url = (value) =>
   btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 
 const pemToArrayBuffer = (pem) => {
-  const base64 = pem
+  console.log("pem length", pem.length);
+  const pemContents = pem
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
     .replace(/-----END PRIVATE KEY-----/g, "")
     .replace(/\s+/g, "");
-  const binary = atob(base64);
+  console.log("base64 length", pemContents.length);
+  const binary = atob(pemContents);
   const bytes = new Uint8Array(binary.length);
 
   for (let index = 0; index < binary.length; index += 1) {
