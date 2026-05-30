@@ -2,6 +2,7 @@
         const SHEET_ID = "1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs";
         const PRODUCTS_URL = `https://opensheet.elk.sh/${SHEET_ID}/1`;
         const BRAND_CONTENT_URL = `https://opensheet.elk.sh/${SHEET_ID}/BrandContent`;
+        const ORDERS_API_URL = "https://floaa-api.floaa.workers.dev/orders";
         const optimizedHeroImageMap = new Map([
             ["assets/floaa-jew-pics/lavender-empress-set.png", "assets/floaa-jew-pics/lavender-empress-set.webp"],
             ["assets/floaa-jew-pics/pistachio-model.png", "assets/floaa-jew-pics/pistachio-model.webp"],
@@ -1296,6 +1297,249 @@
             };
         };
         const whatsappReserveModal = createWhatsAppReserveModal();
+        const createOrderModal = () => {
+            const popup = document.createElement("div");
+            popup.className = "floaa-order-modal";
+            popup.hidden = true;
+            popup.innerHTML = `
+                <div class="floaa-order-modal__backdrop" data-order-close="true"></div>
+                <div class="floaa-order-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="floaa-order-title">
+                    <button class="floaa-order-modal__close" type="button" aria-label="Close order form" data-order-close="true">&times;</button>
+                    <div class="floaa-order-modal__panel floaa-order-modal__panel--form">
+                        <p class="floaa-order-modal__eyebrow">FLOAA Concierge</p>
+                        <h2 id="floaa-order-title" class="floaa-order-modal__title">Order / Enquire</h2>
+                        <p class="floaa-order-modal__subtitle">Leave your details and our team will help you reserve or enquire about this piece.</p>
+                        <div class="floaa-order-modal__product"></div>
+                        <form class="floaa-order-modal__form" novalidate>
+                            <input type="hidden" name="productId">
+                            <input type="hidden" name="productName">
+                            <label class="floaa-order-modal__field">
+                                <span>Name</span>
+                                <input type="text" name="customerName" autocomplete="name" required>
+                            </label>
+                            <label class="floaa-order-modal__field">
+                                <span>Phone</span>
+                                <div class="floaa-order-modal__phone-field">
+                                    <span class="floaa-order-modal__phone-prefix">+91</span>
+                                    <input type="tel" name="phone" autocomplete="tel-national" inputmode="numeric" maxlength="13" required>
+                                </div>
+                            </label>
+                            <label class="floaa-order-modal__field">
+                                <span>Email</span>
+                                <input type="email" name="email" autocomplete="email">
+                            </label>
+                            <label class="floaa-order-modal__field">
+                                <span>City</span>
+                                <input type="text" name="city" autocomplete="address-level2">
+                            </label>
+                            <label class="floaa-order-modal__field">
+                                <span>State</span>
+                                <input type="text" name="state" autocomplete="address-level1">
+                            </label>
+                            <p class="floaa-order-modal__error" aria-live="polite" hidden></p>
+                            <button class="btn floaa-order-modal__submit" type="submit">Send Enquiry</button>
+                        </form>
+                    </div>
+                    <div class="floaa-order-modal__panel floaa-order-modal__panel--success" hidden>
+                        <p class="floaa-order-modal__eyebrow">FLOAA Concierge</p>
+                        <h2 class="floaa-order-modal__title">Request Received</h2>
+                        <p class="floaa-order-modal__success-message">Thank you for your interest in this piece.</p>
+                        <p class="floaa-order-modal__success-message">A FLOAA Concierge will contact you shortly to assist with availability, styling, and purchase guidance.</p>
+                        <a class="btn floaa-order-modal__whatsapp" href="#" target="_blank" rel="noopener">Chat on WhatsApp</a>
+                        <button class="btn floaa-order-modal__done" type="button">Continue Browsing</button>
+                    </div>
+                </div>
+            `;
+            document.body.append(popup);
+
+            const formPanel = popup.querySelector(".floaa-order-modal__panel--form");
+            const successPanel = popup.querySelector(".floaa-order-modal__panel--success");
+            const productSummary = popup.querySelector(".floaa-order-modal__product");
+            const form = popup.querySelector(".floaa-order-modal__form");
+            const errorMessage = popup.querySelector(".floaa-order-modal__error");
+            const doneButton = popup.querySelector(".floaa-order-modal__done");
+            const whatsappButton = popup.querySelector(".floaa-order-modal__whatsapp");
+            const submitButton = form.querySelector(".floaa-order-modal__submit");
+            const nameInput = form.querySelector('input[name="customerName"]');
+            const phoneInput = form.querySelector('input[name="phone"]');
+            const productIdInput = form.querySelector('input[name="productId"]');
+            const productNameInput = form.querySelector('input[name="productName"]');
+            let activeItem = null;
+            let previousActiveElement = null;
+            let activeOrderId = "";
+            const phonePattern = /^[6-9]\d{9}$/;
+
+            const resetModal = () => {
+                form.reset();
+                errorMessage.hidden = true;
+                errorMessage.textContent = "";
+                formPanel.hidden = false;
+                successPanel.hidden = true;
+                submitButton.disabled = false;
+                submitButton.textContent = "Send Enquiry";
+                productIdInput.value = "";
+                productNameInput.value = "";
+                activeOrderId = "";
+                whatsappButton.href = "#";
+            };
+
+            const closeModal = () => {
+                popup.hidden = true;
+                popup.classList.remove("is-open");
+                document.body.classList.remove("has-floaa-order-modal");
+                activeItem = null;
+                resetModal();
+                if (previousActiveElement instanceof HTMLElement) {
+                    previousActiveElement.focus();
+                }
+            };
+
+            const showSuccessState = (orderId) => {
+                activeOrderId = orderId || "";
+                const whatsappMessage = [
+                    "Hello FLOAA,",
+                    `I just submitted an enquiry for: ${activeItem?.name || ""}`,
+                    "",
+                    `Order ID: ${activeOrderId}`,
+                    "",
+                    "Please assist me."
+                ].join("\n");
+                const whatsappNumber = getWhatsAppNumber(brandContent || {});
+                whatsappButton.href = whatsappNumber
+                    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`
+                    : "#";
+                errorMessage.textContent = "";
+                errorMessage.hidden = true;
+                formPanel.hidden = true;
+                successPanel.hidden = false;
+                window.setTimeout(() => whatsappButton.focus(), 0);
+            };
+
+            popup.addEventListener("click", (event) => {
+                if (event.target.closest("[data-order-close='true']")) {
+                    closeModal();
+                }
+            });
+
+            document.addEventListener("keydown", (event) => {
+                if (event.key === "Escape" && !popup.hidden) {
+                    closeModal();
+                }
+            });
+
+            doneButton.addEventListener("click", closeModal);
+
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                if (!activeItem) return;
+
+                const formData = new FormData(form);
+                const customerName = String(formData.get("customerName") || "").trim();
+                const phone = String(formData.get("phone") || "").trim();
+                const normalizedPhone = phone.replace(/\s+/g, "").replace(/\D+/g, "");
+                const email = String(formData.get("email") || "").trim();
+                const city = String(formData.get("city") || "").trim();
+                const state = String(formData.get("state") || "").trim();
+
+                if (!customerName || !normalizedPhone) {
+                    errorMessage.textContent = "Please share your name and phone number to continue.";
+                    errorMessage.hidden = false;
+                    (!customerName ? nameInput : phoneInput).focus();
+                    return;
+                }
+
+                if (!/^\d+$/.test(normalizedPhone) || !phonePattern.test(normalizedPhone)) {
+                    errorMessage.textContent = "Please enter a valid 10-digit mobile number";
+                    errorMessage.hidden = false;
+                    phoneInput.focus();
+                    return;
+                }
+
+                errorMessage.hidden = true;
+                errorMessage.textContent = "";
+                submitButton.disabled = true;
+                submitButton.textContent = "Sending...";
+                trackEvent("order_modal_submit_attempt", {
+                    product_name: activeItem.name,
+                    product_category: activeItem.category,
+                    product_id: activeItem.productId
+                });
+
+                try {
+                    const response = await fetch(ORDERS_API_URL, {
+                        method: "POST",
+                        headers: {
+                            "content-type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            productId: activeItem.productId,
+                            productName: activeItem.name,
+                            customerName,
+                            phone: normalizedPhone,
+                            email,
+                            city,
+                            state
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Order request failed: ${response.status}`);
+                    }
+                    const result = await response.json();
+
+                    trackEvent("order_modal_submit", {
+                        product_name: activeItem.name,
+                        product_category: activeItem.category,
+                        location: "product_card"
+                    });
+                    trackEvent("order_modal_submit_success", {
+                        product_name: activeItem.name,
+                        product_category: activeItem.category,
+                        product_id: activeItem.productId
+                    });
+                    showSuccessState(result.orderId);
+                } catch (error) {
+                    console.error("order modal submit failed", error);
+                    trackEvent("order_modal_submit_failure", {
+                        product_name: activeItem.name,
+                        product_category: activeItem.category,
+                        product_id: activeItem.productId
+                    });
+                    errorMessage.textContent = "We couldn't send your request right now. Please try again in a moment.";
+                    errorMessage.hidden = false;
+                    submitButton.disabled = false;
+                    submitButton.textContent = "Send Enquiry";
+                }
+            });
+
+            return {
+                open(item, trigger) {
+                    activeItem = item;
+                    previousActiveElement = trigger instanceof HTMLElement ? trigger : document.activeElement;
+                    resetModal();
+                    errorMessage.hidden = true;
+                    errorMessage.textContent = "";
+                    formPanel.hidden = false;
+                    successPanel.hidden = true;
+                    productIdInput.value = item.productId;
+                    productNameInput.value = item.name;
+                    productSummary.innerHTML = `
+                        <p class="floaa-order-modal__product-name">${item.name}</p>
+                        <p class="floaa-order-modal__product-meta">${item.discountPrice || item.price}</p>
+                    `;
+                    popup.hidden = false;
+                    popup.classList.add("is-open");
+                    document.body.classList.add("has-floaa-order-modal");
+                    trackEvent("order_modal_open", {
+                        product_name: item.name,
+                        product_category: item.category,
+                        product_id: item.productId
+                    });
+                    window.setTimeout(() => nameInput.focus(), 0);
+                }
+            };
+        };
+        const orderModal = createOrderModal();
         const getYouTubeVideoId = (value) => {
             try {
                 const url = new URL(value);
@@ -1315,6 +1559,7 @@
 
         const transformProduct = (row) => {
             const name = normalizeValue(getRowValue(row, ["Name"]));
+            const productId = cleanSheetValue(getRowValue(row, ["ProductId", "ProductID", "ID", "Id"])) || buildAnchorSlug(name);
             const price = getRowValue(row, ["Price"]);
             const discountPrice = getRowValue(row, ["DiscountPrice", "Discount Price"]);
             const images = getProductImages(getRowValue(row, ["Image", "Images"]));
@@ -1329,6 +1574,7 @@
             const normalizedCategory = category || "shop";
 
             return {
+                productId,
                 name,
                 price: formatPrice(price),
                 discountPrice: formatPrice(discountPrice),
@@ -1746,6 +1992,7 @@
                     if (!item?.name || !item?.image) return;
                     const productCard = document.createElement("article");
                     productCard.className = "product-card";
+                    productCard.dataset.productId = item.productId;
                     productCard.dataset.productName = item.name;
                     productCard.dataset.productCategory = item.category;
 
@@ -1847,11 +2094,11 @@
                         productBtn.textContent = "Sold Out";
                         productCtaGroup.append(productBtn);
                     } else {
-                        const reserveBtn = document.createElement("button");
-                        reserveBtn.className = "btn btn-primary";
-                        reserveBtn.type = "button";
-                        reserveBtn.textContent = "ORDER ON WHATSAPP";
-                        reserveBtn.addEventListener("click", () => whatsappReserveModal.open(item, brandContent, reserveBtn));
+                        const orderBtn = document.createElement("button");
+                        orderBtn.className = "btn btn-primary";
+                        orderBtn.type = "button";
+                        orderBtn.textContent = "ORDER / ENQUIRE";
+                        orderBtn.addEventListener("click", () => orderModal.open(item, orderBtn));
 
                         const questionBtn = document.createElement("button");
                         questionBtn.className = "btn btn-whatsapp-secondary";
@@ -1859,7 +2106,7 @@
                         questionBtn.textContent = "ASK A QUESTION";
                         questionBtn.addEventListener("click", () => whatsappQuestionModal.open(item, brandContent, questionBtn));
 
-                        productCtaGroup.append(reserveBtn, questionBtn);
+                        productCtaGroup.append(orderBtn, questionBtn);
                     }
 
                     productCard.addEventListener("click", (event) => {

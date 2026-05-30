@@ -1533,6 +1533,246 @@ body[data-page="home"] #home-product-grid .product-stock {
     overflow: hidden;
 }
 
+.has-floaa-order-modal {
+    overflow: hidden;
+}
+
+.floaa-order-modal {
+    inset: 0;
+    position: fixed;
+    z-index: 10010;
+}
+
+.floaa-order-modal[hidden] {
+    display: none;
+}
+
+.floaa-order-modal__backdrop {
+    background:
+        radial-gradient(circle at top, rgba(215, 189, 126, 0.14), transparent 42%),
+        rgba(35, 30, 32, 0.48);
+    inset: 0;
+    position: absolute;
+}
+
+.floaa-order-modal__dialog {
+    background:
+        linear-gradient(180deg, rgba(255, 253, 248, 0.99) 0%, rgba(255, 248, 240, 0.98) 100%);
+    border: 1px solid rgba(215, 189, 126, 0.34);
+    border-radius: 1.5rem;
+    box-shadow:
+        0 28px 80px rgba(58, 46, 43, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    color: var(--text);
+    left: 50%;
+    max-height: min(90vh, 760px);
+    max-width: min(30rem, calc(100vw - 1.25rem));
+    overflow: auto;
+    padding: 1.25rem;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+}
+
+.floaa-order-modal__panel,
+.floaa-order-modal__form {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.floaa-order-modal__panel[hidden] {
+    display: none;
+}
+
+.floaa-order-modal__close {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1.9rem;
+    line-height: 1;
+    padding: 0;
+    position: absolute;
+    right: 1rem;
+    top: 0.8rem;
+}
+
+.floaa-order-modal__eyebrow {
+    color: var(--control-gold-deep);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    margin: 0 0 0.75rem;
+    text-transform: uppercase;
+}
+
+.floaa-order-modal__title {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(2rem, 8vw, 3rem);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 0.96;
+    margin: 0 0 0.8rem;
+}
+
+.floaa-order-modal__subtitle,
+.floaa-order-modal__product-meta,
+.floaa-order-modal__field span,
+.floaa-order-modal__field input,
+.floaa-order-modal__error,
+.floaa-order-modal__success-message {
+    color: var(--muted);
+}
+
+.floaa-order-modal__subtitle,
+.floaa-order-modal__success-message {
+    font-size: 0.98rem;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.floaa-order-modal__product {
+    background:
+        linear-gradient(135deg, rgba(255, 253, 248, 0.92), rgba(250, 242, 231, 0.92));
+    border: 1px solid rgba(215, 189, 126, 0.3);
+    border-radius: 1rem;
+    margin: 0.2rem 0 0.2rem;
+    padding: 1rem 1.05rem;
+}
+
+.floaa-order-modal__product-name {
+    font-family: "Cormorant Garamond", serif;
+    font-size: 1.55rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    margin: 0 0 0.2rem;
+}
+
+.floaa-order-modal__product-meta {
+    font-size: 0.92rem;
+    margin: 0;
+}
+
+.floaa-order-modal__field {
+    display: grid;
+    gap: 0.42rem;
+}
+
+.floaa-order-modal__field span {
+    font-size: 0.79rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.floaa-order-modal__field input {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(215, 189, 126, 0.4);
+    border-radius: 0.95rem;
+    min-height: 50px;
+    padding: 0.92rem 1rem;
+}
+
+.floaa-order-modal__phone-field {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(215, 189, 126, 0.4);
+    border-radius: 0.95rem;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    min-height: 50px;
+    overflow: hidden;
+}
+
+.floaa-order-modal__phone-prefix {
+    align-items: center;
+    align-self: stretch;
+    background: rgba(250, 242, 231, 0.85);
+    border-right: 1px solid rgba(215, 189, 126, 0.28);
+    color: var(--pill-text);
+    display: inline-flex;
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 0 0.95rem;
+}
+
+.floaa-order-modal__phone-field input {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    min-height: 48px;
+}
+
+.floaa-order-modal__field input:focus {
+    border-color: var(--control-gold-deep);
+    box-shadow: 0 0 0 3px rgba(215, 189, 126, 0.18);
+    outline: none;
+}
+
+.floaa-order-modal__phone-field:focus-within {
+    border-color: var(--control-gold-deep);
+    box-shadow: 0 0 0 3px rgba(215, 189, 126, 0.18);
+}
+
+.floaa-order-modal__phone-field input:focus {
+    box-shadow: none;
+}
+
+.floaa-order-modal__submit,
+.floaa-order-modal__done {
+    min-height: 50px;
+    width: 100%;
+}
+
+.floaa-order-modal__whatsapp {
+    align-items: center;
+    background: linear-gradient(180deg, #2d8f63 0%, #247551 100%);
+    border: 1px solid rgba(24, 92, 62, 0.44);
+    box-shadow: 0 14px 28px rgba(45, 143, 99, 0.18);
+    color: #fffdf8;
+    display: inline-flex;
+    justify-content: center;
+    min-height: 50px;
+    text-decoration: none;
+    width: 100%;
+}
+
+.floaa-order-modal__whatsapp:hover {
+    background: linear-gradient(180deg, #32996a 0%, #286f50 100%);
+    border-color: rgba(24, 92, 62, 0.6);
+    box-shadow: 0 16px 34px rgba(45, 143, 99, 0.24);
+}
+
+.floaa-order-modal__done {
+    background: rgba(255, 255, 255, 0.72);
+    border-color: rgba(215, 189, 126, 0.34);
+    box-shadow: none;
+}
+
+.floaa-order-modal__done:hover {
+    background: rgba(250, 243, 228, 0.78);
+    border-color: rgba(215, 189, 126, 0.54);
+    box-shadow: 0 8px 18px rgba(184, 137, 36, 0.08);
+}
+
+.floaa-order-modal__submit[disabled] {
+    cursor: wait;
+    opacity: 0.72;
+}
+
+.floaa-order-modal__error {
+    font-size: 0.92rem;
+    margin: 0;
+}
+
+.floaa-order-modal__panel--success {
+    min-height: 18rem;
+    place-content: center;
+}
+
 .whatsapp-intent-popup {
     inset: 0;
     position: fixed;
@@ -2219,6 +2459,15 @@ body[data-page="home"] #home-product-grid .product-stock {
         padding: 1.2rem;
     }
 
+    .floaa-order-modal__dialog {
+        max-width: min(29rem, calc(100vw - 1rem));
+        padding: 1.1rem;
+    }
+
+    .floaa-order-modal__title {
+        font-size: clamp(1.8rem, 9vw, 2.5rem);
+    }
+
     .product-gallery-lightbox__dialog {
         padding: 0.75rem;
     }
@@ -2343,6 +2592,20 @@ body[data-page="home"] #home-product-grid .product-stock {
         border-radius: 1.1rem;
         max-width: calc(100vw - 1rem);
         padding: 1rem;
+    }
+
+    .floaa-order-modal__dialog {
+        border-radius: 1.15rem;
+        max-width: calc(100vw - 0.75rem);
+        padding: 0.95rem;
+    }
+
+    .floaa-order-modal__title {
+        font-size: clamp(1.7rem, 8vw, 2.2rem);
+    }
+
+    .floaa-order-modal__field input {
+        font-size: 16px;
     }
 
     .product-gallery-lightbox__dialog {
