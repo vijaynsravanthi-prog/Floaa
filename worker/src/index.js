@@ -3,11 +3,29 @@ const SPREADSHEET_ID = "1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs";
 const ORDERS_SHEET_NAME = "Orders";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
+const ALLOWED_ORIGINS = new Set([
+  "http://localhost:8000",
+  "https://www.floaa.in",
+  "https://floaa.in"
+]);
 
-const jsonResponse = (data, init = {}) =>
+const getCorsHeaders = (request) => {
+  const origin = request.headers.get("origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.has(origin) ? origin : "";
+
+  return {
+    ...(allowedOrigin ? { "access-control-allow-origin": allowedOrigin } : {}),
+    "access-control-allow-headers": "Content-Type",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    vary: "Origin"
+  };
+};
+
+const jsonResponse = (data, init = {}, request) =>
   new Response(JSON.stringify(data), {
     headers: {
-      "content-type": "application/json; charset=utf-8"
+      "content-type": "application/json; charset=utf-8",
+      ...(request ? getCorsHeaders(request) : {})
     },
     ...init
   });
@@ -196,6 +214,13 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    if (request.method === "OPTIONS" && url.pathname === "/orders") {
+      return new Response(null, {
+        status: 204,
+        headers: getCorsHeaders(request)
+      });
+    }
+
     if (request.method === "GET" && url.pathname === "/") {
       return Response.json({
         status: "ok",
@@ -209,11 +234,15 @@ export default {
       try {
         const products = await fetchProducts();
 
-        return jsonResponse({
-          success: true,
-          count: Array.isArray(products) ? products.length : 0,
-          products
-        });
+        return jsonResponse(
+          {
+            success: true,
+            count: Array.isArray(products) ? products.length : 0,
+            products
+          },
+          {},
+          request
+        );
       } catch (error) {
         console.error("product fetch failure", error);
 
@@ -222,7 +251,8 @@ export default {
             success: false,
             message: "Unable to fetch products"
           },
-          { status: 500 }
+          { status: 500 },
+          request
         );
       }
     }
@@ -240,7 +270,8 @@ export default {
             success: false,
             message: "Invalid JSON request body"
           },
-          { status: 400 }
+          { status: 400 },
+          request
         );
       }
 
@@ -252,7 +283,8 @@ export default {
             message: "Missing required fields",
             missingFields: validation.missingFields
           },
-          { status: 400 }
+          { status: 400 },
+          request
         );
       }
 
@@ -280,11 +312,15 @@ export default {
         await appendOrder(order, env);
         console.log("order write success", { orderId: order.orderId });
 
-        return jsonResponse({
-          success: true,
-          orderId: order.orderId,
-          message: "Order received"
-        });
+        return jsonResponse(
+          {
+            success: true,
+            orderId: order.orderId,
+            message: "Order received"
+          },
+          {},
+          request
+        );
       } catch (error) {
         console.error("order write failure", error);
         return jsonResponse(
@@ -292,7 +328,8 @@ export default {
             success: false,
             message: "Unable to create order"
           },
-          { status: 500 }
+          { status: 500 },
+          request
         );
       }
     }
