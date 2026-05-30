@@ -202,6 +202,15 @@
             if (!image || /^https?:\/\//i.test(image) || image.startsWith("assets/")) return image;
             return `assets/floaa-jew-pics/${image}`;
         };
+        const getProductThumbnailSrc = (value) => {
+            const imagePath = normalizeImagePath(value);
+            if (!imagePath || /^https?:\/\//i.test(imagePath)) return imagePath;
+
+            const extensionMatch = imagePath.match(/(\.[^.]+)$/);
+            if (!extensionMatch) return imagePath;
+
+            return imagePath.replace(/(\.[^.]+)$/, "-thumb.jpg");
+        };
         const getProductImages = (value) => normalizeList(value).map(normalizeImagePath).filter(Boolean);
         const parsePrice = (value) => {
             const price = Number(normalizeValue(value).replace(/[^\d.]/g, ""));
@@ -344,7 +353,7 @@
                 .filter((source) => isImageAsset(source) || isVideoAsset(source))
                 .map((source, index) => ({
                     src: source,
-                    thumb: source,
+                    thumb: isVideoAsset(source) ? source : getProductThumbnailSrc(source),
                     type: isVideoAsset(source) ? "video" : "image",
                     alt: getPreferredAltText(item.name, item.description),
                     label: `${item.name} ${index + 1}`
@@ -2015,7 +2024,7 @@
                     const productImage = document.createElement("img");
                     productImage.alt = getPreferredAltText(item.name, item.description);
                     productImage.decoding = "async";
-                    productImage.src = item.image;
+                    productImage.src = getProductThumbnailSrc(item.image);
 
                     const shouldKeepEager = (container.id === "shop-product-grid" || container.id === "category-product-grid") && index < 2;
                     productImage.loading = shouldKeepEager ? "eager" : "lazy";
