@@ -230,18 +230,11 @@ export default {
     if (request.method === "POST" && url.pathname === "/orders") {
       console.log("order request received");
 
-      if (env.GOOGLE_CLIENT_EMAIL && env.GOOGLE_PRIVATE_KEY) {
-        console.log("Google credentials configured");
-      } else {
-        console.log("Google credentials missing");
-      }
-
       let payload;
 
       try {
         payload = await request.json();
       } catch (error) {
-        console.log("validation failure");
         return jsonResponse(
           {
             success: false,
@@ -253,7 +246,6 @@ export default {
 
       const validation = validateOrderRequest(payload);
       if (!validation.isValid) {
-        console.log("validation failure");
         return jsonResponse(
           {
             success: false,
@@ -285,7 +277,6 @@ export default {
           source: "Website"
         };
 
-        console.log("order generated", { orderId: order.orderId });
         await appendOrder(order, env);
         console.log("order write success", { orderId: order.orderId });
 
