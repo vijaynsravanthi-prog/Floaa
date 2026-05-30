@@ -88,10 +88,10 @@ const getGoogleAccessToken = async (env) => {
   const encodedHeader = toBase64Url(JSON.stringify(jwtHeader));
   const encodedClaimSet = toBase64Url(JSON.stringify(jwtClaimSet));
   const signingInput = `${encodedHeader}.${encodedClaimSet}`;
-  console.log("private key header present", env.GOOGLE_PRIVATE_KEY.includes("BEGIN PRIVATE KEY"));
-  const privateKey = await crypto.subtle.importKey(
+  const privateKey = env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
+  const signingKey = await crypto.subtle.importKey(
     "pkcs8",
-    pemToArrayBuffer(env.GOOGLE_PRIVATE_KEY),
+    pemToArrayBuffer(privateKey),
     {
       name: "RSASSA-PKCS1-v1_5",
       hash: "SHA-256"
@@ -101,7 +101,7 @@ const getGoogleAccessToken = async (env) => {
   );
   const signature = await crypto.subtle.sign(
     "RSASSA-PKCS1-v1_5",
-    privateKey,
+    signingKey,
     new TextEncoder().encode(signingInput)
   );
   const binarySignature = String.fromCharCode(...new Uint8Array(signature));
