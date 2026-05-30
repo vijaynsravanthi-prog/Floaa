@@ -52,29 +52,35 @@ const validateOrderRequest = (payload) => {
 const toBase64Url = (value) =>
   btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 
+const extractPrivateKey = (value) => {
+  const normalizedValue = String(value || "").trim();
+
+  if (!normalizedValue) return "";
+
+  if (normalizedValue.startsWith("{")) {
+    try {
+      const parsedValue = JSON.parse(normalizedValue);
+      if (typeof parsedValue.private_key === "string" && parsedValue.private_key.trim()) {
+        return parsedValue.private_key;
+      }
+    } catch (error) {
+      // Fall back to regex extraction below if the JSON blob is malformed.
+    }
+  }
+
+  const privateKeyMatch = normalizedValue.match(/"private_key"\s*:\s*"([^"]+)"/);
+  if (privateKeyMatch?.[1]) {
+    return privateKeyMatch[1];
+  }
+
+  return normalizedValue;
+};
+
 const pemToArrayBuffer = (pem) => {
-  console.log("pem length", pem.length);
   const pemContents = pem
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
     .replace(/-----END PRIVATE KEY-----/g, "")
     .replace(/\s+/g, "");
-  console.log("base64 length", pemContents.length);
-  console.log(
-    "base64 sample",
-    pemContents.substring(0, 50)
-  );
-  console.log(
-    "contains quote",
-    pemContents.includes('"')
-  );
-  console.log(
-    "contains backslash",
-    pemContents.includes("\\")
-  );
-  console.log(
-    "contains dash",
-    pemContents.includes("-")
-  );
   const binary = atob(pemContents);
   const bytes = new Uint8Array(binary.length);
 
@@ -106,7 +112,7 @@ const getGoogleAccessToken = async (env) => {
   const encodedHeader = toBase64Url(JSON.stringify(jwtHeader));
   const encodedClaimSet = toBase64Url(JSON.stringify(jwtClaimSet));
   const signingInput = `${encodedHeader}.${encodedClaimSet}`;
-  const privateKey = env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
+  const privateKey = extractPrivateKey(env.GOOGLE_PRIVATE_KEY).replace(/\\n/g, "\n");
   const signingKey = await crypto.subtle.importKey(
     "pkcs8",
     pemToArrayBuffer(privateKey),
