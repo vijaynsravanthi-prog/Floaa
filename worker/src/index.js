@@ -59,6 +59,22 @@ const pemToArrayBuffer = (pem) => {
     .replace(/-----END PRIVATE KEY-----/g, "")
     .replace(/\s+/g, "");
   console.log("base64 length", pemContents.length);
+  console.log(
+    "base64 sample",
+    pemContents.substring(0, 50)
+  );
+  console.log(
+    "contains quote",
+    pemContents.includes('"')
+  );
+  console.log(
+    "contains backslash",
+    pemContents.includes("\\")
+  );
+  console.log(
+    "contains dash",
+    pemContents.includes("-")
+  );
   const binary = atob(pemContents);
   const bytes = new Uint8Array(binary.length);
 
