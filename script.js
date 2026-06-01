@@ -4,6 +4,7 @@
         const BRAND_CONTENT_URL = `https://opensheet.elk.sh/${SHEET_ID}/BrandContent`;
         const ORDERS_API_URL = "https://floaa-api.floaa.workers.dev/orders";
         const PAYMENT_LINK_API_URL = "https://floaa-api.floaa.workers.dev/create-payment-link";
+        const ENABLE_PURCHASES = false;
         const INDIAN_STATES_AND_UTS = [
             "Andhra Pradesh",
             "Arunachal Pradesh",
@@ -2467,12 +2468,6 @@
                         productBtn.textContent = "Sold Out";
                         productCtaGroup.append(productBtn);
                     } else {
-                        const buyNowBtn = document.createElement("button");
-                        buyNowBtn.className = "btn btn-buy-now";
-                        buyNowBtn.type = "button";
-                        buyNowBtn.textContent = "BUY NOW";
-                        buyNowBtn.addEventListener("click", () => buyNowModal.open(item, buyNowBtn));
-
                         const orderBtn = document.createElement("button");
                         orderBtn.className = "btn btn-primary";
                         orderBtn.type = "button";
@@ -2485,7 +2480,16 @@
                         questionBtn.textContent = "ASK A QUESTION";
                         questionBtn.addEventListener("click", () => whatsappQuestionModal.open(item, brandContent, questionBtn));
 
-                        productCtaGroup.append(buyNowBtn, orderBtn, questionBtn);
+                        if (ENABLE_PURCHASES) {
+                            const buyNowBtn = document.createElement("button");
+                            buyNowBtn.className = "btn btn-buy-now";
+                            buyNowBtn.type = "button";
+                            buyNowBtn.textContent = "BUY NOW";
+                            buyNowBtn.addEventListener("click", () => buyNowModal.open(item, buyNowBtn));
+                            productCtaGroup.append(buyNowBtn);
+                        }
+
+                        productCtaGroup.append(orderBtn, questionBtn);
                     }
 
                     productCard.addEventListener("click", (event) => {
