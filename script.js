@@ -50,6 +50,7 @@
             ["assets/floaa-jew-pics/tripti-blue-model.png", "assets/floaa-jew-pics/tripti-blue-model.webp"]
         ]);
         const IMAGE_PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice"><rect width="100%" height="100%" fill="#f6f6f6"/></svg>');
+        const imagePreloadCache = new Map();
 
         const applyImageFallback = (img, context = '') => {
             try {
@@ -65,6 +66,33 @@
             } catch (e) {
                 // swallow errors to avoid breaking rendering
             }
+        };
+        const preloadImageSource = (src) => {
+            const normalizedSrc = normalizeValue(src);
+            if (!normalizedSrc) return Promise.resolve("");
+            if (imagePreloadCache.has(normalizedSrc)) {
+                return imagePreloadCache.get(normalizedSrc);
+            }
+
+            const preloadPromise = new Promise((resolve) => {
+                const preloadImage = new Image();
+                preloadImage.decoding = "async";
+                preloadImage.addEventListener("load", () => resolve(normalizedSrc), { once: true });
+                preloadImage.addEventListener("error", () => resolve(""), { once: true });
+                preloadImage.src = normalizedSrc;
+            });
+
+            imagePreloadCache.set(normalizedSrc, preloadPromise);
+            return preloadPromise;
+        };
+        const setSurfaceBackgroundImage = async (surface, nextImageSrc) => {
+            if (!surface || !nextImageSrc) return;
+            const preferredImageSrc = normalizeImagePath(nextImageSrc);
+            const safeImageSrc = /^https?:\/\//i.test(preferredImageSrc) ? preferredImageSrc : encodeURI(preferredImageSrc);
+            const loadedImageSrc = await preloadImageSource(safeImageSrc);
+            if (!loadedImageSrc) return;
+            surface.style.backgroundImage = `url("${loadedImageSrc}")`;
+            surface.classList.add("is-ready");
         };
         const getPreferredHeroImageSrc = (imagePath) => optimizedHeroImageMap.get(imagePath) || imagePath;
         const getPreferredAltText = (name, description = "") => cleanSheetValue(description) || normalizeValue(name);
@@ -2172,20 +2200,20 @@
                 const categoryImage = content[`category-${category}`] || content[`${category}-image`];
                 const categoryTile = document.querySelector(`.category-tile[href="${category}.html"] .category-tile-media`);
                 if (categoryTile && categoryImage?.value) {
-                    categoryTile.style.backgroundImage = `url("${normalizeImagePath(categoryImage.value)}")`;
+                    void setSurfaceBackgroundImage(categoryTile, categoryImage.value);
                 }
             });
 
             const combosImage = content["category-combos"] || content["combos-image"] || content["category-rings"] || content["rings-image"];
             const combosTile = document.querySelector('.category-tile[href="rings.html"] .category-tile-media');
             if (combosTile && combosImage?.value) {
-                combosTile.style.backgroundImage = `url("${normalizeImagePath(combosImage.value)}")`;
+                void setSurfaceBackgroundImage(combosTile, combosImage.value);
             }
 
             const readAboutImage = content["read-about"] || content["read-about-image"];
             const readAboutSurface = document.querySelector(".feature-surface-one");
             if (readAboutSurface && readAboutImage?.value) {
-                readAboutSurface.style.backgroundImage = `url("${normalizeImagePath(readAboutImage.value)}")`;
+                void setSurfaceBackgroundImage(readAboutSurface, readAboutImage.value);
             }
 
             const heroVideo = content["hero-video"] || content.video || content["floaa-video"];
@@ -2382,8 +2410,12 @@
                     productImage.decoding = "async";
                     productImage.src = getProductThumbnailSrc(item.image);
 
-                    const shouldKeepEager = (container.id === "shop-product-grid" || container.id === "category-product-grid") && index < 2;
+                    const shouldKeepEager = (
+                        (container.id === "home-product-grid" && index < 4) ||
+                        ((container.id === "shop-product-grid" || container.id === "category-product-grid") && index < 2)
+                    );
                     productImage.loading = shouldKeepEager ? "eager" : "lazy";
+                    productImage.fetchPriority = shouldKeepEager ? "high" : "low";
 
                     // add safe error handling for product images so one broken image doesn't break the section
                     productImage.addEventListener('error', () => {
@@ -2550,8 +2582,17 @@
 
         let brandContent = {};
         const bodyPage = document.body.dataset.page;
-        const productsPromise = fetchProducts();
         const brandContentPromise = fetchBrandContent();
+        let hasAppliedBrandContent = false;
+        const applyResolvedBrandContent = (content) => {
+            brandContent = content || {};
+            if (hasAppliedBrandContent) return brandContent;
+            applyBrandContent(brandContent);
+            hasAppliedBrandContent = true;
+            return brandContent;
+        };
+        void brandContentPromise.then(applyResolvedBrandContent);
+        const productsPromise = fetchProducts();
         const products = await productsPromise;
 
         const homeGrid = document.getElementById("home-product-grid");
@@ -2619,8 +2660,7 @@
             });
         }
 
-        brandContent = await brandContentPromise;
-        applyBrandContent(brandContent);
+        applyResolvedBrandContent(await brandContentPromise);
 
         const navToggle = document.querySelector(".nav-toggle");
         const mainNav = document.getElementById("site-nav");
