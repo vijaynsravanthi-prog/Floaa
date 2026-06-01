@@ -1624,52 +1624,57 @@
                             <input type="hidden" name="productId">
                             <input type="hidden" name="productName">
                             <label class="floaa-order-modal__field">
-                                <span>Full Name</span>
-                                <input type="text" name="customerName" autocomplete="name" required>
+                                <span>Full Name *</span>
+                                <input type="text" name="customerName" autocomplete="name" placeholder="Vijay Konidena" required>
                             </label>
                             <label class="floaa-order-modal__field">
-                                <span>Phone</span>
+                                <span>Phone *</span>
                                 <div class="floaa-order-modal__phone-field">
                                     <span class="floaa-order-modal__phone-prefix">+91</span>
-                                    <input type="tel" name="phone" autocomplete="tel-national" inputmode="numeric" maxlength="10" required>
+                                    <input type="tel" name="phone" autocomplete="tel-national" inputmode="numeric" maxlength="10" placeholder="9876543210" required>
                                 </div>
+                                <small class="floaa-order-modal__helper">Enter 10-digit mobile number</small>
                             </label>
                             <label class="floaa-order-modal__field">
-                                <span>Address Line 1</span>
-                                <input type="text" name="addressLine1" autocomplete="address-line1" required>
+                                <span>Email (Optional)</span>
+                                <input type="email" name="email" autocomplete="email" placeholder="name@example.com">
                             </label>
                             <label class="floaa-order-modal__field">
-                                <span>Address Line 2</span>
-                                <input type="text" name="addressLine2" autocomplete="address-line2">
+                                <span>Address Line 1 *</span>
+                                <input type="text" name="addressLine1" autocomplete="address-line1" placeholder="Flat 302, Sai Residency" required>
                             </label>
                             <label class="floaa-order-modal__field">
-                                <span>Landmark</span>
-                                <input type="text" name="landmark" autocomplete="off">
+                                <span>Address Line 2 (Optional)</span>
+                                <input type="text" name="addressLine2" autocomplete="address-line2" placeholder="A Wing, 3rd Floor">
                             </label>
                             <label class="floaa-order-modal__field">
-                                <span>City</span>
-                                <input type="text" name="city" autocomplete="address-level2" required>
+                                <span>Landmark (Optional)</span>
+                                <input type="text" name="landmark" autocomplete="off" placeholder="Near D-Mart">
                             </label>
                             <label class="floaa-order-modal__field">
-                                <span>State</span>
+                                <span>Pincode *</span>
+                                <input type="tel" name="pincode" autocomplete="postal-code" inputmode="numeric" maxlength="6" placeholder="411045" required>
+                                <small class="floaa-order-modal__helper">Enter 6-digit pincode</small>
+                            </label>
+                            <label class="floaa-order-modal__field">
+                                <span>State *</span>
                                 <select name="state" autocomplete="address-level1" required>
                                     <option value="">Select State / UT</option>
                                     ${stateOptionsMarkup}
                                 </select>
                             </label>
                             <label class="floaa-order-modal__field">
-                                <span>Pincode</span>
-                                <input type="tel" name="pincode" autocomplete="postal-code" inputmode="numeric" maxlength="6" required>
+                                <span>City *</span>
+                                <input type="text" name="city" autocomplete="address-level2" placeholder="Pune" required>
                             </label>
-                            <label class="floaa-order-modal__field">
-                                <span>Email</span>
-                                <input type="email" name="email" autocomplete="email" required>
-                            </label>
-                            <p class="floaa-order-modal__error" aria-live="polite" hidden></p>
-                            <button class="btn floaa-order-modal__submit floaa-order-modal__submit--buy-now" type="submit">
-                                <span class="floaa-order-modal__submit-label">Continue to Payment</span>
-                                <span class="floaa-order-modal__spinner" aria-hidden="true" hidden></span>
-                            </button>
+                            <div class="floaa-order-modal__sticky-actions">
+                                <p class="floaa-order-modal__required-note">Please fill all required fields marked with *</p>
+                                <p class="floaa-order-modal__error" aria-live="polite" hidden></p>
+                                <button class="btn floaa-order-modal__submit floaa-order-modal__submit--buy-now" type="submit">
+                                    <span class="floaa-order-modal__submit-label">Continue to Payment</span>
+                                    <span class="floaa-order-modal__spinner" aria-hidden="true" hidden></span>
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -1806,13 +1811,6 @@
                     return;
                 }
 
-                if (!city) {
-                    errorMessage.textContent = "Please enter your city.";
-                    errorMessage.hidden = false;
-                    cityInput.focus();
-                    return;
-                }
-
                 if (!state) {
                     errorMessage.textContent = "Please select your state or union territory.";
                     errorMessage.hidden = false;
@@ -1827,10 +1825,10 @@
                     return;
                 }
 
-                if (!email) {
-                    errorMessage.textContent = "Please enter your email address.";
+                if (!city) {
+                    errorMessage.textContent = "Please enter your city.";
                     errorMessage.hidden = false;
-                    emailInput.focus();
+                    cityInput.focus();
                     return;
                 }
 
@@ -1848,7 +1846,7 @@
                     return;
                 }
 
-                if (!emailPattern.test(email)) {
+                if (email && !emailPattern.test(email)) {
                     errorMessage.textContent = "Please enter a valid email address";
                     errorMessage.hidden = false;
                     emailInput.focus();

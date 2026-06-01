@@ -1579,7 +1579,7 @@ body[data-page="home"] #home-product-grid .product-stock {
     color: var(--text);
     left: 50%;
     max-height: min(90vh, 760px);
-    max-width: min(30rem, calc(100vw - 1.25rem));
+    max-width: min(37.5rem, calc(100vw - 1.25rem));
     overflow: auto;
     padding: 1.25rem;
     position: absolute;
@@ -1680,6 +1680,34 @@ body[data-page="home"] #home-product-grid .product-stock {
     text-transform: uppercase;
 }
 
+.floaa-order-modal__helper,
+.floaa-order-modal__required-note {
+    color: rgba(88, 72, 63, 0.82);
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
+.floaa-order-modal__helper {
+    margin-top: -0.08rem;
+}
+
+.floaa-order-modal__required-note {
+    background: rgba(250, 242, 231, 0.65);
+    border: 1px solid rgba(215, 189, 126, 0.22);
+    border-radius: 0.85rem;
+    margin: -0.02rem 0 0.08rem;
+    padding: 0.72rem 0.9rem;
+}
+
+.floaa-order-modal__sticky-actions {
+    background: linear-gradient(180deg, rgba(252, 246, 238, 0.88) 0%, rgba(255, 250, 244, 0.98) 38%);
+    bottom: 0;
+    display: grid;
+    gap: 0.62rem;
+    padding-top: 0.55rem;
+    position: sticky;
+}
+
 .floaa-order-modal__field input,
 .floaa-order-modal__field select,
 .floaa-order-modal__field textarea {
@@ -1697,6 +1725,10 @@ body[data-page="home"] #home-product-grid .product-stock {
 .floaa-order-modal__field textarea {
     min-height: 88px;
     resize: vertical;
+}
+
+.floaa-order-modal__field select option[value=""] {
+    color: var(--muted);
 }
 
 .floaa-order-modal__phone-field {
@@ -2840,12 +2872,58 @@ body[data-page="home"] #home-product-grid .product-stock {
 
     .floaa-order-modal__title {
         font-size: clamp(1.7rem, 8vw, 2.2rem);
+        margin-bottom: 0.5rem;
+    }
+
+    .floaa-order-modal__subtitle,
+    .floaa-order-modal__success-message {
+        font-size: 0.93rem;
+        line-height: 1.5;
+    }
+
+    .floaa-order-modal__product {
+        padding: 0.82rem 0.9rem;
+    }
+
+    .floaa-order-modal__field {
+        gap: 0.34rem;
+    }
+
+    .floaa-order-modal__field span {
+        font-size: 0.74rem;
+        letter-spacing: 0.07em;
     }
 
     .floaa-order-modal__field input,
     .floaa-order-modal__field select,
     .floaa-order-modal__field textarea {
         font-size: 16px;
+        min-height: 46px;
+        padding: 0.82rem 0.9rem;
+    }
+
+    .floaa-order-modal__phone-field {
+        min-height: 46px;
+    }
+
+    .floaa-order-modal__phone-field input {
+        min-height: 44px;
+    }
+
+    .floaa-order-modal__helper,
+    .floaa-order-modal__required-note {
+        font-size: 0.74rem;
+        line-height: 1.4;
+    }
+
+    .floaa-order-modal__required-note {
+        padding: 0.62rem 0.78rem;
+    }
+
+    .floaa-order-modal__sticky-actions {
+        gap: 0.55rem;
+        padding-top: 0.42rem;
+        position: static;
     }
 
     .product-gallery-lightbox__dialog {

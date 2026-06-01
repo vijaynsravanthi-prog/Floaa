@@ -115,7 +115,7 @@ const validateOrderRequest = (payload) => {
 };
 
 const validatePaymentLinkRequest = (payload) => {
-  const requiredFields = ["productId", "customerName", "phone", "email", "addressLine1", "city", "state", "pincode"];
+  const requiredFields = ["productId", "customerName", "phone", "addressLine1", "city", "state", "pincode"];
   const missingFields = requiredFields.filter((field) => {
     const value = payload?.[field];
     return typeof value !== "string" || !value.trim();
@@ -856,7 +856,7 @@ export default {
         const customer = {
           customerName: payload.customerName.trim(),
           phone: normalizeDigits(payload.phone),
-          email: payload.email.trim(),
+          email: typeof payload.email === "string" ? payload.email.trim() : "",
           addressLine1: payload.addressLine1.trim(),
           addressLine2: typeof payload.addressLine2 === "string" ? payload.addressLine2.trim() : "",
           landmark: typeof payload.landmark === "string" ? payload.landmark.trim() : "",
