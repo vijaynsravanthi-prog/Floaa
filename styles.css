@@ -1453,6 +1453,19 @@ img.img--failed {
     color: var(--pill-text);
 }
 
+.product-card .btn-buy-now {
+    background: linear-gradient(180deg, rgba(53, 45, 48, 0.98) 0%, rgba(37, 31, 33, 0.98) 100%);
+    border-color: rgba(37, 31, 33, 0.92);
+    box-shadow: 0 12px 26px rgba(58, 46, 43, 0.16);
+    color: #fffaf4;
+}
+
+.product-card .btn-buy-now:hover {
+    background: linear-gradient(180deg, rgba(67, 57, 60, 1) 0%, rgba(44, 37, 40, 1) 100%);
+    border-color: rgba(37, 31, 33, 1);
+    box-shadow: 0 14px 28px rgba(58, 46, 43, 0.22);
+}
+
 .product-card .btn-whatsapp-secondary:hover {
     background: rgba(250, 243, 228, 0.82);
     border-color: var(--pill-border);
@@ -1667,12 +1680,23 @@ body[data-page="home"] #home-product-grid .product-stock {
     text-transform: uppercase;
 }
 
-.floaa-order-modal__field input {
+.floaa-order-modal__field input,
+.floaa-order-modal__field select,
+.floaa-order-modal__field textarea {
     background: rgba(255, 255, 255, 0.92);
     border: 1px solid rgba(215, 189, 126, 0.4);
     border-radius: 0.95rem;
     min-height: 50px;
     padding: 0.92rem 1rem;
+}
+
+.floaa-order-modal__field select {
+    appearance: none;
+}
+
+.floaa-order-modal__field textarea {
+    min-height: 88px;
+    resize: vertical;
 }
 
 .floaa-order-modal__phone-field {
@@ -1706,7 +1730,9 @@ body[data-page="home"] #home-product-grid .product-stock {
     min-height: 48px;
 }
 
-.floaa-order-modal__field input:focus {
+.floaa-order-modal__field input:focus,
+.floaa-order-modal__field select:focus,
+.floaa-order-modal__field textarea:focus {
     border-color: var(--control-gold-deep);
     box-shadow: 0 0 0 3px rgba(215, 189, 126, 0.18);
     outline: none;
@@ -1725,6 +1751,48 @@ body[data-page="home"] #home-product-grid .product-stock {
 .floaa-order-modal__done {
     min-height: 50px;
     width: 100%;
+}
+
+.floaa-order-modal__submit {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.65rem;
+    justify-content: center;
+}
+
+.floaa-order-modal__submit--buy-now {
+    background: linear-gradient(180deg, rgba(53, 45, 48, 0.98) 0%, rgba(37, 31, 33, 0.98) 100%);
+    border-color: rgba(37, 31, 33, 0.92);
+    box-shadow: 0 16px 32px rgba(58, 46, 43, 0.18);
+    color: #fffaf4;
+}
+
+.floaa-order-modal__submit--buy-now:hover {
+    background: linear-gradient(180deg, rgba(67, 57, 60, 1) 0%, rgba(44, 37, 40, 1) 100%);
+    border-color: rgba(37, 31, 33, 1);
+    box-shadow: 0 18px 36px rgba(58, 46, 43, 0.22);
+}
+
+.floaa-order-modal__submit-label {
+    display: inline-flex;
+}
+
+.floaa-order-modal__spinner {
+    animation: floaaSpin 0.8s linear infinite;
+    border: 2px solid rgba(255, 250, 244, 0.24);
+    border-top-color: #fffaf4;
+    border-radius: 50%;
+    display: inline-block;
+    height: 1rem;
+    width: 1rem;
+}
+
+.floaa-order-modal__spinner[hidden] {
+    display: none;
+}
+
+.floaa-order-modal__submit.is-loading {
+    cursor: wait;
 }
 
 .floaa-order-modal__whatsapp {
@@ -1771,6 +1839,16 @@ body[data-page="home"] #home-product-grid .product-stock {
 .floaa-order-modal__panel--success {
     min-height: 18rem;
     place-content: center;
+}
+
+@keyframes floaaSpin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .whatsapp-intent-popup {
@@ -2072,10 +2150,147 @@ body[data-page="home"] #home-product-grid .product-stock {
     padding: 1.5rem;
 }
 
+.contact-card,
+.story-grid article,
+.detail-card,
+.policy-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+}
+
 .contact-card h2,
 .story-grid h2 {
     font-size: 2rem;
     margin-bottom: 0.75rem;
+}
+
+.detail-grid,
+.policy-grid,
+.support-grid {
+    display: grid;
+    gap: 1.3rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.detail-card,
+.policy-card {
+    border-radius: 1.5rem;
+    padding: 1.6rem;
+}
+
+.detail-card h2,
+.policy-card h2 {
+    font-size: clamp(1.65rem, 2.8vw, 2.1rem);
+    margin-bottom: 0.75rem;
+}
+
+.policy-card h3 {
+    color: var(--text);
+    font-family: "Cormorant Garamond", serif;
+    font-size: 1.4rem;
+    margin-bottom: 0.55rem;
+    margin-top: 1rem;
+}
+
+.policy-card p + p,
+.detail-card p + p {
+    margin-top: 0.8rem;
+}
+
+.policy-card ul,
+.detail-card ul {
+    color: var(--muted);
+    margin-top: 0.85rem;
+    padding-left: 1.15rem;
+}
+
+.policy-card li + li,
+.detail-card li + li {
+    margin-top: 0.45rem;
+}
+
+.policy-card strong,
+.detail-card strong {
+    color: var(--text);
+}
+
+.status-shell {
+    margin: 0 auto;
+    max-width: 52rem;
+}
+
+.status-card {
+    align-items: center;
+    background: linear-gradient(180deg, rgba(255, 250, 245, 0.96) 0%, rgba(248, 229, 223, 0.88) 100%);
+    border: 1px solid var(--line);
+    border-radius: 1.8rem;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+    padding: clamp(2rem, 4vw, 3rem);
+    text-align: center;
+}
+
+.status-badge {
+    align-items: center;
+    background: rgba(255, 250, 245, 0.92);
+    border: 1px solid rgba(184, 137, 36, 0.24);
+    border-radius: 999px;
+    color: var(--control-gold-text);
+    display: inline-flex;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    padding: 0.75rem 1.15rem;
+    text-transform: uppercase;
+}
+
+.status-card h2 {
+    color: var(--text);
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(2.2rem, 5vw, 3.5rem);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 0.98;
+    max-width: 12ch;
+}
+
+.status-card p {
+    color: var(--muted);
+    font-size: 1rem;
+    max-width: 42rem;
+}
+
+.status-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 0.35rem;
+    width: 100%;
+}
+
+.status-actions .btn {
+    min-width: min(100%, 18rem);
+}
+
+.support-grid .contact-card:first-child {
+    grid-column: span 2;
+}
+
+.contact-inline-link {
+    color: var(--text);
+    font-weight: 700;
+}
+
+.contact-inline-link:hover {
+    color: var(--control-gold-text);
+}
+
+.contact-caption,
+.policy-meta {
+    color: var(--muted);
+    font-size: 0.95rem;
 }
 
 .site-footer {
@@ -2134,6 +2349,9 @@ body[data-page="home"] #home-product-grid .product-stock {
     .product-grid,
     .contact-grid,
     .story-grid,
+    .detail-grid,
+    .policy-grid,
+    .support-grid,
     .footer-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -2243,6 +2461,10 @@ body[data-page="home"] #home-product-grid .product-stock {
         transform: none;
         width: 100%;
     }
+
+    .support-grid .contact-card:first-child {
+        grid-column: span 1;
+    }
 }
 @media (max-width: 760px) {
     .utility-bar,
@@ -2271,6 +2493,9 @@ body[data-page="home"] #home-product-grid .product-stock {
 
     .contact-grid,
     .story-grid,
+    .detail-grid,
+    .policy-grid,
+    .support-grid,
     .footer-grid {
         grid-template-columns: 1fr;
     }
@@ -2284,6 +2509,19 @@ body[data-page="home"] #home-product-grid .product-stock {
         display: grid;
         gap: 0.8rem;
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .status-card {
+        border-radius: 1.5rem;
+        padding: 1.7rem 1.2rem;
+    }
+
+    .status-card h2 {
+        max-width: 9.5ch;
+    }
+
+    .status-card p {
+        font-size: 0.97rem;
     }
 
     .product-card {
@@ -2604,7 +2842,9 @@ body[data-page="home"] #home-product-grid .product-stock {
         font-size: clamp(1.7rem, 8vw, 2.2rem);
     }
 
-    .floaa-order-modal__field input {
+    .floaa-order-modal__field input,
+    .floaa-order-modal__field select,
+    .floaa-order-modal__field textarea {
         font-size: 16px;
     }
 
