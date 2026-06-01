@@ -3,45 +3,6 @@
         const PRODUCTS_URL = `https://opensheet.elk.sh/${SHEET_ID}/1`;
         const BRAND_CONTENT_URL = `https://opensheet.elk.sh/${SHEET_ID}/BrandContent`;
         const ORDERS_API_URL = "https://floaa-api.floaa.workers.dev/orders";
-        const PAYMENT_LINK_API_URL = "https://floaa-api.floaa.workers.dev/create-payment-link";
-        const INDIAN_STATES_AND_UTS = [
-            "Andhra Pradesh",
-            "Arunachal Pradesh",
-            "Assam",
-            "Bihar",
-            "Chhattisgarh",
-            "Goa",
-            "Gujarat",
-            "Haryana",
-            "Himachal Pradesh",
-            "Jharkhand",
-            "Karnataka",
-            "Kerala",
-            "Madhya Pradesh",
-            "Maharashtra",
-            "Manipur",
-            "Meghalaya",
-            "Mizoram",
-            "Nagaland",
-            "Odisha",
-            "Punjab",
-            "Rajasthan",
-            "Sikkim",
-            "Tamil Nadu",
-            "Telangana",
-            "Tripura",
-            "Uttar Pradesh",
-            "Uttarakhand",
-            "West Bengal",
-            "Andaman and Nicobar Islands",
-            "Chandigarh",
-            "Dadra and Nagar Haveli and Daman and Diu",
-            "Delhi",
-            "Jammu and Kashmir",
-            "Ladakh",
-            "Lakshadweep",
-            "Puducherry"
-        ];
         const optimizedHeroImageMap = new Map([
             ["assets/floaa-jew-pics/lavender-empress-set.png", "assets/floaa-jew-pics/lavender-empress-set.webp"],
             ["assets/floaa-jew-pics/pistachio-model.png", "assets/floaa-jew-pics/pistachio-model.webp"],
@@ -318,7 +279,7 @@
         };
         const formatPrice = (value) => {
             const price = cleanSheetValue(value);
-            return price ? `₹${price.replace(/^₹\s*/, "")}` : "";
+            return price ? `?${price.replace(/^?\s*/, "")}` : "";
         };
         const getBrandEntry = (content, keys) => keys
             .map((key) => content[normalizeKey(key)] || content[key])
@@ -399,27 +360,11 @@
                 }));
         };
         const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
-        const galleryAssetPreloadCache = new Map();
         const preloadGalleryAsset = (item) => {
-            if (!item || item.type !== "image" || !item.src) return Promise.resolve();
-            if (galleryAssetPreloadCache.has(item.src)) {
-                return galleryAssetPreloadCache.get(item.src);
-            }
-
+            if (!item || item.type !== "image" || !item.src) return;
             const image = new Image();
             image.decoding = "async";
-            const preloadPromise = new Promise((resolve) => {
-                image.addEventListener("load", () => resolve(image), { once: true });
-                image.addEventListener("error", () => resolve(null), { once: true });
-            });
-            galleryAssetPreloadCache.set(item.src, preloadPromise);
             image.src = item.src;
-            return preloadPromise;
-        };
-        const warmProductZoomAssets = (item) => {
-            const galleryItems = buildProductGalleryItems(item);
-            preloadGalleryAsset(galleryItems[0]);
-            preloadGalleryAsset(galleryItems[1]);
         };
         const createProductGalleryLightbox = () => {
             const popup = document.createElement("div");
@@ -1604,306 +1549,6 @@
             };
         };
         const orderModal = createOrderModal();
-        const createBuyNowModal = () => {
-            const popup = document.createElement("div");
-            popup.className = "floaa-order-modal floaa-order-modal--buy-now";
-            popup.hidden = true;
-            const stateOptionsMarkup = INDIAN_STATES_AND_UTS.map((stateName) =>
-                `<option value="${stateName}">${stateName}</option>`
-            ).join("");
-            popup.innerHTML = `
-                <div class="floaa-order-modal__backdrop" data-buy-now-close="true"></div>
-                <div class="floaa-order-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="floaa-buy-now-title">
-                    <button class="floaa-order-modal__close" type="button" aria-label="Close checkout form" data-buy-now-close="true">&times;</button>
-                    <div class="floaa-order-modal__panel floaa-order-modal__panel--form">
-                        <p class="floaa-order-modal__eyebrow">FLOAA Checkout</p>
-                        <h2 id="floaa-buy-now-title" class="floaa-order-modal__title">Buy Now</h2>
-                        <p class="floaa-order-modal__subtitle">Share your details to continue to secure checkout for this piece.</p>
-                        <div class="floaa-order-modal__product"></div>
-                        <form class="floaa-order-modal__form" novalidate>
-                            <input type="hidden" name="productId">
-                            <input type="hidden" name="productName">
-                            <label class="floaa-order-modal__field">
-                                <span>Full Name *</span>
-                                <input type="text" name="customerName" autocomplete="name" placeholder="Your Full Name" required>
-                            </label>
-                            <label class="floaa-order-modal__field">
-                                <span>Phone *</span>
-                                <div class="floaa-order-modal__phone-field">
-                                    <span class="floaa-order-modal__phone-prefix">+91</span>
-                                    <input type="tel" name="phone" autocomplete="tel-national" inputmode="numeric" maxlength="10" placeholder="9876543210" required>
-                                </div>
-                                <small class="floaa-order-modal__helper">Enter 10-digit mobile number</small>
-                            </label>
-                            <label class="floaa-order-modal__field">
-                                <span>Email (Optional)</span>
-                                <input type="email" name="email" autocomplete="email" placeholder="your@email.com">
-                            </label>
-                            <label class="floaa-order-modal__field">
-                                <span>Address Line 1 *</span>
-                                <input type="text" name="addressLine1" autocomplete="address-line1" placeholder="House / Flat Number, Building Name" required>
-                            </label>
-                            <label class="floaa-order-modal__field">
-                                <span>Address Line 2 (Optional)</span>
-                                <input type="text" name="addressLine2" autocomplete="address-line2" placeholder="Area, Street, Apartment (Optional)">
-                            </label>
-                            <label class="floaa-order-modal__field">
-                                <span>Landmark (Optional)</span>
-                                <input type="text" name="landmark" autocomplete="off" placeholder="Near Mall, Metro Station, etc.">
-                            </label>
-                            <label class="floaa-order-modal__field">
-                                <span>Pincode *</span>
-                                <input type="tel" name="pincode" autocomplete="postal-code" inputmode="numeric" maxlength="6" placeholder="6-digit Pincode" required>
-                                <small class="floaa-order-modal__helper">Enter 6-digit pincode</small>
-                            </label>
-                            <label class="floaa-order-modal__field">
-                                <span>State *</span>
-                                <select name="state" autocomplete="address-level1" required>
-                                    <option value="">Select State / UT</option>
-                                    ${stateOptionsMarkup}
-                                </select>
-                            </label>
-                            <label class="floaa-order-modal__field">
-                                <span>City *</span>
-                                <input type="text" name="city" autocomplete="address-level2" placeholder="Your City" required>
-                            </label>
-                            <div class="floaa-order-modal__sticky-actions">
-                                <p class="floaa-order-modal__required-note">Fields marked * are required</p>
-                                <p class="floaa-order-modal__error" aria-live="polite" hidden></p>
-                                <button class="btn floaa-order-modal__submit floaa-order-modal__submit--buy-now" type="submit">
-                                    <span class="floaa-order-modal__submit-label">Continue to Secure Payment</span>
-                                    <span class="floaa-order-modal__spinner" aria-hidden="true" hidden></span>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            `;
-            document.body.append(popup);
-
-            const productSummary = popup.querySelector(".floaa-order-modal__product");
-            const form = popup.querySelector(".floaa-order-modal__form");
-            const errorMessage = popup.querySelector(".floaa-order-modal__error");
-            const submitButton = form.querySelector(".floaa-order-modal__submit");
-            const submitLabel = form.querySelector(".floaa-order-modal__submit-label");
-            const spinner = form.querySelector(".floaa-order-modal__spinner");
-            const nameInput = form.querySelector('input[name="customerName"]');
-            const phoneInput = form.querySelector('input[name="phone"]');
-            const addressLine1Input = form.querySelector('input[name="addressLine1"]');
-            const addressLine2Input = form.querySelector('input[name="addressLine2"]');
-            const landmarkInput = form.querySelector('input[name="landmark"]');
-            const cityInput = form.querySelector('input[name="city"]');
-            const stateInput = form.querySelector('select[name="state"]');
-            const pincodeInput = form.querySelector('input[name="pincode"]');
-            const emailInput = form.querySelector('input[name="email"]');
-            const productIdInput = form.querySelector('input[name="productId"]');
-            const productNameInput = form.querySelector('input[name="productName"]');
-            let activeItem = null;
-            let previousActiveElement = null;
-            const phonePattern = /^[6-9]\d{9}$/;
-            const pincodePattern = /^\d{6}$/;
-            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            const failureMessage = "Unable to create payment link. Please try again or contact us on WhatsApp.";
-
-            const setSubmittingState = (isSubmitting) => {
-                submitButton.disabled = isSubmitting;
-                submitButton.classList.toggle("is-loading", isSubmitting);
-                submitLabel.textContent = isSubmitting ? "Creating Payment Link..." : "Continue to Secure Payment";
-                spinner.hidden = !isSubmitting;
-            };
-
-            const resetCheckoutForm = () => {
-                form.reset();
-                nameInput.value = "";
-                phoneInput.value = "";
-                addressLine1Input.value = "";
-                addressLine2Input.value = "";
-                landmarkInput.value = "";
-                cityInput.value = "";
-                stateInput.value = "";
-                pincodeInput.value = "";
-                emailInput.value = "";
-                errorMessage.hidden = true;
-                errorMessage.textContent = "";
-                productIdInput.value = "";
-                productNameInput.value = "";
-                productSummary.innerHTML = "";
-                setSubmittingState(false);
-            };
-
-            const closeCheckoutModal = () => {
-                setSubmittingState(false);
-                popup.hidden = true;
-                popup.classList.remove("is-open");
-                document.body.classList.remove("has-floaa-order-modal");
-                activeItem = null;
-                resetCheckoutForm();
-                if (previousActiveElement instanceof HTMLElement) {
-                    previousActiveElement.focus();
-                }
-            };
-
-            const openCheckoutModal = (item, trigger) => {
-                activeItem = item;
-                previousActiveElement = trigger instanceof HTMLElement ? trigger : document.activeElement;
-                resetCheckoutForm();
-                setSubmittingState(false);
-                productIdInput.value = item.productId;
-                productNameInput.value = item.name;
-                productSummary.innerHTML = `
-                        <p class="floaa-order-modal__product-name">${item.name}</p>
-                        <p class="floaa-order-modal__product-meta">${item.discountPrice || item.price}</p>
-                    `;
-                popup.hidden = false;
-                popup.classList.add("is-open");
-                document.body.classList.add("has-floaa-order-modal");
-                window.setTimeout(() => nameInput.focus(), 0);
-            };
-
-            resetCheckoutForm();
-
-            popup.addEventListener("click", (event) => {
-                if (event.target.closest("[data-buy-now-close='true']")) {
-                    closeCheckoutModal();
-                }
-            });
-
-            document.addEventListener("keydown", (event) => {
-                if (event.key === "Escape" && !popup.hidden) {
-                    closeCheckoutModal();
-                }
-            });
-
-            form.addEventListener("submit", async (event) => {
-                event.preventDefault();
-                if (!activeItem) return;
-
-                const formData = new FormData(form);
-                const customerName = String(formData.get("customerName") || "").trim();
-                const phone = String(formData.get("phone") || "").trim();
-                const normalizedPhone = phone.replace(/\s+/g, "").replace(/\D+/g, "");
-                const addressLine1 = String(formData.get("addressLine1") || "").trim();
-                const addressLine2 = String(formData.get("addressLine2") || "").trim();
-                const landmark = String(formData.get("landmark") || "").trim();
-                const city = String(formData.get("city") || "").trim();
-                const state = String(formData.get("state") || "").trim();
-                const pincode = String(formData.get("pincode") || "").trim().replace(/\s+/g, "").replace(/\D+/g, "");
-                const email = String(formData.get("email") || "").trim();
-
-                if (!customerName) {
-                    errorMessage.textContent = "Please enter your full name.";
-                    errorMessage.hidden = false;
-                    nameInput.focus();
-                    return;
-                }
-
-                if (!normalizedPhone) {
-                    errorMessage.textContent = "Please enter your phone number.";
-                    errorMessage.hidden = false;
-                    phoneInput.focus();
-                    return;
-                }
-
-                if (!addressLine1) {
-                    errorMessage.textContent = "Please enter your address line 1.";
-                    errorMessage.hidden = false;
-                    addressLine1Input.focus();
-                    return;
-                }
-
-                if (!state) {
-                    errorMessage.textContent = "Please select your state or union territory.";
-                    errorMessage.hidden = false;
-                    stateInput.focus();
-                    return;
-                }
-
-                if (!pincode) {
-                    errorMessage.textContent = "Please enter your 6-digit pincode.";
-                    errorMessage.hidden = false;
-                    pincodeInput.focus();
-                    return;
-                }
-
-                if (!city) {
-                    errorMessage.textContent = "Please enter your city.";
-                    errorMessage.hidden = false;
-                    cityInput.focus();
-                    return;
-                }
-
-                if (!/^\d+$/.test(normalizedPhone) || !phonePattern.test(normalizedPhone)) {
-                    errorMessage.textContent = "Please enter a valid 10-digit mobile number";
-                    errorMessage.hidden = false;
-                    phoneInput.focus();
-                    return;
-                }
-
-                if (!pincodePattern.test(pincode)) {
-                    errorMessage.textContent = "Please enter a valid 6-digit pincode.";
-                    errorMessage.hidden = false;
-                    pincodeInput.focus();
-                    return;
-                }
-
-                if (email && !emailPattern.test(email)) {
-                    errorMessage.textContent = "Please enter a valid email address";
-                    errorMessage.hidden = false;
-                    emailInput.focus();
-                    return;
-                }
-
-                errorMessage.hidden = true;
-                errorMessage.textContent = "";
-                setSubmittingState(true);
-
-                try {
-                    const response = await fetch(PAYMENT_LINK_API_URL, {
-                        method: "POST",
-                        headers: {
-                            "content-type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            productId: activeItem.productId,
-                            customerName,
-                            phone: normalizedPhone,
-                            email,
-                            addressLine1,
-                            addressLine2,
-                            landmark,
-                            city,
-                            state,
-                            pincode
-                        })
-                    });
-
-                    let result = null;
-                    try {
-                        result = await response.json();
-                    } catch (parseError) {
-                        result = null;
-                    }
-
-                    if (!response.ok || !result?.paymentUrl) {
-                        throw new Error(result?.message || failureMessage);
-                    }
-
-                    window.location.href = result.paymentUrl;
-                } catch (error) {
-                    console.error("buy now modal submit failed", error);
-                    errorMessage.textContent = failureMessage;
-                    errorMessage.hidden = false;
-                    setSubmittingState(false);
-                }
-            });
-
-            return {
-                open(item, trigger) {
-                    openCheckoutModal(item, trigger);
-                }
-            };
-        };
-        const buyNowModal = createBuyNowModal();
         const getYouTubeVideoId = (value) => {
             try {
                 const url = new URL(value);
@@ -2393,15 +2038,6 @@
                     productMedia.setAttribute("role", "button");
                     productMedia.setAttribute("tabindex", "0");
                     productMedia.setAttribute("aria-label", `Open gallery for ${item.name}`);
-                    const warmZoomAssets = () => warmProductZoomAssets(item);
-
-                    if (shouldKeepEager) {
-                        warmZoomAssets();
-                    }
-
-                    productMedia.addEventListener("pointerenter", warmZoomAssets, { once: true });
-                    productMedia.addEventListener("focus", warmZoomAssets, { once: true });
-                    productMedia.addEventListener("touchstart", warmZoomAssets, { once: true, passive: true });
                     productMedia.addEventListener("click", () => {
                         productGalleryLightbox.open(item, productMedia);
                     });
@@ -2467,12 +2103,6 @@
                         productBtn.textContent = "Sold Out";
                         productCtaGroup.append(productBtn);
                     } else {
-                        const buyNowBtn = document.createElement("button");
-                        buyNowBtn.className = "btn btn-buy-now";
-                        buyNowBtn.type = "button";
-                        buyNowBtn.textContent = "BUY NOW";
-                        buyNowBtn.addEventListener("click", () => buyNowModal.open(item, buyNowBtn));
-
                         const orderBtn = document.createElement("button");
                         orderBtn.className = "btn btn-primary";
                         orderBtn.type = "button";
@@ -2485,7 +2115,7 @@
                         questionBtn.textContent = "ASK A QUESTION";
                         questionBtn.addEventListener("click", () => whatsappQuestionModal.open(item, brandContent, questionBtn));
 
-                        productCtaGroup.append(buyNowBtn, orderBtn, questionBtn);
+                        productCtaGroup.append(orderBtn, questionBtn);
                     }
 
                     productCard.addEventListener("click", (event) => {

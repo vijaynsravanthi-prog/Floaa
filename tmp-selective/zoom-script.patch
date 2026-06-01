@@ -1,0 +1,48 @@
+diff --git a/script.js b/script.js
+--- a/script.js
++++ b/script.js
+@@ -360,11 +360,27 @@
+                 }));
+         };
+         const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
++        const galleryAssetPreloadCache = new Map();
+         const preloadGalleryAsset = (item) => {
+-            if (!item || item.type !== "image" || !item.src) return;
++            if (!item || item.type !== "image" || !item.src) return Promise.resolve();
++            if (galleryAssetPreloadCache.has(item.src)) {
++                return galleryAssetPreloadCache.get(item.src);
++            }
++
+             const image = new Image();
+             image.decoding = "async";
++            const preloadPromise = new Promise((resolve) => {
++                image.addEventListener("load", () => resolve(image), { once: true });
++                image.addEventListener("error", () => resolve(null), { once: true });
++            });
++            galleryAssetPreloadCache.set(item.src, preloadPromise);
+             image.src = item.src;
++            return preloadPromise;
++        };
++        const warmProductZoomAssets = (item) => {
++            const galleryItems = buildProductGalleryItems(item);
++            preloadGalleryAsset(galleryItems[0]);
++            preloadGalleryAsset(galleryItems[1]);
+         };
+         const createProductGalleryLightbox = () => {
+             const popup = document.createElement("div");
+@@ -2038,6 +2054,15 @@
+                     productMedia.setAttribute("role", "button");
+                     productMedia.setAttribute("tabindex", "0");
+                     productMedia.setAttribute("aria-label", `Open gallery for ${item.name}`);
++                    const warmZoomAssets = () => warmProductZoomAssets(item);
++
++                    if (shouldKeepEager) {
++                        warmZoomAssets();
++                    }
++
++                    productMedia.addEventListener("pointerenter", warmZoomAssets, { once: true });
++                    productMedia.addEventListener("focus", warmZoomAssets, { once: true });
++                    productMedia.addEventListener("touchstart", warmZoomAssets, { once: true, passive: true });
+                     productMedia.addEventListener("click", () => {
+                         productGalleryLightbox.open(item, productMedia);
+                     });

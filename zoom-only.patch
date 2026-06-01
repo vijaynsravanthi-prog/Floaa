@@ -1,0 +1,63 @@
+diff --git a/script.js b/script.js
+--- a/script.js
++++ b/script.js
+@@ -355,13 +355,29 @@
+                     src: source,
+                     thumb: isVideoAsset(source) ? source : getProductThumbnailSrc(source),
+                     type: isVideoAsset(source) ? "video" : "image",
+                     alt: getPreferredAltText(item.name, item.description),
+                     label: `${item.name} ${index + 1}`
+                 }));
+         };
+         const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
++        const galleryAssetPreloadCache = new Map();
+         const preloadGalleryAsset = (item) => {
+-            if (!item || item.type !== "image" || !item.src) return;
++            if (!item || item.type !== "image" || !item.src) return Promise.resolve();
++            if (galleryAssetPreloadCache.has(item.src)) {
++                return galleryAssetPreloadCache.get(item.src);
++            }
++
+             const image = new Image();
+             image.decoding = "async";
++            const preloadPromise = new Promise((resolve) => {
++                image.addEventListener("load", () => resolve(image), { once: true });
++                image.addEventListener("error", () => resolve(null), { once: true });
++            });
++            galleryAssetPreloadCache.set(item.src, preloadPromise);
+             image.src = item.src;
++            return preloadPromise;
++        };
++        const warmProductZoomAssets = (item) => {
++            const galleryItems = buildProductGalleryItems(item);
++            preloadGalleryAsset(galleryItems[0]);
++            preloadGalleryAsset(galleryItems[1]);
+         };
+         const createProductGalleryLightbox = () => {
+             const popup = document.createElement("div");
+             popup.className = "product-gallery-lightbox";
+             popup.hidden = true;
+@@ -2033,12 +2033,21 @@
+                     productImage.addEventListener('error', () => {
+                         applyImageFallback(productImage, `product:${item?.name || 'unknown'}`);
+                     }, { once: true });
+ 
+                     productMedia.append(productImage);
+                     productMedia.setAttribute("role", "button");
+                     productMedia.setAttribute("tabindex", "0");
+                     productMedia.setAttribute("aria-label", `Open gallery for ${item.name}`);
++                    const warmZoomAssets = () => warmProductZoomAssets(item);
++
++                    if (shouldKeepEager) {
++                        warmZoomAssets();
++                    }
++
++                    productMedia.addEventListener("pointerenter", warmZoomAssets, { once: true });
++                    productMedia.addEventListener("focus", warmZoomAssets, { once: true });
++                    productMedia.addEventListener("touchstart", warmZoomAssets, { once: true, passive: true });
+                     productMedia.addEventListener("click", () => {
+                         productGalleryLightbox.open(item, productMedia);
+                     });
+                     productMedia.addEventListener("keydown", (event) => {
+                         if (event.key === "Enter" || event.key === " ") {
+                             event.preventDefault();

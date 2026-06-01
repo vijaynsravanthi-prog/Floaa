@@ -1594,6 +1594,10 @@ body[data-page="home"] #home-product-grid .product-stock {
     gap: 0.9rem;
 }
 
+.floaa-order-modal__form {
+    padding-bottom: 1.15rem;
+}
+
 .floaa-order-modal__panel[hidden] {
     display: none;
 }
@@ -2892,6 +2896,10 @@ body[data-page="home"] #home-product-grid .product-stock {
     .floaa-order-modal__field span {
         font-size: 0.74rem;
         letter-spacing: 0.07em;
+    }
+
+    .floaa-order-modal__form {
+        padding-bottom: 0.35rem;
     }
 
     .floaa-order-modal__field input,
