@@ -2181,8 +2181,9 @@
         const applyBrandContent = (content) => {
             const logo = content.logo || content["floaa-logo"];
             if (logo?.value) {
+                const normalizedLogoSrc = normalizeImagePath(logo.value) || logo.value;
                 document.querySelectorAll(".brand-logo").forEach((image) => {
-                    image.src = logo.value;
+                    image.src = normalizedLogoSrc;
                     if (logo.alt) {
                         image.alt = logo.alt;
                     }
