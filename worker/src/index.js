@@ -1362,7 +1362,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if (request.method === "OPTIONS" && (url.pathname === "/orders" || url.pathname === "/create-payment-link" || url.pathname === "/razorpay-webhook" || url.pathname === "/whatsapp-webhook" || url.pathname === "/test-whatsapp" || url.pathname === "/test-whatsapp-status")) {
+    if (request.method === "OPTIONS" && (url.pathname === "/orders" || url.pathname === "/create-payment-link" || url.pathname === "/razorpay-webhook" || url.pathname === "/whatsapp-webhook" || url.pathname === "/test-whatsapp" || url.pathname === "/test-whatsapp-status" || url.pathname === "/api/products")) {
       return new Response(null, {
         status: 204,
         headers: getCorsHeaders(request)
@@ -1559,6 +1559,50 @@ export default {
             message: "Unable to fetch products"
           },
           { status: 500 },
+          request
+        );
+      }
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/products") {
+      console.log("api products request received");
+
+      try {
+        const products = await fetchProducts();
+        if (!Array.isArray(products)) {
+          console.error("api products payload invalid");
+          return jsonResponse(
+            {
+              success: false,
+              message: "Invalid products response"
+            },
+            { status: 502 },
+            request
+          );
+        }
+
+        console.log("api products fetch success", {
+          count: products.length
+        });
+
+        return new Response(JSON.stringify(products), {
+          status: 200,
+          headers: {
+            "content-type": "application/json; charset=utf-8",
+            ...getCorsHeaders(request)
+          }
+        });
+      } catch (error) {
+        console.error("api products fetch failed", {
+          message: error?.message || "Unknown error"
+        });
+
+        return jsonResponse(
+          {
+            success: false,
+            message: "Unable to fetch products"
+          },
+          { status: 502 },
           request
         );
       }

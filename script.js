@@ -1,6 +1,6 @@
     const initializePage = async () => {
         const SHEET_ID = "1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs";
-        const PRODUCTS_URL = `https://opensheet.elk.sh/${SHEET_ID}/1`;
+        const PRODUCTS_URL = "https://floaa-api.floaa.workers.dev/api/products";
         const BRAND_CONTENT_URL = `https://opensheet.elk.sh/${SHEET_ID}/BrandContent`;
         const ORDERS_API_URL = "https://floaa-api.floaa.workers.dev/orders";
         const PAYMENT_LINK_API_URL = "https://floaa-api.floaa.workers.dev/create-payment-link";
