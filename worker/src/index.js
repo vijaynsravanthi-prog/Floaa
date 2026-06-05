@@ -689,11 +689,16 @@ const buildAdminOrderAlertTemplateComponents = (orderRecord, env) => {
   const missingFields = [];
   const parameters = fieldNames.map((fieldName) => {
     let value = "";
+    const isEmailField = normalizeKey(fieldName) === normalizeKey("Email");
 
     if (normalizeKey(fieldName) === normalizeKey("Amount")) {
       value = formatOrderAmountForAdminMessage(orderRecord);
     } else {
       value = getOrderRecordValue(orderRecord, fieldName);
+    }
+
+    if (isEmailField && !normalizeValue(value)) {
+      value = "No email provided";
     }
 
     if (!value) {
