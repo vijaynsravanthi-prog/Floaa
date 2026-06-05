@@ -61,6 +61,10 @@ function Handle-Client {
             $filePath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($path, $relativePath))
             $rootPath = [System.IO.Path]::GetFullPath($path)
 
+            if ($filePath.StartsWith($rootPath, [System.StringComparison]::OrdinalIgnoreCase) -and [System.IO.Directory]::Exists($filePath)) {
+                $filePath = [System.IO.Path]::Combine($filePath, "index.html")
+            }
+
             if ($filePath.StartsWith($rootPath, [System.StringComparison]::OrdinalIgnoreCase) -and [System.IO.File]::Exists($filePath)) {
                 $extension = [System.IO.Path]::GetExtension($filePath).ToLowerInvariant()
                 if ($mimeTypes.ContainsKey($extension)) {
