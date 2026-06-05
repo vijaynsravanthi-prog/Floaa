@@ -1,0 +1,18 @@
+Floaa Video_old.mp4
+tmp-chrome-trace-json.json
+tmp-chrome-trace.json
+node_modules/
+worker/node_modules/
+worker/.wrangler/
+.wrangler/
+.git/
+.chrome-test-profile*/
+.edge-shot-*/
+backups/
+docs/
+tools/
+tmp-selective/
+server.err.log
+server.out.log
+zoom-only.patch
+README.md
