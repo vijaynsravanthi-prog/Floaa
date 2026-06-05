@@ -4,7 +4,6 @@
         const BRAND_CONTENT_URL = `https://opensheet.elk.sh/${SHEET_ID}/BrandContent`;
         const ORDERS_API_URL = "https://floaa-api.floaa.workers.dev/orders";
         const PAYMENT_LINK_API_URL = "https://floaa-api.floaa.workers.dev/create-payment-link";
-        const ENABLE_PURCHASES = false;
         const INDIAN_STATES_AND_UTS = [
             "Andhra Pradesh",
             "Arunachal Pradesh",
@@ -283,6 +282,35 @@
         const parsePrice = (value) => {
             const price = Number(normalizeValue(value).replace(/[^\d.]/g, ""));
             return Number.isFinite(price) ? price : 0;
+        };
+        const wait = (delayMs) => new Promise((resolve) => {
+            window.setTimeout(resolve, delayMs);
+        });
+        const fetchJsonWithRetry = async (url, resourceLabel, { attempts = 3, delayMs = 500 } = {}) => {
+            let lastError = null;
+
+            for (let attempt = 1; attempt <= attempts; attempt += 1) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = window.setTimeout(() => controller.abort(), 10000);
+                    const response = await fetch(url, {
+                        cache: "no-store",
+                        signal: controller.signal
+                    }).finally(() => {
+                        window.clearTimeout(timeoutId);
+                    });
+                    if (!response.ok) {
+                        throw new Error(`${resourceLabel} request failed: ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    lastError = error;
+                    if (attempt >= attempts) break;
+                    await wait(delayMs * attempt);
+                }
+            }
+
+            throw lastError || new Error(`${resourceLabel} request failed`);
         };
         const isNewArrival = (value) => {
             const createdDate = normalizeValue(value);
@@ -1142,6 +1170,54 @@
             trackMetaWhatsAppClick();
             window.open(whatsappUrl, "_blank", "noopener");
         };
+        const getCanonicalProductPagePath = (product) => {
+            const category = normalizeKey(product?.category);
+            if (category === "earrings") return "earrings.html";
+            if (category === "bracelets") return "bracelets.html";
+            if (category === "necklaces") return "necklaces.html";
+            if (category === "combos" || category === "comboset") return "rings.html";
+            return "shop.html";
+        };
+        const getCanonicalProductUrl = (product) => {
+            const anchorId = buildAnchorSlug(product?.name);
+            const pagePath = getCanonicalProductPagePath(product);
+            const canonicalUrl = new URL(pagePath, "https://floaa.in/");
+            if (anchorId) {
+                canonicalUrl.hash = anchorId;
+            }
+            return canonicalUrl.href;
+        };
+        const handleProductAssistance = (product) => {
+            if (!product) return;
+
+            const { finalPrice } = getProductWhatsAppPayload(product);
+            const assistancePrice = normalizeValue(finalPrice).startsWith("₹") ? normalizeValue(finalPrice) : `₹${normalizeValue(finalPrice)}`;
+            const productUrl = getCanonicalProductUrl(product);
+            const message = [
+                "Hello FLOAA,",
+                "",
+                "I am interested in this jewellery piece:",
+                "",
+                `Product: ${product.name}`,
+                `Product ID: ${product.productId}`,
+                `Price: ${assistancePrice}`,
+                "",
+                "Product Link:",
+                productUrl,
+                "",
+                "I would appreciate some guidance before placing my order.",
+                "",
+                "Thank you."
+            ].join("\n");
+
+            trackEvent("whatsapp_assistance_click", {
+                product_name: product.name,
+                product_id: product.productId,
+                product_category: product.category,
+                location: "product_card"
+            });
+            openWhatsAppMessage(brandContent, message);
+        };
         const createWhatsAppQuestionModal = () => {
             const popup = document.createElement("div");
             popup.className = "whatsapp-intent-popup whatsapp-question-popup";
@@ -1917,6 +1993,10 @@
                         throw new Error(result?.message || failureMessage);
                     }
 
+                    saveOrderSuccessSnapshot({
+                        orderId: normalizeValue(result.orderId),
+                        amountPaid: activeItem.discountPrice || activeItem.price || ""
+                    });
                     window.location.href = result.paymentUrl;
                 } catch (error) {
                     console.error("buy now modal submit failed", error);
@@ -1948,6 +2028,68 @@
             }
 
             return "";
+        };
+        const ORDER_SUCCESS_STORAGE_KEY = "floaa-order-success";
+        const saveOrderSuccessSnapshot = (orderData) => {
+            try {
+                if (typeof window === "undefined" || !window.sessionStorage) return;
+                window.sessionStorage.setItem(ORDER_SUCCESS_STORAGE_KEY, JSON.stringify(orderData));
+            } catch (error) {
+                console.warn("order success snapshot save failed", error);
+            }
+        };
+        const readOrderSuccessSnapshot = () => {
+            try {
+                if (typeof window === "undefined" || !window.sessionStorage) return {};
+                const rawSnapshot = window.sessionStorage.getItem(ORDER_SUCCESS_STORAGE_KEY);
+                return rawSnapshot ? JSON.parse(rawSnapshot) : {};
+            } catch (error) {
+                console.warn("order success snapshot read failed", error);
+                return {};
+            }
+        };
+        const formatOrderSuccessAmount = (value) => {
+            const normalizedAmount = normalizeValue(value);
+            if (!normalizedAmount) return "";
+            return normalizedAmount.startsWith("₹") ? normalizedAmount : `₹${normalizedAmount}`;
+        };
+        const initializeOrderSuccessCard = () => {
+            if (document.body.dataset.page !== "order-success") return;
+
+            const params = new URLSearchParams(window.location.search);
+            const storedOrder = readOrderSuccessSnapshot();
+            const orderId = normalizeValue(
+                params.get("razorpay_payment_link_reference_id")
+                || params.get("orderId")
+                || storedOrder.orderId
+            );
+            const amountPaid = formatOrderSuccessAmount(
+                params.get("amountPaid")
+                || params.get("amount")
+                || storedOrder.amountPaid
+            );
+            const orderIdField = document.querySelector('[data-order-field="order-id"]');
+            const orderIdValue = document.querySelector('[data-order-value="order-id"]');
+            const amountField = document.querySelector('[data-order-field="amount-paid"]');
+            const amountValue = document.querySelector('[data-order-value="amount-paid"]');
+
+            if (orderIdField && orderIdValue && orderId) {
+                orderIdValue.textContent = orderId;
+                orderIdField.hidden = false;
+            }
+
+            if (amountField && amountValue && amountPaid) {
+                amountValue.textContent = amountPaid;
+                amountField.hidden = false;
+            }
+
+            if (orderId || amountPaid) {
+                saveOrderSuccessSnapshot({
+                    ...storedOrder,
+                    orderId: orderId || storedOrder.orderId || "",
+                    amountPaid: amountPaid || storedOrder.amountPaid || ""
+                });
+            }
         };
 
         const transformProduct = (row) => {
@@ -1990,19 +2132,17 @@
 
         const fetchProducts = async () => {
             try {
-                const response = await fetch(PRODUCTS_URL);
-                if (!response.ok) {
-                    throw new Error(`Products request failed: ${response.status}`);
-                }
-
-                const rows = await response.json();
+                const rows = await fetchJsonWithRetry(PRODUCTS_URL, "Products", {
+                    attempts: 3,
+                    delayMs: 700
+                });
                 if (!Array.isArray(rows)) return [];
                 return rows
                     .map(transformProduct)
                     .filter((product) => product.name && product.image && product.status !== "inactive");
             } catch (error) {
                 console.error(error);
-                return [];
+                return null;
             }
         };
 
@@ -2500,28 +2640,19 @@
                         productBtn.textContent = "Sold Out";
                         productCtaGroup.append(productBtn);
                     } else {
-                        const orderBtn = document.createElement("button");
-                        orderBtn.className = "btn btn-primary";
-                        orderBtn.type = "button";
-                        orderBtn.textContent = "ORDER / ENQUIRE";
-                        orderBtn.addEventListener("click", () => orderModal.open(item, orderBtn));
+                        const buyNowBtn = document.createElement("button");
+                        buyNowBtn.className = "btn btn-buy-now";
+                        buyNowBtn.type = "button";
+                        buyNowBtn.textContent = "Buy Now";
+                        buyNowBtn.addEventListener("click", () => buyNowModal.open(item, buyNowBtn));
 
-                        const questionBtn = document.createElement("button");
-                        questionBtn.className = "btn btn-whatsapp-secondary";
-                        questionBtn.type = "button";
-                        questionBtn.textContent = "ASK A QUESTION";
-                        questionBtn.addEventListener("click", () => whatsappQuestionModal.open(item, brandContent, questionBtn));
+                        const assistanceBtn = document.createElement("button");
+                        assistanceBtn.className = "btn btn-product-assistance";
+                        assistanceBtn.type = "button";
+                        assistanceBtn.textContent = "Need Assistance?";
+                        assistanceBtn.addEventListener("click", () => handleProductAssistance(item));
 
-                        if (ENABLE_PURCHASES) {
-                            const buyNowBtn = document.createElement("button");
-                            buyNowBtn.className = "btn btn-buy-now";
-                            buyNowBtn.type = "button";
-                            buyNowBtn.textContent = "BUY NOW";
-                            buyNowBtn.addEventListener("click", () => buyNowModal.open(item, buyNowBtn));
-                            productCtaGroup.append(buyNowBtn);
-                        }
-
-                        productCtaGroup.append(orderBtn, questionBtn);
+                        productCtaGroup.append(buyNowBtn, assistanceBtn);
                     }
 
                     productCard.addEventListener("click", (event) => {
@@ -2597,7 +2728,7 @@
 
         const homeGrid = document.getElementById("home-product-grid");
         if (homeGrid) {
-            renderProducts(homeGrid, products.slice(0, 8), "shop.html");
+            renderProducts(homeGrid, Array.isArray(products) ? products.slice(0, 8) : products, "shop.html");
         }
 
         const shopGrid = document.getElementById("shop-product-grid");
@@ -2606,7 +2737,9 @@
             const style = params.get("style");
             const price = params.get("price");
             const categoryFilter = params.get("filter") || params.get("categoryFilter") || "";
-            const filtered = applyProductFilters(products, { style, price, categoryFilter });
+            const filtered = Array.isArray(products)
+                ? applyProductFilters(products, { style, price, categoryFilter })
+                : products;
             renderProducts(shopGrid, filtered, "shop.html");
 
             document.querySelectorAll(".filter-chip").forEach((chip) => {
@@ -2630,23 +2763,27 @@
         if (categoryGrid) {
             const category = document.body.dataset.category;
             const filterButtons = Array.from(document.querySelectorAll("[data-filter]"));
-            const categoryProducts = products.filter((product) => {
-                if (category === "combos") {
-                    return product.category === "combos" || product.category === "comboset";
-                }
+            const categoryProducts = Array.isArray(products)
+                ? products.filter((product) => {
+                    if (category === "combos") {
+                        return product.category === "combos" || product.category === "comboset";
+                    }
 
-                return product.category === category;
-            });
+                    return product.category === category;
+                })
+                : products;
             renderProducts(categoryGrid, categoryProducts, "contact.html");
             filterButtons.forEach((button) => {
                 button.setAttribute("aria-pressed", button.dataset.filter === "all" ? "true" : "false");
                 button.addEventListener("click", () => {
                     const filterValue = button.dataset.filter;
-                    const nextItems = applyProductFilters(categoryProducts, { categoryFilter: filterValue });
+                    const nextItems = Array.isArray(categoryProducts)
+                        ? applyProductFilters(categoryProducts, { categoryFilter: filterValue })
+                        : categoryProducts;
                     trackEvent("category_filter_click", {
                         category,
                         filter_value: filterValue,
-                        matching_products: nextItems.length
+                        matching_products: Array.isArray(nextItems) ? nextItems.length : 0
                     });
 
                     filterButtons.forEach((item) => {
@@ -2661,6 +2798,7 @@
         }
 
         applyResolvedBrandContent(await brandContentPromise);
+        initializeOrderSuccessCard();
 
         const navToggle = document.querySelector(".nav-toggle");
         const mainNav = document.getElementById("site-nav");

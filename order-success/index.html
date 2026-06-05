@@ -91,16 +91,42 @@
     <main class="interior-page">
         <section class="page-hero page-hero-soft">
             <p class="eyebrow">Order Confirmed</p>
-            <h1>A graceful finish to your FLOAA order.</h1>
-            <p>Your celebration piece is now in motion, and our team will take care of the next steps with you.</p>
+            <h1>Payment confirmed for your FLOAA order.</h1>
+            <p>Your piece is secured, your order is in place, and our team will stay close through delivery.</p>
         </section>
 
         <section class="section status-shell">
             <article class="status-card">
                 <span class="status-badge">Payment Successful</span>
-                <h2>Thank You For Your Order</h2>
-                <p>Your payment has been received successfully.</p>
-                <p>Our team will contact you shortly regarding shipping and delivery.</p>
+                <div class="status-confirmation-mark" aria-hidden="true">
+                    <span class="status-confirmation-mark__halo"></span>
+                    <span class="status-confirmation-mark__core">
+                        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                            <path d="M9.55 16.35 5.7 12.5l1.4-1.4 2.45 2.45 7.35-7.35 1.4 1.4-8.75 8.75Z"></path>
+                        </svg>
+                    </span>
+                </div>
+                <p class="status-payment-state">Payment Confirmed</p>
+                <h2>Your order has been received successfully.</h2>
+                <div class="status-details" aria-live="polite">
+                    <div class="status-detail" data-order-field="order-id" hidden>
+                        <p class="status-detail-label">Order ID</p>
+                        <p class="status-detail-value" data-order-value="order-id"></p>
+                    </div>
+                    <div class="status-detail" data-order-field="amount-paid" hidden>
+                        <p class="status-detail-label">Amount Paid</p>
+                        <p class="status-detail-value" data-order-value="amount-paid"></p>
+                    </div>
+                </div>
+                <p class="status-lead">Your FLOAA piece is now in motion.</p>
+                <div class="status-divider" aria-hidden="true"></div>
+                <div class="status-support-copy">
+                    <p>Our team will keep you informed throughout the process and will be happy to assist you until your jewellery is delivered.</p>
+                    <p>Need help, have a question, or would like an update on your order?</p>
+                    <p class="status-whatsapp-label">WhatsApp us anytime:</p>
+                    <a class="status-whatsapp-link" href="https://wa.me/919960144483?text=Hi%20FLOAA%2C%20I%20have%20a%20question%20about%20my%20order" target="_blank" rel="noopener">+91 99601 44483</a>
+                    <p>We are always happy to help.</p>
+                </div>
                 <div class="status-actions">
                     <a class="btn btn-primary" href="https://floaa.in">Continue Shopping</a>
                 </div>

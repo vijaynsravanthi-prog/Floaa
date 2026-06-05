@@ -5,6 +5,26 @@ const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const RAZORPAY_PAYMENT_LINKS_URL = "https://api.razorpay.com/v1/payment_links";
 const GOOGLE_SHEETS_API_BASE_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values`;
+const DEFAULT_SITE_URL = "https://floaa.in";
+const WHATSAPP_ORDER_CONFIRMATION_TEMPLATE_NAME = "floaa_order_confirmation";
+const WHATSAPP_ORDER_CONFIRMATION_TEMPLATE_LANGUAGE = "en_US";
+const WHATSAPP_ADMIN_ORDER_ALERT_TEMPLATE_NAME = "floaa_admin_order_alert";
+const DEFAULT_WHATSAPP_COUNTRY_CODE = "91";
+const DEFAULT_ORDER_CONFIRMATION_TEMPLATE_FIELDS = ["CustomerName", "OrderId", "Amount"];
+const DEFAULT_ADMIN_ORDER_ALERT_TEMPLATE_FIELDS = [
+  "OrderId",
+  "CustomerName",
+  "Phone",
+  "Email",
+  "ProductId",
+  "ProductName",
+  "ProductLink",
+  "Amount",
+  "AddressLine1",
+  "City"
+];
+const ORDER_CONFIRMATION_UPDATED_BY = "worker:payment_link.paid";
+const ADMIN_ORDER_NOTIFICATION_UPDATED_BY = "worker:payment_link.paid.admin_whatsapp";
 const ALLOWED_ORIGINS = new Set([
   "http://localhost:8000",
   "https://www.floaa.in",
@@ -88,6 +108,16 @@ const parsePriceToPaise = (value) => {
 };
 
 const normalizeDigits = (value) => normalizeValue(value).replace(/\D+/g, "");
+const stripTrailingSlash = (value) => normalizeValue(value).replace(/\/+$/, "");
+const getCheckoutCallbackBaseUrl = (request, env) => {
+  const requestOrigin = normalizeValue(request?.headers?.get("origin"));
+  if (ALLOWED_ORIGINS.has(requestOrigin)) {
+    return stripTrailingSlash(requestOrigin);
+  }
+
+  const configuredSiteUrl = stripTrailingSlash(env?.PUBLIC_SITE_URL || "");
+  return configuredSiteUrl || DEFAULT_SITE_URL;
+};
 
 const generateOrderId = () => {
   const now = new Date();
@@ -166,6 +196,15 @@ const getColumnLetter = (columnNumber) => {
 
   return column;
 };
+
+const buildHeaderMap = (headerRow) => headerRow.reduce((map, headerValue, index) => {
+  const normalizedHeader = normalizeKey(headerValue);
+  if (normalizedHeader) {
+    map[normalizedHeader] = index;
+  }
+
+  return map;
+}, {});
 
 const toBase64Url = (value) =>
   btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
@@ -273,6 +312,13 @@ const getGoogleAccessToken = async (env) => {
   return tokenData.access_token;
 };
 
+const logOrdersHeaderDiagnostics = (headerRow, headerMap) => {
+  console.log("orders header row detected", headerRow);
+  console.log("orders header index PaymentLinkId", headerMap[normalizeKey("PaymentLinkId")] ?? -1);
+  console.log("orders header index PaymentStatus", headerMap[normalizeKey("PaymentStatus")] ?? -1);
+  console.log("orders header index OrderStatus", headerMap[normalizeKey("OrderStatus")] ?? -1);
+};
+
 const fetchOrdersHeaderRow = async (env) => {
   const accessToken = await getGoogleAccessToken(env);
   const range = `${ORDERS_SHEET_NAME}!1:1`;
@@ -293,9 +339,37 @@ const fetchOrdersHeaderRow = async (env) => {
     throw new Error("Orders sheet header row not found");
   }
 
+  const headerMap = buildHeaderMap(headerRow);
+  logOrdersHeaderDiagnostics(headerRow, headerMap);
+
   return {
     accessToken,
-    headerRow
+    headerRow,
+    headerMap
+  };
+};
+
+const fetchOrdersSheetRows = async (env) => {
+  const { accessToken, headerRow, headerMap } = await fetchOrdersHeaderRow(env);
+  const range = `${ORDERS_SHEET_NAME}!A:${getColumnLetter(headerRow.length)}`;
+  const response = await fetch(`${GOOGLE_SHEETS_API_BASE_URL}/${encodeURIComponent(range)}`, {
+    headers: {
+      authorization: `Bearer ${accessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Order lookup failed with status ${response.status}`);
+  }
+
+  const data = await response.json();
+  const rows = Array.isArray(data.values) ? data.values : [];
+
+  return {
+    accessToken,
+    headerRow,
+    headerMap,
+    rows
   };
 };
 
@@ -333,10 +407,11 @@ const buildOrdersSheetRow = (headerRow, order) => {
 };
 
 const appendOrder = async (order, env) => {
-  const accessToken = await getGoogleAccessToken(env);
-  const range = `${ORDERS_SHEET_NAME}!A:N`;
+  const { accessToken, headerRow } = await fetchOrdersHeaderRow(env);
+  const rowValues = buildOrdersSheetRow(headerRow, order);
+  const range = `${ORDERS_SHEET_NAME}!A:${getColumnLetter(headerRow.length)}`;
   const response = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+    `${GOOGLE_SHEETS_API_BASE_URL}/${encodeURIComponent(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
     {
       method: "POST",
       headers: {
@@ -344,22 +419,7 @@ const appendOrder = async (order, env) => {
         "content-type": "application/json; charset=utf-8"
       },
       body: JSON.stringify({
-        values: [[
-          order.orderId,
-          order.productId,
-          order.productName,
-          order.customerName,
-          order.phone,
-          order.email,
-          order.city,
-          order.state,
-          order.orderStatus,
-          order.paymentStatus,
-          order.createdAt,
-          order.updatedAt,
-          order.notes,
-          order.source
-        ]]
+        values: [rowValues]
       })
     }
   );
@@ -481,7 +541,8 @@ const computeHmacSha256Hex = async (secret, payload) => {
 
 const verifyRazorpayWebhookSignature = async (request, rawBody, env) => {
   if (!env.RAZORPAY_WEBHOOK_SECRET) {
-    return true;
+    console.error("razorpay webhook secret missing; rejecting webhook request");
+    return false;
   }
 
   const providedSignature = request.headers.get("x-razorpay-signature") || "";
@@ -516,25 +577,351 @@ const toIsoTimestamp = (value) => {
   return parsedDate.toISOString();
 };
 
-const fetchOrderRowByPaymentLinkId = async (paymentLinkId, env) => {
-  const accessToken = await getGoogleAccessToken(env);
-  const range = `${ORDERS_SHEET_NAME}!A:V`;
-  const response = await fetch(`${GOOGLE_SHEETS_API_BASE_URL}/${encodeURIComponent(range)}`, {
-    headers: {
-      authorization: `Bearer ${accessToken}`
-    }
-  });
+const buildOrderRecordFromRow = (headerRow, rowValues) => headerRow.reduce((record, headerValue, index) => {
+  const value = normalizeValue(rowValues[index]);
+  const normalizedHeader = normalizeKey(headerValue);
 
-  if (!response.ok) {
-    throw new Error(`Order lookup failed with status ${response.status}`);
+  if (headerValue) {
+    record[headerValue] = value;
   }
 
-  const data = await response.json();
-  const rows = Array.isArray(data.values) ? data.values : [];
-  const headerRow = Array.isArray(rows[0]) ? rows[0] : [];
+  if (normalizedHeader && !(normalizedHeader in record)) {
+    record[normalizedHeader] = value;
+  }
+
+  return record;
+}, {});
+
+const getOrderRecordValue = (orderRecord, fieldName) => {
+  const normalizedField = normalizeKey(fieldName);
+  return normalizeValue(orderRecord?.[fieldName] ?? orderRecord?.[normalizedField] ?? "");
+};
+
+const formatOrderAmountForTemplate = (orderRecord) => {
+  const amount = getOrderRecordValue(orderRecord, "Amount");
+  if (!amount) return "";
+
+  const currency = getOrderRecordValue(orderRecord, "Currency").toUpperCase();
+  if (currency === "INR" || !currency) {
+    return normalizeValue(amount).replace(/^₹+\s*/u, "");
+  }
+
+  return `${currency} ${amount}`;
+};
+
+const formatOrderAmountForAdminMessage = (orderRecord) => {
+  const amount = getOrderRecordValue(orderRecord, "Amount");
+  if (!amount) return "";
+
+  const currency = getOrderRecordValue(orderRecord, "Currency").toUpperCase();
+  if (currency === "INR" || !currency) {
+    const normalizedAmount = normalizeValue(amount).replace(/^₹+\s*/u, "");
+    return normalizedAmount ? `₹${normalizedAmount}` : "";
+  }
+
+  return `${currency} ${amount}`;
+};
+
+const getOrderConfirmationTemplateFields = (env) => {
+  const configuredFields = normalizeValue(env?.WHATSAPP_ORDER_CONFIRMATION_TEMPLATE_FIELDS);
+  if (!configuredFields) {
+    return DEFAULT_ORDER_CONFIRMATION_TEMPLATE_FIELDS;
+  }
+
+  return configuredFields
+    .split(",")
+    .map((field) => field.trim())
+    .filter(Boolean);
+};
+
+const buildOrderConfirmationTemplateComponents = (orderRecord, env) => {
+  const fieldNames = getOrderConfirmationTemplateFields(env);
+  if (!fieldNames.length) {
+    return [];
+  }
+
+  const missingFields = [];
+  const parameters = fieldNames.map((fieldName) => {
+    const value = normalizeKey(fieldName) === normalizeKey("Amount")
+      ? formatOrderAmountForTemplate(orderRecord)
+      : getOrderRecordValue(orderRecord, fieldName);
+
+    if (!value) {
+      missingFields.push(fieldName);
+    }
+
+    return {
+      type: "text",
+      text: value
+    };
+  });
+
+  if (missingFields.length) {
+    throw new Error(`Missing order confirmation template fields: ${missingFields.join(", ")}`);
+  }
+
+  return [
+    {
+      type: "body",
+      parameters
+    }
+  ];
+};
+
+const getAdminOrderAlertTemplateFields = (env) => {
+  const configuredFields = normalizeValue(env?.WHATSAPP_ADMIN_ORDER_ALERT_TEMPLATE_FIELDS);
+  if (!configuredFields) {
+    return DEFAULT_ADMIN_ORDER_ALERT_TEMPLATE_FIELDS;
+  }
+
+  return configuredFields
+    .split(",")
+    .map((field) => field.trim())
+    .filter(Boolean);
+};
+
+const buildAdminOrderAlertTemplateComponents = (orderRecord, env) => {
+  const fieldNames = getAdminOrderAlertTemplateFields(env);
+  if (!fieldNames.length) {
+    return [];
+  }
+
+  const missingFields = [];
+  const parameters = fieldNames.map((fieldName) => {
+    let value = "";
+
+    if (normalizeKey(fieldName) === normalizeKey("Amount")) {
+      value = formatOrderAmountForAdminMessage(orderRecord);
+    } else {
+      value = getOrderRecordValue(orderRecord, fieldName);
+    }
+
+    if (!value) {
+      missingFields.push(fieldName);
+    }
+
+    return {
+      type: "text",
+      text: value
+    };
+  });
+
+  if (missingFields.length) {
+    throw new Error(`Missing admin order alert template fields: ${missingFields.join(", ")}`);
+  }
+
+  return [
+    {
+      type: "body",
+      parameters
+    }
+  ];
+};
+
+const getCanonicalProductPagePath = (categoryValue) => {
+  const category = normalizeKey(categoryValue);
+  if (category === "earrings") return "earrings.html";
+  if (category === "bracelets") return "bracelets.html";
+  if (category === "necklaces") return "necklaces.html";
+  if (category === "combos" || category === "comboset") return "rings.html";
+  return "shop.html";
+};
+
+const resolveCanonicalProductPagePathForOrder = async (orderRecord) => {
+  const productId = getOrderRecordValue(orderRecord, "ProductId");
+  const productName = getOrderRecordValue(orderRecord, "ProductName");
+  const productSlug = buildProductSlug(productName);
+  const products = await fetchProducts();
+
+  if (!Array.isArray(products)) {
+    return "shop.html";
+  }
+
+  const matchedProduct = products.find((item) => {
+    const rowProductId = normalizeValue(getRowValue(item, ["ProductId", "Product ID", "productId"]));
+    const rowProductName = normalizeValue(getRowValue(item, ["Name", "ProductName", "Product Name"]));
+    const rowProductSlug = buildProductSlug(rowProductName);
+    return rowProductId === productId || rowProductSlug === productSlug;
+  });
+
+  if (!matchedProduct) {
+    return "shop.html";
+  }
+
+  const categoryValue = getRowValue(matchedProduct, ["Category", "ProductCategory", "Product Category"]);
+  return getCanonicalProductPagePath(categoryValue);
+};
+
+const buildCanonicalProductUrlForOrder = async (orderRecord, env) => {
+  const productName = getOrderRecordValue(orderRecord, "ProductName");
+  const productAnchor = buildProductSlug(productName);
+  const pagePath = await resolveCanonicalProductPagePathForOrder(orderRecord);
+  const productBaseUrl = new URL(pagePath, `${stripTrailingSlash(env?.PUBLIC_SITE_URL || DEFAULT_SITE_URL)}/`);
+
+  if (productAnchor) {
+    productBaseUrl.hash = productAnchor;
+  }
+
+  return productBaseUrl.href;
+};
+
+const normalizeWhatsAppRecipient = (phone, env) => {
+  const digits = normalizeDigits(phone);
+  if (!digits) {
+    const error = new Error("Phone is required");
+    error.status = 400;
+    throw error;
+  }
+
+  if (digits.length === 10) {
+    const countryCode = normalizeDigits(env?.WHATSAPP_DEFAULT_COUNTRY_CODE || DEFAULT_WHATSAPP_COUNTRY_CODE);
+    if (!countryCode) {
+      return digits;
+    }
+
+    return `${countryCode}${digits}`;
+  }
+
+  return digits;
+};
+
+const sendWhatsAppTemplateMessage = async ({ phone, templateName, languageCode, components, env }) => {
+  if (!env.WHATSAPP_ACCESS_TOKEN || !env.WHATSAPP_PHONE_NUMBER_ID) {
+    throw new Error("WhatsApp credentials missing");
+  }
+
+  const normalizedPhone = normalizeWhatsAppRecipient(phone, env);
+  const resolvedTemplateName = normalizeValue(templateName);
+  const resolvedLanguageCode = normalizeValue(languageCode) || WHATSAPP_ORDER_CONFIRMATION_TEMPLATE_LANGUAGE;
+  if (!resolvedTemplateName) {
+    throw new Error("WhatsApp template name is required");
+  }
+
+  const graphApiUrl = `https://graph.facebook.com/v25.0/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+  const requestPayload = {
+    messaging_product: "whatsapp",
+    to: normalizedPhone,
+    type: "template",
+    template: {
+      name: resolvedTemplateName,
+      language: {
+        policy: "deterministic",
+        code: resolvedLanguageCode
+      }
+    }
+  };
+
+  if (Array.isArray(components) && components.length) {
+    requestPayload.template.components = components;
+  }
+
+  const response = await fetch(
+    graphApiUrl,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`,
+        "content-type": "application/json; charset=utf-8"
+      },
+      body: JSON.stringify(requestPayload)
+    }
+  );
+
+  const responseText = await response.text();
+  let metaResponse;
+
+  try {
+    metaResponse = responseText ? JSON.parse(responseText) : {};
+  } catch (error) {
+    metaResponse = {
+      raw: responseText
+    };
+  }
+
+  if (!response.ok) {
+    const error = new Error("WhatsApp template message failed");
+    error.status = response.status;
+    error.metaResponse = metaResponse;
+    error.requestPayload = requestPayload;
+    console.error("whatsapp template send failed", {
+      status: response.status,
+      templateName: resolvedTemplateName,
+      languageCode: resolvedLanguageCode,
+      metaResponse,
+      requestPayload
+    });
+    throw error;
+  }
+
+  return {
+    requestPayload,
+    metaResponse
+  };
+};
+
+const sendWhatsAppTextMessage = async ({ phone, body, env }) => {
+  if (!env.WHATSAPP_ACCESS_TOKEN || !env.WHATSAPP_PHONE_NUMBER_ID) {
+    throw new Error("WhatsApp credentials missing");
+  }
+
+  const normalizedPhone = normalizeWhatsAppRecipient(phone, env);
+  const messageBody = normalizeValue(body);
+  if (!messageBody) {
+    throw new Error("WhatsApp text body is required");
+  }
+
+  const graphApiUrl = `https://graph.facebook.com/v25.0/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+  const requestPayload = {
+    messaging_product: "whatsapp",
+    to: normalizedPhone,
+    type: "text",
+    text: {
+      body: messageBody
+    }
+  };
+
+  const response = await fetch(
+    graphApiUrl,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${env.WHATSAPP_ACCESS_TOKEN}`,
+        "content-type": "application/json; charset=utf-8"
+      },
+      body: JSON.stringify(requestPayload)
+    }
+  );
+
+  const responseText = await response.text();
+  let metaResponse;
+
+  try {
+    metaResponse = responseText ? JSON.parse(responseText) : {};
+  } catch (error) {
+    metaResponse = {
+      raw: responseText
+    };
+  }
+
+  if (!response.ok) {
+    const error = new Error("WhatsApp text message failed");
+    error.status = response.status;
+    error.metaResponse = metaResponse;
+    error.requestPayload = requestPayload;
+    throw error;
+  }
+
+  return {
+    requestPayload,
+    metaResponse
+  };
+};
+
+const fetchOrderRowByPaymentLinkId = async (paymentLinkId, env) => {
+  const { accessToken, headerRow, headerMap, rows } = await fetchOrdersSheetRows(env);
   const targetPaymentLinkId = normalizeValue(paymentLinkId);
 
-  const paymentLinkIdIndex = headerRow.findIndex((value) => normalizeKey(value) === normalizeKey("PaymentLinkId"));
+  const paymentLinkIdIndex = headerMap[normalizeKey("PaymentLinkId")] ?? -1;
   if (paymentLinkIdIndex === -1) {
     throw new Error("PaymentLinkId column not found");
   }
@@ -547,7 +934,10 @@ const fetchOrderRowByPaymentLinkId = async (paymentLinkId, env) => {
       return {
         accessToken,
         rowIndex: index + 1,
-        headerRow
+        headerRow,
+        headerMap,
+        rowValues: row,
+        orderRecord: buildOrderRecordFromRow(headerRow, row)
       };
     }
   }
@@ -555,20 +945,22 @@ const fetchOrderRowByPaymentLinkId = async (paymentLinkId, env) => {
   throw new Error("Payment link not found");
 };
 
+const fetchMatchedOrderRowValues = async ({ paymentLinkId, env }) => fetchOrderRowByPaymentLinkId(paymentLinkId, env);
+
 const updateOrderRowFields = async ({ paymentLinkId, updates, env }) => {
-  const { accessToken, rowIndex, headerRow } = await fetchOrderRowByPaymentLinkId(paymentLinkId, env);
+  const { accessToken, rowIndex, headerMap } = await fetchOrderRowByPaymentLinkId(paymentLinkId, env);
   const fieldsToUpdate = {
     ...updates,
     PaymentLinkId: paymentLinkId
   };
 
   for (const [columnName, value] of Object.entries(fieldsToUpdate)) {
-    const columnIndex = headerRow.findIndex((headerValue) => normalizeKey(headerValue) === normalizeKey(columnName));
+    const columnIndex = headerMap[normalizeKey(columnName)] ?? -1;
     if (columnIndex === -1) {
       throw new Error(`${columnName} column not found`);
     }
 
-    const columnLetter = String.fromCharCode(65 + columnIndex);
+    const columnLetter = getColumnLetter(columnIndex + 1);
     const updateRange = `${ORDERS_SHEET_NAME}!${columnLetter}${rowIndex}`;
     const response = await fetch(
       `${GOOGLE_SHEETS_API_BASE_URL}/${encodeURIComponent(updateRange)}?valueInputOption=RAW`,
@@ -622,6 +1014,156 @@ const updateExpiredPaymentStatus = async ({ paymentLinkId, env }) => {
   });
 
   console.log("payment expired updated", { paymentLinkId });
+};
+
+const sendOrderConfirmationWhatsApp = async ({ paymentLinkId, env }) => {
+  const { orderRecord } = await fetchMatchedOrderRowValues({ paymentLinkId, env });
+  const existingSentAt = getOrderRecordValue(orderRecord, "CustomerWhatsAppSentAt");
+  if (existingSentAt) {
+    console.log("order confirmation whatsapp already sent", { paymentLinkId, sentAt: existingSentAt });
+    return {
+      skipped: true,
+      reason: "already_sent",
+      sentAt: existingSentAt
+    };
+  }
+
+  const paymentStatus = getOrderRecordValue(orderRecord, "PaymentStatus");
+  if (paymentStatus !== PAYMENT_STATUSES.PAID) {
+    throw new Error(`Payment status must be ${PAYMENT_STATUSES.PAID} before sending confirmation`);
+  }
+
+  const phone = getOrderRecordValue(orderRecord, "Phone");
+  const components = buildOrderConfirmationTemplateComponents(orderRecord, env);
+  const { requestPayload, metaResponse } = await sendWhatsAppTemplateMessage({
+    phone,
+    templateName: normalizeValue(env?.WHATSAPP_ORDER_CONFIRMATION_TEMPLATE_NAME) || WHATSAPP_ORDER_CONFIRMATION_TEMPLATE_NAME,
+    languageCode: normalizeValue(env?.WHATSAPP_ORDER_CONFIRMATION_TEMPLATE_LANGUAGE) || WHATSAPP_ORDER_CONFIRMATION_TEMPLATE_LANGUAGE,
+    components,
+    env
+  });
+  const sentAt = new Date().toISOString();
+
+  await updateOrderRowFields({
+    paymentLinkId,
+    updates: {
+      CustomerWhatsAppSentAt: sentAt,
+      LastUpdatedBy: ORDER_CONFIRMATION_UPDATED_BY,
+      LastUpdatedAt: sentAt
+    },
+    env
+  });
+
+  console.log("order confirmation whatsapp sent", {
+    paymentLinkId,
+    phone: normalizeWhatsAppRecipient(phone, env)
+  });
+
+  return {
+    skipped: false,
+    sentAt,
+    requestPayload,
+    metaResponse
+  };
+};
+
+const buildAdminOrderNotificationMessage = async (orderRecord, env) => {
+  const orderId = getOrderRecordValue(orderRecord, "OrderId");
+  const customerName = getOrderRecordValue(orderRecord, "CustomerName");
+  const phone = getOrderRecordValue(orderRecord, "Phone");
+  const email = getOrderRecordValue(orderRecord, "Email");
+  const productId = getOrderRecordValue(orderRecord, "ProductId");
+  const productName = getOrderRecordValue(orderRecord, "ProductName");
+  const amount = formatOrderAmountForAdminMessage(orderRecord);
+  const city = getOrderRecordValue(orderRecord, "City");
+  const productLink = await buildCanonicalProductUrlForOrder(orderRecord, env);
+
+  return [
+    "🛍 New FLOAA Order",
+    "",
+    `Order ID: ${orderId}`,
+    "",
+    `Customer: ${customerName}`,
+    `Phone: ${phone}`,
+    `Email: ${email || "-"}`,
+    "",
+    `Product ID: ${productId}`,
+    `Product: ${productName}`,
+    `Product Link: ${productLink}`,
+    "",
+    `Amount: ${amount}`,
+    "",
+    `City: ${city}`,
+    "",
+    "Payment: Paid"
+  ].join("\n");
+};
+
+const sendAdminOrderWhatsApp = async ({ paymentLinkId, env }) => {
+  const adminPhone = normalizeValue(env?.WHATSAPP_ADMIN_PHONE);
+  if (!adminPhone) {
+    console.log("admin whatsapp skipped: WHATSAPP_ADMIN_PHONE not configured", { paymentLinkId });
+    return {
+      skipped: true,
+      reason: "admin_phone_not_configured"
+    };
+  }
+
+  const { orderRecord } = await fetchMatchedOrderRowValues({ paymentLinkId, env });
+  const existingSentAt = getOrderRecordValue(orderRecord, "AdminWhatsAppSentAt");
+  if (existingSentAt) {
+    console.log("admin whatsapp already sent", { paymentLinkId, sentAt: existingSentAt });
+    return {
+      skipped: true,
+      reason: "already_sent",
+      sentAt: existingSentAt
+    };
+  }
+
+  const paymentStatus = getOrderRecordValue(orderRecord, "PaymentStatus");
+  if (paymentStatus !== PAYMENT_STATUSES.PAID) {
+    throw new Error(`Payment status must be ${PAYMENT_STATUSES.PAID} before sending admin notification`);
+  }
+
+  const productLink = await buildCanonicalProductUrlForOrder(orderRecord, env);
+  const components = buildAdminOrderAlertTemplateComponents({
+    ...orderRecord,
+    ProductLink: productLink,
+    productlink: productLink
+  }, env);
+  const { requestPayload, metaResponse } = await sendWhatsAppTemplateMessage({
+    phone: adminPhone,
+    templateName: normalizeValue(env?.WHATSAPP_ADMIN_ORDER_ALERT_TEMPLATE_NAME) || WHATSAPP_ADMIN_ORDER_ALERT_TEMPLATE_NAME,
+    languageCode: normalizeValue(env?.WHATSAPP_ADMIN_ORDER_ALERT_TEMPLATE_LANGUAGE)
+      || normalizeValue(env?.WHATSAPP_ORDER_CONFIRMATION_TEMPLATE_LANGUAGE)
+      || WHATSAPP_ORDER_CONFIRMATION_TEMPLATE_LANGUAGE,
+    components,
+    env
+  });
+  const sentAt = new Date().toISOString();
+
+  await updateOrderRowFields({
+    paymentLinkId,
+    updates: {
+      AdminWhatsAppSentAt: sentAt,
+      LastUpdatedBy: ADMIN_ORDER_NOTIFICATION_UPDATED_BY,
+      LastUpdatedAt: sentAt
+    },
+    env
+  });
+
+  console.log("admin whatsapp sent", {
+    paymentLinkId,
+    phone: normalizeWhatsAppRecipient(adminPhone, env),
+    messageId: metaResponse?.messages?.[0]?.id || null
+  });
+
+  return {
+    skipped: false,
+    sentAt,
+    requestPayload,
+    metaResponse
+  };
 };
 
 const sendTestWhatsAppMessage = async ({ phone, env }) => {
@@ -733,7 +1275,7 @@ const fetchTestWhatsAppMessageStatus = async ({ messageId, env }) => {
   return metaResponse;
 };
 
-const createRazorpayPaymentLink = async ({ orderId, product, customer, env }) => {
+const createRazorpayPaymentLink = async ({ orderId, product, customer, env, callbackUrl }) => {
   if (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET) {
     throw new Error("Razorpay credentials missing");
   }
@@ -753,8 +1295,17 @@ const createRazorpayPaymentLink = async ({ orderId, product, customer, env }) =>
       sms: true,
       email: Boolean(customer.email)
     },
+    options: {
+      checkout: {
+        prefill: {
+          name: customer.customerName,
+          email: customer.email || undefined,
+          contact: customer.phone
+        }
+      }
+    },
     reminder_enable: true,
-    callback_url: "https://floaa.in/order-success",
+    callback_url: callbackUrl,
     callback_method: "get",
     notes: {
       orderId,
@@ -1119,6 +1670,7 @@ export default {
       try {
         const product = await fetchProductById(payload.productId);
         const orderId = generateOrderId();
+        const callbackBaseUrl = getCheckoutCallbackBaseUrl(request, env);
         const createdAt = new Date().toISOString();
         const updatedAt = createdAt;
         const customer = {
@@ -1136,7 +1688,8 @@ export default {
           orderId,
           product,
           customer,
-          env
+          env,
+          callbackUrl: `${callbackBaseUrl}/order-success/index.html`
         });
         const order = {
           orderId,
@@ -1271,12 +1824,30 @@ export default {
             paidAt,
             env
           });
+          await sendOrderConfirmationWhatsApp({
+            paymentLinkId,
+            env
+          });
+
+          try {
+            await sendAdminOrderWhatsApp({
+              paymentLinkId,
+              env
+            });
+          } catch (error) {
+            console.error("admin whatsapp failure", error);
+          }
         } catch (error) {
-          console.error("payment link failure", error);
+          console.error("payment link failure", {
+            message: error?.message || "Unknown error",
+            status: error?.status,
+            metaResponse: error?.metaResponse || null,
+            requestPayload: error?.requestPayload || null
+          });
           return jsonResponse(
             {
               success: false,
-              message: "Unable to update payment status"
+              message: "Unable to process paid payment link"
             },
             { status: 500 },
             request

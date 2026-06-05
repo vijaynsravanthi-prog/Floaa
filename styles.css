@@ -525,7 +525,6 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
     padding: clamp(2rem, 5vw, 4.75rem) clamp(4rem, 8vw, 8rem) clamp(5.65rem, 7vw, 7.2rem) clamp(2rem, 5vw, 4.5rem);
     position: absolute;
 }
-
 .hero-slide-copy {
     align-items: center;
     color: var(--text);
@@ -1469,29 +1468,30 @@ img.img--failed {
     margin-top: 0;
 }
 
-.product-card .btn-whatsapp-secondary {
-    background: var(--pill-bg-soft);
-    border-color: var(--pill-border-subtle);
-    box-shadow: none;
-    color: var(--pill-text);
-}
-
 .product-card .btn-buy-now {
-    background: linear-gradient(180deg, rgba(53, 45, 48, 0.98) 0%, rgba(37, 31, 33, 0.98) 100%);
-    border-color: rgba(37, 31, 33, 0.92);
+    background: #2f2630;
+    border-color: #2f2630;
     box-shadow: 0 12px 26px rgba(58, 46, 43, 0.16);
-    color: #fffaf4;
+    color: #ffffff;
 }
 
 .product-card .btn-buy-now:hover {
-    background: linear-gradient(180deg, rgba(67, 57, 60, 1) 0%, rgba(44, 37, 40, 1) 100%);
-    border-color: rgba(37, 31, 33, 1);
+    background: #382e39;
+    border-color: #382e39;
     box-shadow: 0 14px 28px rgba(58, 46, 43, 0.22);
 }
 
-.product-card .btn-whatsapp-secondary:hover {
-    background: rgba(250, 243, 228, 0.82);
-    border-color: var(--pill-border);
+.product-card .btn-product-assistance {
+    background: transparent;
+    border-color: #d9c7a3;
+    box-shadow: none;
+    color: #6b5b4f;
+}
+
+.product-card .btn-product-assistance:hover {
+    background: rgba(217, 199, 163, 0.12);
+    border-color: #d9c7a3;
+    color: #5b4b41;
 }
 
 body[data-page="home"] #home-product-grid {
@@ -2306,6 +2306,47 @@ body[data-page="home"] #home-product-grid .product-stock {
     text-transform: uppercase;
 }
 
+.status-confirmation-mark {
+    display: grid;
+    place-items: center;
+    margin-top: 0.15rem;
+    position: relative;
+}
+
+.status-confirmation-mark__halo,
+.status-confirmation-mark__core {
+    border-radius: 50%;
+    display: block;
+}
+
+.status-confirmation-mark__halo {
+    background: radial-gradient(circle, rgba(215, 189, 126, 0.18) 0%, rgba(215, 189, 126, 0) 70%);
+    height: 6.1rem;
+    width: 6.1rem;
+}
+
+.status-confirmation-mark__core {
+    align-items: center;
+    background: linear-gradient(180deg, rgba(255, 253, 248, 0.98) 0%, rgba(247, 208, 203, 0.94) 100%);
+    border: 1px solid rgba(184, 137, 36, 0.25);
+    box-shadow: 0 18px 36px rgba(92, 82, 88, 0.12);
+    color: var(--control-gold-text);
+    display: inline-flex;
+    height: 4rem;
+    justify-content: center;
+    left: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 4rem;
+}
+
+.status-confirmation-mark__core svg {
+    fill: currentColor;
+    height: 1.7rem;
+    width: 1.7rem;
+}
+
 .status-card h2 {
     color: var(--text);
     font-family: "Cormorant Garamond", serif;
@@ -2320,6 +2361,103 @@ body[data-page="home"] #home-product-grid .product-stock {
     color: var(--muted);
     font-size: 1rem;
     max-width: 42rem;
+}
+
+.status-details {
+    display: grid;
+    gap: 0.9rem;
+    margin: 0.25rem 0 0.1rem;
+    width: min(100%, 22rem);
+}
+
+.status-detail {
+    background: rgba(255, 255, 255, 0.52);
+    border: 1px solid rgba(184, 137, 36, 0.14);
+    border-radius: 1.2rem;
+    padding: 0.95rem 1.15rem;
+}
+
+.status-detail-label,
+.status-detail-value,
+.status-payment-state {
+    margin: 0;
+}
+
+.status-detail-label {
+    color: var(--control-gold-text);
+    font-size: 0.73rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.status-detail-value {
+    color: var(--text);
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(1.45rem, 3vw, 2rem);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.05;
+    margin-top: 0.35rem;
+    word-break: break-word;
+}
+
+.status-payment-state {
+    color: var(--text);
+    font-size: 0.96rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    margin-top: 0.15rem;
+    text-transform: uppercase;
+}
+
+.status-lead {
+    color: var(--text);
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(1.7rem, 3.4vw, 2.3rem);
+    font-weight: 600;
+    line-height: 1.05;
+}
+
+.status-divider {
+    background: linear-gradient(90deg, rgba(184, 137, 36, 0) 0%, rgba(184, 137, 36, 0.32) 18%, rgba(184, 137, 36, 0.32) 82%, rgba(184, 137, 36, 0) 100%);
+    height: 1px;
+    margin: 0.35rem 0 0.1rem;
+    width: min(100%, 24rem);
+}
+
+.status-support-copy {
+    display: grid;
+    gap: 0.9rem;
+    max-width: 34rem;
+}
+
+.status-support-copy p {
+    max-width: none;
+}
+
+.status-whatsapp-label {
+    color: var(--control-gold-text);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.status-whatsapp-link {
+    color: var(--text);
+    display: inline-flex;
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(1.55rem, 3vw, 2.15rem);
+    font-weight: 600;
+    justify-self: center;
+    letter-spacing: 0.02em;
+    transition: color 0.2s ease;
+}
+
+.status-whatsapp-link:hover,
+.status-whatsapp-link:focus-visible {
+    color: var(--control-gold-text);
 }
 
 .status-actions {
@@ -2581,6 +2719,15 @@ body[data-page="home"] #home-product-grid .product-stock {
 
     .status-card p {
         font-size: 0.97rem;
+    }
+
+    .status-support-copy {
+        gap: 0.8rem;
+    }
+
+    .status-whatsapp-link {
+        font-size: 1.7rem;
+        text-align: center;
     }
 
     .product-card {

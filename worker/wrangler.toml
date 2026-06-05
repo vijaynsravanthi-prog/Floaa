@@ -5,3 +5,5 @@ compatibility_date = "2026-05-29"
 [vars]
 APP_NAME = "floaa-api"
 ENVIRONMENT = "development"
+WHATSAPP_ORDER_CONFIRMATION_TEMPLATE_LANGUAGE = "en"
+WHATSAPP_ADMIN_PHONE = "919822640656"
