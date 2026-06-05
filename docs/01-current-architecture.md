@@ -2,124 +2,110 @@
 
 > Status: Current Production Architecture
 >
-> Last Updated: 2026-05-29
-> Version: 1.0
+> Last Updated: 2026-06-05
+> Version: 1.1
 >
 > This document describes the architecture currently running in production.
-> Future-state designs must be documented in `02-target-architecture.md`.
+> Future-state and planned enhancements belong in `02-target-architecture.md`.
 
 ## 1. Overview
 
-FLOAA is currently implemented as a static e-commerce storefront built with HTML, CSS, and vanilla JavaScript. The site is designed to run entirely in the browser, with no application backend.
+FLOAA is currently implemented as a static storefront backed by a Cloudflare Worker that handles order intake, Razorpay Payment Link creation, Razorpay webhook processing, Google Sheets persistence, and Meta WhatsApp notifications.
 
-The current experience centers around:
+The production experience centers around:
 
-- Static marketing and collection pages
-- Client-side product loading from Google Sheets via OpenSheet
-- Category and shop filtering in the browser
-- Product gallery and lightbox interactions on the frontend
-- WhatsApp-based ordering instead of a cart and checkout system
+- static marketing and collection pages
+- client-side product loading from Google Sheets via OpenSheet
+- `Buy Now` order capture through the Worker
+- Razorpay Payment Links for payment collection
+- webhook-driven payment confirmation
+- Google Sheets as the operational datastore
+- customer and admin WhatsApp notifications through Meta-approved Utility templates
 
-The application logic is primarily concentrated in `script.js`, while `index.html`, `shop.html`, and category pages provide the page structure and mount points for dynamic rendering.
+The frontend remains concentrated in `script.js`, while the transactional backend lives in `worker/src/index.js`.
 
 ## 2. Technology Stack
 
-The current stack is intentionally lightweight:
+The current production stack is intentionally lightweight:
 
 - Frontend markup: static HTML
 - Styling: custom CSS in `styles.css`
 - Interactivity: vanilla JavaScript in `script.js`
-- Data source: Google Sheets exposed through OpenSheet
-- Media: local images and video assets stored in `assets/`
-- Analytics and tracking:
-  - Google Analytics (`gtag`)
-  - Google Tag Manager
-  - Meta Pixel
+- Backend runtime: Cloudflare Worker in `worker/src/index.js`
+- Product and brand content source: Google Sheets exposed through OpenSheet
+- Orders datastore: Google Sheets `Orders` tab via Google Sheets API
+- Payments: Razorpay Payment Links
+- Notifications: Meta WhatsApp Cloud API
 - Local development server: PowerShell-based static server in `server.ps1`
 
-No framework or package-managed runtime is currently used. There is no React, Vue, Angular, Next.js, Node backend, or build pipeline in the current codebase.
+There is still no framework-based frontend or separate application server. The Worker is the production backend control plane.
 
 ## 3. Hosting Architecture
 
-The site is hosted as a static frontend on GitHub Pages.
-
 Current hosting characteristics:
 
-- All pages are pre-authored static HTML files
-- Shared assets are delivered directly from the repository
-- Shared frontend logic is loaded through `script.js`
-- Shared styling is loaded through `styles.css`
-- GitHub Pages behavior is reinforced by:
-  - `CNAME`
-  - `.nojekyll`
+- storefront pages are static HTML
+- shared assets are delivered directly from the repository
+- shared frontend logic is loaded through `script.js`
+- shared styling is loaded through `styles.css`
+- the static site is served from `floaa.in`
+- the backend API is served by the Cloudflare Worker `floaa-api`
 
-There is no server-side rendering layer and no backend API owned by the project. All runtime data fetching happens directly from the browser to third-party endpoints.
+Current responsibilities are split as follows:
 
-## Repository Structure
+- Frontend:
+  - browse products
+  - capture customer details
+  - call the Worker to create orders and payment links
+  - show customer-facing success UI after redirect when available
+- Worker:
+  - create order rows
+  - create Razorpay payment links
+  - process Razorpay webhooks
+  - update Google Sheets
+  - send customer and admin WhatsApp notifications
 
-The repository is organized around a static-site deployment model, with a small number of shared frontend files and media assets.
+## 4. Runtime Components
 
-### `/assets`
+### Storefront
 
-Stores static brand and product media used by the storefront.
+Primary files:
 
-- `assets/branding/` contains logos and brand imagery
-- `assets/floaa-jew-pics/` contains product images, category visuals, and hero imagery
+- `index.html`
+- `shop.html`
+- category and content pages
+- `script.js`
+- `styles.css`
 
-### `/docs`
+Key frontend behaviors:
 
-Houses project documentation and architecture references.
+- reads products and brand content from OpenSheet
+- renders product cards and detail flows
+- captures customer order input
+- calls the Worker for `POST /create-payment-link`
+- stores an order-success snapshot in `sessionStorage` before redirecting to Razorpay
 
-- `01-current-architecture.md` documents the currently running production architecture
+### Worker
 
-### `/index.html`
+Primary source:
 
-Primary homepage for the FLOAA storefront.
+- `worker/src/index.js`
 
-- Defines the landing experience
-- Mounts the hero slider
-- Includes the featured categories and best-seller product grid
-- Preloads early brand content via `window.__floaaBrandRowsPromise`
+Key runtime endpoints:
 
-### `/shop.html`
+- `POST /orders`
+- `POST /create-payment-link`
+- `POST /razorpay-webhook`
+- `GET /whatsapp-webhook`
+- `POST /whatsapp-webhook`
+- `POST /test-whatsapp`
+- `GET /test-whatsapp-status`
 
-Main shop-all listing page.
+The Worker owns all payment and notification orchestration.
 
-- Provides the full product grid view
-- Supports browser-side filtering through URL parameters and frontend logic
+## 5. Product and Brand Data Flow
 
-### `/script.js`
-
-Primary frontend application logic file.
-
-- Fetches products and brand content
-- Normalizes Google Sheet rows into product objects
-- Renders product cards into page-level grids
-- Handles hero slider behavior, gallery lightbox behavior, filters, and WhatsApp order flows
-
-### `/styles.css`
-
-Shared styling file for the entire site.
-
-- Defines layout, typography, color system, responsive behavior, product grid styling, gallery modal styling, and WhatsApp modal styling
-
-### `/server.ps1`
-
-Local development-only static file server.
-
-- Serves the repository on `localhost:8000`
-- Maps common file types to the expected MIME types
-- Does not act as a production backend or API layer
-
-### `/CNAME`
-
-GitHub Pages custom domain configuration file.
-
-- Used to bind the deployed site to the production FLOAA domain
-
-## 4. Product Data Flow
-
-Product data is loaded client-side at runtime from Google Sheets using OpenSheet.
+Product and brand content are still loaded client-side at runtime from Google Sheets using OpenSheet.
 
 ### Source
 
@@ -134,212 +120,203 @@ Product data is loaded client-side at runtime from Google Sheets using OpenSheet
 1. `initializePage()` runs on page load.
 2. `fetchProducts()` requests the products sheet from OpenSheet.
 3. Each row is transformed by `transformProduct()` into a frontend-friendly product object.
-4. Product data is filtered based on page context:
-   - Homepage: first 8 products
-   - Shop page: optional query-param filtering
-   - Category pages: filtered by `data-category`
-5. `renderProducts()` builds product cards and injects them into:
-   - `#home-product-grid`
-   - `#shop-product-grid`
-   - `#category-product-grid`
+4. Product data is filtered based on page context.
+5. Product cards are rendered into the active page grids.
 
-### Product object shape
+The product feed is also used by the Worker during payment-link creation and admin notification enrichment.
 
-The current frontend expects fields such as:
+## 6. Payment Flow
 
-- `name`
-- `price`
-- `discountPrice`
-- `priceValue`
-- `discountPriceValue`
-- `image`
-- `images`
-- `createdDate`
-- `isNew`
-- `description`
-- `category`
-- `status`
-- `stockStatus`
-- `filters`
-- `style`
-- `tag`
+Razorpay Payment Links are implemented and operational.
 
-### Rendering behavior
+### Production payment flow
 
-Each product card includes:
+1. Customer selects `Buy Now` on the storefront.
+2. Frontend sends order details to `POST /create-payment-link`.
+3. Worker validates the product and creates a Google Sheets order row.
+4. Worker requests a Razorpay Payment Link.
+5. Frontend stores a local order-success snapshot in `sessionStorage`.
+6. Frontend redirects the customer to Razorpay.
+7. Customer completes payment.
+8. Razorpay sends `payment_link.paid` webhook to the Worker.
+9. Worker updates Google Sheets:
+   - `OrderStatus = Confirmed`
+   - `PaymentStatus = Paid`
+   - `PaymentId`
+   - `PaymentCapturedAt`
+10. Worker sends customer WhatsApp confirmation.
+11. Worker sends admin WhatsApp alert.
+12. If Razorpay successfully redirects the browser, the customer sees the success page UX.
 
-- Image
-- Tag/category label
-- Name
-- Price
-- Description
-- Stock status
-- Action buttons
+### Payment source of truth
 
-If multiple images exist, the gallery lightbox uses them as a media set.
+Successful payment is determined by successful Razorpay webhook processing, not by browser redirect completion.
 
-## 5. WhatsApp Order Flow
+Operationally authoritative indicators are:
 
-FLOAA does not currently use cart, checkout, or payment APIs. Ordering is handled through WhatsApp.
+- webhook received and signature verified
+- `PaymentStatus = Paid` in Google Sheets
+- `PaymentCapturedAt` populated
 
-### Current ordering model
+The customer success page is a UX layer only.
 
-Users interact with product CTAs rendered by `renderProducts()`:
+### Callback URL behavior
 
-- `ORDER ON WHATSAPP`
-- `ASK A QUESTION`
+`/create-payment-link` generates a `callback_url` for Razorpay using:
 
-### Flow for questions
+1. request `Origin` if it matches an allowed origin
+2. otherwise `PUBLIC_SITE_URL`
+3. otherwise the production fallback `https://floaa.in`
 
-1. User clicks `ASK A QUESTION`
-2. `createWhatsAppQuestionModal()` opens a modal
-3. User enters a question
-4. A prefilled WhatsApp message is generated
-5. Browser opens a `wa.me` link in a new tab
+For local testing this can produce:
 
-### Flow for ordering
+- `http://localhost:8000/order-success/index.html`
 
-1. User clicks `ORDER ON WHATSAPP`
-2. `createWhatsAppReserveModal()` opens a modal
-3. User enters:
-   - Name
-   - Delivery address
-4. A prefilled WhatsApp order message is generated
-5. Browser opens a `wa.me` link in a new tab
+Known implication:
 
-### WhatsApp message construction
+- successful payment can still complete server-side even if the browser does not land on the success page
 
-The message includes:
+### Known localhost and mobile-emulation limitations
 
-- Product name
-- Product price
-- Quantity
-- Product image URL when available
-- User-submitted name or question
-- Delivery address for orders
+The following are known testing limitations, not payment failures:
 
-This means the current ordering system is conversational and manual rather than transactional.
+- localhost callback targets can be fragile in cross-app return flows
+- browser redirect completion is less reliable than webhook processing
+- mobile browser plus GPay app handoff behaves differently from desktop testing
+- desktop mobile-emulation with GPay can show false callback issues because `gpay://` handlers are not available like they are on a real phone
+- desktop page plus QR scan on a real phone can leave the original Razorpay page on `Processing your payment` or Razorpay’s own `Paid` page even after backend completion
 
-## 6. Current Limitations
+## 7. WhatsApp Notification Architecture
 
-The current architecture is simple and works well for a lightweight storefront, but it has important limitations.
+### Customer notifications
 
-### No backend
+Customer payment confirmations use the Meta-approved Utility template:
 
-- No owned API layer
-- No server-side validation
-- No secure secret storage
-- No persistent order processing system
+- `floaa_order_confirmation`
 
-### No inventory control
+Language is configurable through:
 
-- No live inventory management
-- No reservation locking
-- No stock decrement after purchase
-- No concurrency protection
+- `WHATSAPP_ORDER_CONFIRMATION_TEMPLATE_LANGUAGE`
 
-### No checkout or payment system
+Default code-level language fallback:
 
-- No cart
-- No order creation API
-- No payment gateway integration
-- No payment verification
+- `en_US`
 
-### No operational order lifecycle
+### Admin notifications
 
-- No order database
-- No order statuses
-- No admin dashboard
-- No shipping workflow
+Admin payment alerts use the Meta-approved Utility template:
 
-### Public client-side data dependency
+- `floaa_admin_order_alert`
 
-- Product availability depends on a public Google Sheet
-- Browser fetches OpenSheet directly
-- Sheet structure changes can break rendering if not coordinated
+Admin notifications no longer use plain-text WhatsApp messages.
 
-### Manual operations burden
+Language is configurable through:
 
-- Orders are finalized manually through WhatsApp
-- Inventory accuracy depends on human process
-- Notifications and reconciliation are not automated
+- `WHATSAPP_ADMIN_ORDER_ALERT_TEMPLATE_LANGUAGE`
 
-## 7. Existing Google Sheet Integration
+### Admin template body field order
 
-Google Sheets is the current source of truth for both product content and brand-managed content.
+The approved field order is:
 
-### Current sheet usage
+1. `OrderId`
+2. `CustomerName`
+3. `Phone`
+4. `Email`
+5. `ProductId`
+6. `ProductName`
+7. `ProductLink`
+8. `Amount`
+9. `AddressLine1`
+10. `City`
 
-Two sheet endpoints are used:
+### Notification idempotency
 
-- Products sheet: tab `1`
-- Brand content sheet: tab `BrandContent`
+Notification sends are guarded by Google Sheets audit fields:
 
-### Product sheet role
+- `CustomerWhatsAppSentAt`
+- `AdminWhatsAppSentAt`
 
-The products sheet currently drives:
+These fields act as:
 
-- Product names
-- Descriptions
-- Prices
-- Discount prices
-- Categories
-- Styles
-- Filter tags
-- Status
-- Stock display state
-- Image filenames/paths
-- New arrival status through created date
+- audit markers
+- idempotency guards
+- notification delivery indicators at API-acceptance level
 
-### Brand content sheet role
+If a duplicate webhook arrives after those fields are populated, the Worker logs `already sent` and skips duplicate sends.
 
-The brand content sheet is used to configure dynamic brand-managed content such as:
+## 8. Google Sheets Operational Schema
 
-- Logo
-- Brand strip message
-- Shipping strip content
-- Footer policy copy
-- WhatsApp number
-- WhatsApp default message
-- Hero slide images and text
-- Category tile images
-- Contact details
-- Hero video and poster configuration
+The `Orders` sheet is the operational datastore for order and payment state.
 
-### Integration behavior
+Important runtime fields include:
 
-- `index.html` preloads brand content early through `window.__floaaBrandRowsPromise`
-- `script.js` later consumes that promise in `fetchBrandContent()`
-- `applyBrandContent()` applies Google Sheet content into the DOM
+- `OrderId`
+- `ProductId`
+- `ProductName`
+- `CustomerName`
+- `Phone`
+- `Email`
+- `AddressLine1`
+- `AddressLine2`
+- `Landmark`
+- `Pincode`
+- `City`
+- `State`
+- `OrderStatus`
+- `PaymentStatus`
+- `CreatedAt`
+- `UpdatedAt`
+- `Notes`
+- `Source`
+- `Amount`
+- `Currency`
+- `PaymentProvider`
+- `PaymentLink`
+- `PaymentLinkId`
+- `PaymentId`
+- `PaymentCapturedAt`
+- `CustomerWhatsAppSentAt`
+- `AdminWhatsAppSentAt`
+- `LastUpdatedBy`
+- `LastUpdatedAt`
+- `FulfillmentStatus`
+- `Courier`
+- `TrackingNumber`
+- `DispatchDate`
+- `DeliveryDate`
+- `Remarks`
 
-### Architectural implication
+Operational meanings:
 
-Google Sheets currently acts as a lightweight CMS plus catalog source. It is easy to update operationally, but it is not a transactional commerce backend.
+- `PaymentStatus`
+  - authoritative payment state for the order
+- `PaymentCapturedAt`
+  - timestamp written when paid webhook processing succeeds
+- `CustomerWhatsAppSentAt`
+  - customer notification audit marker and idempotency guard
+- `AdminWhatsAppSentAt`
+  - admin notification audit marker and idempotency guard
 
-## Architecture Decisions
+## 9. Repository Structure
 
-The current production setup reflects a set of deliberate decisions optimized for low operational overhead, quick merchandising updates, and simple deployment.
+### `/assets`
 
-### GitHub Pages hosting
+Stores static brand and product media used by the storefront.
 
-The storefront is hosted on GitHub Pages to keep deployment simple, low-cost, and compatible with a fully static site architecture.
+### `/docs`
 
-### Static HTML/CSS/JavaScript architecture
+Houses project documentation and operational references.
 
-The frontend is implemented as a static site using hand-authored HTML, CSS, and vanilla JavaScript rather than a framework-based application. This reduces runtime complexity and avoids the need for a build pipeline.
+### `/script.js`
 
-### Google Sheets as CMS/catalog source
+Primary frontend application logic file.
 
-Google Sheets is used as the operational content and catalog source because it allows rapid product and brand-content updates without requiring a backend admin system.
+### `/worker`
 
-### WhatsApp-based ordering
+Contains the Cloudflare Worker implementation and Wrangler configuration.
 
-Ordering is intentionally handled through WhatsApp rather than a native cart and checkout flow. This supports manual, conversational selling and keeps fulfillment coordination lightweight.
+### `/server.ps1`
 
-### No backend services
+Local development-only static file server.
 
-There are currently no owned backend services, APIs, databases, or server-side business logic layers in production. The browser talks directly to third-party content endpoints.
-
-### No payment gateway integration
-
-The current production architecture does not include Razorpay or any other payment gateway. Payment collection, confirmation, and order handling remain manual and are coordinated outside the website experience.
+It serves the repository on `localhost:8000` and is not a production backend.
