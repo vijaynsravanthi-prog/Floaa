@@ -66,16 +66,73 @@ const jsonResponse = (data, init = {}, request) =>
     ...init
   });
 
+const buildProductsResponseHeaders = (request, extraHeaders = {}) => ({
+  "content-type": "application/json; charset=utf-8",
+  ...(request ? getCorsHeaders(request) : {}),
+  ...extraHeaders
+});
+
+const buildProductsError = (type, details = {}) => {
+  const error = new Error(details.message || "Products request failed");
+  error.type = type;
+  error.status = details.status;
+  error.contentType = details.contentType || "";
+  error.bodyPreview = normalizeValue(details.bodyPreview).slice(0, 500);
+  error.isArrayPayload = details.isArrayPayload;
+  return error;
+};
+
 const fetchProducts = async () => {
   console.log("product fetch started");
+  let response;
 
-  const response = await fetch(PRODUCTS_URL);
-  if (!response.ok) {
-    throw new Error(`Products request failed with status ${response.status}`);
+  try {
+    response = await fetch(PRODUCTS_URL);
+  } catch (error) {
+    throw buildProductsError("fetch-failed", {
+      message: error?.message || "Products request failed"
+    });
   }
 
-  const products = await response.json();
-  console.log("product fetch success");
+  const contentType = response.headers.get("content-type") || "";
+  const responseText = await response.text();
+  const bodyPreview = responseText.slice(0, 500);
+
+  if (!response.ok) {
+    throw buildProductsError("upstream-non-ok", {
+      message: `Products request failed with status ${response.status}`,
+      status: response.status,
+      contentType,
+      bodyPreview
+    });
+  }
+
+  let products;
+
+  try {
+    products = JSON.parse(responseText);
+  } catch (error) {
+    throw buildProductsError("invalid-json", {
+      message: error?.message || "Unable to parse products response JSON",
+      status: response.status,
+      contentType,
+      bodyPreview
+    });
+  }
+
+  if (!Array.isArray(products)) {
+    throw buildProductsError("invalid-payload", {
+      message: "Products payload is not an array",
+      status: response.status,
+      contentType,
+      bodyPreview,
+      isArrayPayload: false
+    });
+  }
+
+  console.log("product fetch success", {
+    count: products.length
+  });
   return products;
 };
 
@@ -1569,42 +1626,46 @@ export default {
 
       try {
         const products = await fetchProducts();
-        if (!Array.isArray(products)) {
-          console.error("api products payload invalid");
-          return jsonResponse(
-            {
-              success: false,
-              message: "Invalid products response"
-            },
-            { status: 502 },
-            request
-          );
-        }
-
         console.log("api products fetch success", {
           count: products.length
         });
 
         return new Response(JSON.stringify(products), {
           status: 200,
-          headers: {
-            "content-type": "application/json; charset=utf-8",
-            ...getCorsHeaders(request)
-          }
+          headers: buildProductsResponseHeaders(request, {
+            "x-floaa-products-source": "opensheet"
+          })
         });
       } catch (error) {
+        const errorType = error?.type || "fetch-failed";
+        const errorMessage = error?.message || "Unknown error";
+        const errorStatus = Number.isFinite(error?.status) ? error.status : null;
+        const errorContentType = error?.contentType || "";
+        const errorBodyPreview = normalizeValue(error?.bodyPreview || "").slice(0, 500);
+        const isArrayPayload = typeof error?.isArrayPayload === "boolean" ? error.isArrayPayload : null;
+        const errorHeaderValue = errorType === "invalid-payload" ? "invalid-payload" : errorType;
+        const responseMessage = errorType === "invalid-payload"
+          ? "Invalid products response"
+          : "Unable to fetch products";
+
         console.error("api products fetch failed", {
-          message: error?.message || "Unknown error"
+          type: errorType,
+          upstreamStatus: errorStatus,
+          contentType: errorContentType,
+          message: errorMessage,
+          bodyPreview: errorBodyPreview,
+          isArrayPayload
         });
 
-        return jsonResponse(
-          {
-            success: false,
-            message: "Unable to fetch products"
-          },
-          { status: 502 },
-          request
-        );
+        return new Response(JSON.stringify({
+          success: false,
+          message: responseMessage
+        }), {
+          status: 502,
+          headers: buildProductsResponseHeaders(request, {
+            "x-floaa-products-error": errorHeaderValue
+          })
+        });
       }
     }
 
