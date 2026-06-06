@@ -2529,16 +2529,66 @@ body[data-page="home"] #home-product-grid .product-stock {
 }
 
 .footer-policy {
-    color: var(--control-gold-text);
-    font-size: 0.82rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
+    background: rgba(255, 250, 245, 0.78);
+    border: 1px solid var(--pill-border-subtle);
+    border-radius: 18px;
+    box-shadow: var(--pill-shadow);
+    color: var(--text);
+    display: grid;
+    gap: 0.75rem;
     margin-bottom: 1.1rem;
-    text-transform: uppercase;
+    padding: 1rem 1.05rem;
+}
+
+.footer-policy-title {
+    display: block;
+    font-family: "Cormorant Garamond", serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+}
+
+.footer-policy-points {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.footer-policy-point {
+    color: var(--text);
+    display: block;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    padding-left: 1.15rem;
+    position: relative;
+}
+
+.footer-policy-point::before {
+    color: var(--gold-deep);
+    content: "✓";
+    font-size: 0.88rem;
+    left: 0;
+    position: absolute;
+    top: 0.14rem;
+}
+
+.footer-policy-note {
+    color: var(--muted);
+    display: block;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    opacity: 0.82;
 }
 
 .compact-footer {
     margin-top: 2rem;
+}
+
+@media (max-width: 640px) {
+    .footer-policy {
+        gap: 0.65rem;
+        padding: 0.92rem 0.95rem;
+    }
 }
 
 @media (max-width: 1100px) {

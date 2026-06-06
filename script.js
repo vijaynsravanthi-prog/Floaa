@@ -243,6 +243,12 @@
             .replace(/^'+|'+$/g, "")
             .replace(/",$/, "")
             .trim();
+        const escapeHtml = (value) => normalizeValue(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
         const normalizeSlug = (value) => normalizeValue(value).toLowerCase();
         const buildAnchorSlug = (value) => normalizeValue(value)
             .toLowerCase()
@@ -2211,12 +2217,35 @@
                 });
             }
 
-            const footerPolicyText = getBrandValue(content, ["policy-message", "footer-policy", "return-policy"]);
-            if (footerPolicyText) {
-                document.querySelectorAll(".footer-policy").forEach((policy) => {
-                    policy.textContent = footerPolicyText;
-                });
-            }
+            const legacyFooterPolicyText = "FOR HYGIENE AND QUALITY ASSURANCE, JEWELLERY PURCHASES ARE NOT ELIGIBLE FOR RETURN OR EXCHANGE.";
+            const defaultFooterPolicyNote = "For hygiene reasons, change-of-mind returns are not available.";
+            const footerPromiseTitle = getBrandValue(content, ["promise-title", "footer-promise-title", "trust-title"]) || "✨ Shop with Confidence";
+            const footerPromisePointsValue = getBrandValue(content, ["promise-points", "footer-promise-points", "trust-points"]);
+            const footerPromisePoints = (footerPromisePointsValue
+                ? footerPromisePointsValue.split(/\r?\n|\|/)
+                    .map((item) => item.replace(/^[•✓✔\-\s]+/, "").trim())
+                    .filter(Boolean)
+                : [
+                    "Real product photography",
+                    "Individually quality checked",
+                    "Secure payments",
+                    "Damaged or incorrect item? Free replacement"
+                ]);
+            const footerPolicyText = getBrandValue(content, ["promise-note", "footer-promise-note", "policy-message", "footer-policy", "return-policy"]);
+            const normalizedFooterPolicyText = normalizeValue(footerPolicyText).toLowerCase();
+            const footerPolicyNote = !footerPolicyText || normalizedFooterPolicyText === legacyFooterPolicyText.toLowerCase()
+                ? defaultFooterPolicyNote
+                : footerPolicyText;
+
+            document.querySelectorAll(".footer-policy").forEach((policy) => {
+                policy.innerHTML = `
+                    <span class="footer-policy-title">${escapeHtml(footerPromiseTitle)}</span>
+                    <span class="footer-policy-points">
+                        ${footerPromisePoints.map((point) => `<span class="footer-policy-point">${escapeHtml(point)}</span>`).join("")}
+                    </span>
+                    <span class="footer-policy-note">${escapeHtml(footerPolicyNote)}</span>
+                `;
+            });
 
             const whatsappNumber = getWhatsAppNumber(content);
             const whatsappMessage = getWhatsAppMessage(content);
