@@ -42,6 +42,10 @@ const PAYMENT_STATUSES = {
   PAID: "Paid",
   EXPIRED: "Expired"
 };
+const ORDER_CREATED_SOURCES = {
+  BUY_NOW: "Buy_Now",
+  BAG: "Bag"
+};
 const PHONE_PATTERN = /^[6-9]\d{9}$/;
 const PINCODE_PATTERN = /^\d{6}$/;
 
@@ -453,6 +457,7 @@ const buildOrdersSheetRow = (headerRow, order) => {
     paymentlinkid: order.paymentLinkId,
     paymentid: order.paymentId,
     paymentcapturedat: order.paymentCapturedAt,
+    createdsource: order.createdSource,
     addressline1: order.addressLine1,
     addressline2: order.addressLine2,
     landmark: order.landmark,
@@ -1827,6 +1832,7 @@ export default {
           paymentLinkId: paymentLink.paymentLinkId,
           paymentId: "",
           paymentCapturedAt: "",
+          createdSource: ORDER_CREATED_SOURCES.BUY_NOW,
           quantity: 1
         };
 
