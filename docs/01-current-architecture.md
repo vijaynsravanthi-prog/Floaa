@@ -15,7 +15,7 @@ FLOAA is currently implemented as a static storefront backed by a Cloudflare Wor
 The production experience centers around:
 
 - static marketing and collection pages
-- client-side product loading from Google Sheets via OpenSheet
+- storefront product reads through the Worker-backed `/api/products` endpoint
 - `Buy Now` order capture through the Worker
 - Razorpay Payment Links for payment collection
 - webhook-driven payment confirmation
@@ -32,7 +32,8 @@ The current production stack is intentionally lightweight:
 - Styling: custom CSS in `styles.css`
 - Interactivity: vanilla JavaScript in `script.js`
 - Backend runtime: Cloudflare Worker in `worker/src/index.js`
-- Product and brand content source: Google Sheets exposed through OpenSheet
+- Product API: Cloudflare Worker `GET /api/products`, backed by OpenSheet upstream
+- Brand content source: Google Sheets `BrandContent` exposed through OpenSheet
 - Orders datastore: Google Sheets `Orders` tab via Google Sheets API
 - Payments: Razorpay Payment Links
 - Notifications: Meta WhatsApp Cloud API
@@ -79,7 +80,8 @@ Primary files:
 
 Key frontend behaviors:
 
-- reads products and brand content from OpenSheet
+- reads products from the Worker-backed `/api/products` endpoint
+- reads brand content from OpenSheet
 - renders product cards and detail flows
 - captures customer order input
 - calls the Worker for `POST /create-payment-link`
@@ -93,6 +95,9 @@ Primary source:
 
 Key runtime endpoints:
 
+- `GET /`
+- `GET /products`
+- `GET /api/products`
 - `POST /orders`
 - `POST /create-payment-link`
 - `POST /razorpay-webhook`
@@ -105,23 +110,25 @@ The Worker owns all payment and notification orchestration.
 
 ## 5. Product and Brand Data Flow
 
-Product and brand content are still loaded client-side at runtime from Google Sheets using OpenSheet.
+Products and brand content follow two different runtime paths.
 
 ### Source
 
 `script.js` defines:
 
 - `SHEET_ID`
-- `PRODUCTS_URL = https://opensheet.elk.sh/{SHEET_ID}/1`
+- `PRODUCTS_URL = https://floaa-api.floaa.workers.dev/api/products`
 - `BRAND_CONTENT_URL = https://opensheet.elk.sh/{SHEET_ID}/BrandContent`
 
 ### Flow
 
 1. `initializePage()` runs on page load.
-2. `fetchProducts()` requests the products sheet from OpenSheet.
-3. Each row is transformed by `transformProduct()` into a frontend-friendly product object.
-4. Product data is filtered based on page context.
-5. Product cards are rendered into the active page grids.
+2. `fetchProducts()` requests the Worker `GET /api/products` endpoint.
+3. The Worker fetches the upstream products sheet from OpenSheet and returns the product payload to the storefront.
+4. `fetchBrandContent()` requests BrandContent directly from OpenSheet.
+5. Each row is transformed by `transformProduct()` into a frontend-friendly product object.
+6. Product data is filtered based on page context.
+7. Product cards are rendered into the active page grids.
 
 The product feed is also used by the Worker during payment-link creation and admin notification enrichment.
 

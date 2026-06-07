@@ -1,41 +1,32 @@
-# Floaa
+# FLOAA
 
-Welcome to the Floaa project! This project showcases a beautiful collection of jewellery items, providing users with an elegant and user-friendly experience.
+FLOAA is a production jewellery storefront built as a static frontend backed by a Cloudflare Worker. The storefront serves the browsing experience, while the Worker handles product API access, order intake, Razorpay Payment Link creation, webhook processing, Google Sheets order updates, and WhatsApp notifications.
 
-## Project Structure
+## Current Architecture
 
-The project consists of the following files:
+- Storefront: static HTML, CSS, and vanilla JavaScript
+- Product API: storefront reads products from `https://floaa-api.floaa.workers.dev/api/products`
+- Brand content: storefront reads BrandContent from OpenSheet
+- Backend: Cloudflare Worker in `worker/src/index.js`
+- Order storage: Google Sheets `Orders` tab via Google Sheets API
+- Payments: Razorpay Payment Links with webhook-driven confirmation
+- Notifications: WhatsApp Cloud API templates for customer and admin updates
 
-- **index.html**: The main HTML document that contains the structure of the webpage, including sections for displaying jewellery items, navigation, and footer information.
-- **styles.css**: The CSS file that defines the layout, colors, fonts, and overall visual appearance of the jewellery website.
-- **script.js**: The JavaScript file that handles interactivity, including event listeners for user actions, dynamic content updates, and animations or effects.
+## Key Files
 
-## Getting Started
+- `script.js`: frontend behavior, product rendering, checkout initiation, and success snapshot handling
+- `worker/src/index.js`: Worker endpoints, payment flow, webhook handling, and notification logic
+- `worker/wrangler.toml`: local Worker configuration
+- `order-success/index.html`: customer-facing payment success page
+- `docs/`: architecture, runbook, operations, and configuration documentation
 
-To get started with the Jewellery Website, follow these steps:
+## Local Development
 
-1. **Clone the repository**:
-   ```
-   git clone https://github.com/yourusername/jewellery-website.git
-   ```
+1. Clone the repository.
+2. Start the local static server with `server.ps1` if needed.
+3. Open the storefront locally in a browser.
 
-2. **Navigate to the project directory**:
-   ```
-   cd jewellery-website
-   ```
+## Notes
 
-3. **Open the `index.html` file in your web browser** to view the website.
-
-## Features
-
-- Responsive design that adapts to different screen sizes.
-- Interactive elements that enhance user experience.
-- A visually appealing layout that showcases jewellery items effectively.
-
-## Contributing
-
-If you would like to contribute to this project, please fork the repository and submit a pull request with your changes.
-
-## License
-
-This project is licensed under the MIT License. See the LICENSE file for more details.
+- Payment completion is determined by Razorpay webhook processing and Google Sheets state, not browser redirect completion.
+- The customer success page is a UX layer only.

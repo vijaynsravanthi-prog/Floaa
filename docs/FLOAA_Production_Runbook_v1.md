@@ -32,12 +32,16 @@ FLOAA is a static jewellery storefront backed by a Cloudflare Worker that handle
   - order details capture
   - redirect to Razorpay
 - Worker:
+  - `GET /`
+  - `GET /products`
+  - `GET /api/products`
   - `POST /orders`
   - `POST /create-payment-link`
   - `POST /razorpay-webhook`
   - `GET/POST /whatsapp-webhook`
 - Data sources:
-  - OpenSheet for products and brand content
+  - Worker `/api/products` for storefront product reads
+  - OpenSheet for BrandContent
   - Google Sheets API for `Orders`
 - External services:
   - Razorpay Payment Links
@@ -105,6 +109,13 @@ Duplicate webhooks are expected. Idempotency prevents duplicate customer or admi
 7. Razorpay sends webhook
 8. Worker updates Google Sheets and sends WhatsApp templates
 9. Browser may or may not land on `/order-success/index.html`
+
+### Storefront data flow
+
+- storefront product reads go through the Worker `GET /api/products` endpoint
+- the Worker fetches the upstream products sheet from OpenSheet
+- BrandContent is loaded directly from OpenSheet by the storefront
+- Orders are written to Google Sheets through the Worker
 
 ### Callback and redirect behavior
 

@@ -14,15 +14,17 @@ Because FLOAA is moving from a lightweight static storefront toward a more struc
 
 ## Current State
 
-FLOAA currently runs as a static storefront hosted on GitHub Pages.
+FLOAA currently runs as a static storefront backed by a Cloudflare Worker.
 
 The present architecture is based on:
 
 - Static HTML, CSS, and vanilla JavaScript
-- Product and brand content loaded from Google Sheets through OpenSheet
+- Storefront product reads through the Worker-backed `/api/products` endpoint
+- BrandContent loaded from Google Sheets through OpenSheet
 - Client-side rendering of product listings and filtering
-- WhatsApp-based ordering instead of a native cart or checkout
-- No owned backend, database, or payment gateway integration
+- Google Sheets order storage through the Worker
+- Razorpay Payment Links for payment collection
+- WhatsApp notifications for customer and admin updates
 
 ## Future Vision
 
@@ -44,10 +46,13 @@ These enhancements are intended to be phased in carefully so the current site co
 - `01-current-architecture.md`
 - `02-target-architecture.md`
 - `03-inventory-management.md`
-- `04-payment-flow.md`
-- `05-order-management.md`
-- `06-security-considerations.md`
-- `07-rollout-plan.md`
+- `08-phase-1a-worker-setup.md`
+- `09-order-lifecycle.md`
+- `10-whatsapp-consolidation-plan.md`
+- `BACKUP_AND_RECOVERY.md`
+- `FLOAA_Production_Runbook_v1.md`
+- `OPERATIONS.md`
+- `SECRETS_AND_CONFIG.md`
 
 ## Documentation Principles
 
