@@ -1716,6 +1716,105 @@
             };
         };
         const orderModal = createOrderModal();
+        const CHECKOUT_PHONE_PATTERN = /^[6-9]\d{9}$/;
+        const CHECKOUT_PINCODE_PATTERN = /^\d{6}$/;
+        const CHECKOUT_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const getCheckoutFormState = (form) => {
+            const formData = new FormData(form);
+            const phone = String(formData.get("phone") || "").trim();
+            const pincode = String(formData.get("pincode") || "").trim();
+
+            return {
+                customerName: String(formData.get("customerName") || "").trim(),
+                phone,
+                normalizedPhone: phone.replace(/\s+/g, "").replace(/\D+/g, ""),
+                email: String(formData.get("email") || "").trim(),
+                addressLine1: String(formData.get("addressLine1") || "").trim(),
+                addressLine2: String(formData.get("addressLine2") || "").trim(),
+                landmark: String(formData.get("landmark") || "").trim(),
+                city: String(formData.get("city") || "").trim(),
+                state: String(formData.get("state") || "").trim(),
+                pincode: pincode.replace(/\s+/g, "").replace(/\D+/g, "")
+            };
+        };
+        const validateCheckoutFormState = ({ checkoutState, errorMessage, fields }) => {
+            const {
+                customerName,
+                normalizedPhone,
+                email,
+                addressLine1,
+                city,
+                state,
+                pincode
+            } = checkoutState;
+
+            if (!customerName) {
+                errorMessage.textContent = "Please enter your full name.";
+                errorMessage.hidden = false;
+                fields.nameInput.focus();
+                return false;
+            }
+
+            if (!normalizedPhone) {
+                errorMessage.textContent = "Please enter your phone number.";
+                errorMessage.hidden = false;
+                fields.phoneInput.focus();
+                return false;
+            }
+
+            if (!addressLine1) {
+                errorMessage.textContent = "Please enter your address line 1.";
+                errorMessage.hidden = false;
+                fields.addressLine1Input.focus();
+                return false;
+            }
+
+            if (!state) {
+                errorMessage.textContent = "Please select your state or union territory.";
+                errorMessage.hidden = false;
+                fields.stateInput.focus();
+                return false;
+            }
+
+            if (!pincode) {
+                errorMessage.textContent = "Please enter your 6-digit pincode.";
+                errorMessage.hidden = false;
+                fields.pincodeInput.focus();
+                return false;
+            }
+
+            if (!city) {
+                errorMessage.textContent = "Please enter your city.";
+                errorMessage.hidden = false;
+                fields.cityInput.focus();
+                return false;
+            }
+
+            if (!/^\d+$/.test(normalizedPhone) || !CHECKOUT_PHONE_PATTERN.test(normalizedPhone)) {
+                errorMessage.textContent = "Please enter a valid 10-digit mobile number";
+                errorMessage.hidden = false;
+                fields.phoneInput.focus();
+                return false;
+            }
+
+            if (!CHECKOUT_PINCODE_PATTERN.test(pincode)) {
+                errorMessage.textContent = "Please enter a valid 6-digit pincode.";
+                errorMessage.hidden = false;
+                fields.pincodeInput.focus();
+                return false;
+            }
+
+            if (email && !CHECKOUT_EMAIL_PATTERN.test(email)) {
+                errorMessage.textContent = "Please enter a valid email address";
+                errorMessage.hidden = false;
+                fields.emailInput.focus();
+                return false;
+            }
+
+            errorMessage.hidden = true;
+            errorMessage.textContent = "";
+            return true;
+        };
         const createBuyNowModal = () => {
             const popup = document.createElement("div");
             popup.className = "floaa-order-modal floaa-order-modal--buy-now";
@@ -1812,9 +1911,6 @@
             const productNameInput = form.querySelector('input[name="productName"]');
             let activeItem = null;
             let previousActiveElement = null;
-            const phonePattern = /^[6-9]\d{9}$/;
-            const pincodePattern = /^\d{6}$/;
-            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             const failureMessage = "Unable to create payment link. Please try again or contact us on WhatsApp.";
 
             const setSubmittingState = (isSubmitting) => {
@@ -1890,83 +1986,22 @@
                 event.preventDefault();
                 if (!activeItem) return;
 
-                const formData = new FormData(form);
-                const customerName = String(formData.get("customerName") || "").trim();
-                const phone = String(formData.get("phone") || "").trim();
-                const normalizedPhone = phone.replace(/\s+/g, "").replace(/\D+/g, "");
-                const addressLine1 = String(formData.get("addressLine1") || "").trim();
-                const addressLine2 = String(formData.get("addressLine2") || "").trim();
-                const landmark = String(formData.get("landmark") || "").trim();
-                const city = String(formData.get("city") || "").trim();
-                const state = String(formData.get("state") || "").trim();
-                const pincode = String(formData.get("pincode") || "").trim().replace(/\s+/g, "").replace(/\D+/g, "");
-                const email = String(formData.get("email") || "").trim();
+                const checkoutState = getCheckoutFormState(form);
+                const isValid = validateCheckoutFormState({
+                    checkoutState,
+                    errorMessage,
+                    fields: {
+                        nameInput,
+                        phoneInput,
+                        addressLine1Input,
+                        cityInput,
+                        stateInput,
+                        pincodeInput,
+                        emailInput
+                    }
+                });
+                if (!isValid) return;
 
-                if (!customerName) {
-                    errorMessage.textContent = "Please enter your full name.";
-                    errorMessage.hidden = false;
-                    nameInput.focus();
-                    return;
-                }
-
-                if (!normalizedPhone) {
-                    errorMessage.textContent = "Please enter your phone number.";
-                    errorMessage.hidden = false;
-                    phoneInput.focus();
-                    return;
-                }
-
-                if (!addressLine1) {
-                    errorMessage.textContent = "Please enter your address line 1.";
-                    errorMessage.hidden = false;
-                    addressLine1Input.focus();
-                    return;
-                }
-
-                if (!state) {
-                    errorMessage.textContent = "Please select your state or union territory.";
-                    errorMessage.hidden = false;
-                    stateInput.focus();
-                    return;
-                }
-
-                if (!pincode) {
-                    errorMessage.textContent = "Please enter your 6-digit pincode.";
-                    errorMessage.hidden = false;
-                    pincodeInput.focus();
-                    return;
-                }
-
-                if (!city) {
-                    errorMessage.textContent = "Please enter your city.";
-                    errorMessage.hidden = false;
-                    cityInput.focus();
-                    return;
-                }
-
-                if (!/^\d+$/.test(normalizedPhone) || !phonePattern.test(normalizedPhone)) {
-                    errorMessage.textContent = "Please enter a valid 10-digit mobile number";
-                    errorMessage.hidden = false;
-                    phoneInput.focus();
-                    return;
-                }
-
-                if (!pincodePattern.test(pincode)) {
-                    errorMessage.textContent = "Please enter a valid 6-digit pincode.";
-                    errorMessage.hidden = false;
-                    pincodeInput.focus();
-                    return;
-                }
-
-                if (email && !emailPattern.test(email)) {
-                    errorMessage.textContent = "Please enter a valid email address";
-                    errorMessage.hidden = false;
-                    emailInput.focus();
-                    return;
-                }
-
-                errorMessage.hidden = true;
-                errorMessage.textContent = "";
                 setSubmittingState(true);
 
                 try {
@@ -1977,15 +2012,15 @@
                         },
                         body: JSON.stringify({
                             productId: activeItem.productId,
-                            customerName,
-                            phone: normalizedPhone,
-                            email,
-                            addressLine1,
-                            addressLine2,
-                            landmark,
-                            city,
-                            state,
-                            pincode
+                            customerName: checkoutState.customerName,
+                            phone: checkoutState.normalizedPhone,
+                            email: checkoutState.email,
+                            addressLine1: checkoutState.addressLine1,
+                            addressLine2: checkoutState.addressLine2,
+                            landmark: checkoutState.landmark,
+                            city: checkoutState.city,
+                            state: checkoutState.state,
+                            pincode: checkoutState.pincode
                         })
                     });
 
@@ -2119,9 +2154,6 @@
             let activeBagItems = [];
             let activeBagTotal = "";
             let previousActiveElement = null;
-            const phonePattern = /^[6-9]\d{9}$/;
-            const pincodePattern = /^\d{6}$/;
-            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             const failureMessage = "Unable to create payment link. Please try again or contact us on WhatsApp.";
 
             const setSubmittingState = (isSubmitting) => {
@@ -2200,83 +2232,22 @@
                 event.preventDefault();
                 if (!activeBagItems.length) return;
 
-                const formData = new FormData(form);
-                const customerName = String(formData.get("customerName") || "").trim();
-                const phone = String(formData.get("phone") || "").trim();
-                const normalizedPhone = phone.replace(/\s+/g, "").replace(/\D+/g, "");
-                const addressLine1 = String(formData.get("addressLine1") || "").trim();
-                const addressLine2 = String(formData.get("addressLine2") || "").trim();
-                const landmark = String(formData.get("landmark") || "").trim();
-                const city = String(formData.get("city") || "").trim();
-                const state = String(formData.get("state") || "").trim();
-                const pincode = String(formData.get("pincode") || "").trim().replace(/\s+/g, "").replace(/\D+/g, "");
-                const email = String(formData.get("email") || "").trim();
+                const checkoutState = getCheckoutFormState(form);
+                const isValid = validateCheckoutFormState({
+                    checkoutState,
+                    errorMessage,
+                    fields: {
+                        nameInput,
+                        phoneInput,
+                        addressLine1Input,
+                        cityInput,
+                        stateInput,
+                        pincodeInput,
+                        emailInput
+                    }
+                });
+                if (!isValid) return;
 
-                if (!customerName) {
-                    errorMessage.textContent = "Please enter your full name.";
-                    errorMessage.hidden = false;
-                    nameInput.focus();
-                    return;
-                }
-
-                if (!normalizedPhone) {
-                    errorMessage.textContent = "Please enter your phone number.";
-                    errorMessage.hidden = false;
-                    phoneInput.focus();
-                    return;
-                }
-
-                if (!addressLine1) {
-                    errorMessage.textContent = "Please enter your address line 1.";
-                    errorMessage.hidden = false;
-                    addressLine1Input.focus();
-                    return;
-                }
-
-                if (!state) {
-                    errorMessage.textContent = "Please select your state or union territory.";
-                    errorMessage.hidden = false;
-                    stateInput.focus();
-                    return;
-                }
-
-                if (!pincode) {
-                    errorMessage.textContent = "Please enter your 6-digit pincode.";
-                    errorMessage.hidden = false;
-                    pincodeInput.focus();
-                    return;
-                }
-
-                if (!city) {
-                    errorMessage.textContent = "Please enter your city.";
-                    errorMessage.hidden = false;
-                    cityInput.focus();
-                    return;
-                }
-
-                if (!/^\d+$/.test(normalizedPhone) || !phonePattern.test(normalizedPhone)) {
-                    errorMessage.textContent = "Please enter a valid 10-digit mobile number";
-                    errorMessage.hidden = false;
-                    phoneInput.focus();
-                    return;
-                }
-
-                if (!pincodePattern.test(pincode)) {
-                    errorMessage.textContent = "Please enter a valid 6-digit pincode.";
-                    errorMessage.hidden = false;
-                    pincodeInput.focus();
-                    return;
-                }
-
-                if (email && !emailPattern.test(email)) {
-                    errorMessage.textContent = "Please enter a valid email address";
-                    errorMessage.hidden = false;
-                    emailInput.focus();
-                    return;
-                }
-
-                errorMessage.hidden = true;
-                errorMessage.textContent = "";
                 setSubmittingState(true);
 
                 try {
@@ -2287,15 +2258,15 @@
                         },
                         body: JSON.stringify({
                             items: activeBagItems.map((item) => ({ productId: item.productId })),
-                            customerName,
-                            phone: normalizedPhone,
-                            email,
-                            addressLine1,
-                            addressLine2,
-                            landmark,
-                            city,
-                            state,
-                            pincode
+                            customerName: checkoutState.customerName,
+                            phone: checkoutState.normalizedPhone,
+                            email: checkoutState.email,
+                            addressLine1: checkoutState.addressLine1,
+                            addressLine2: checkoutState.addressLine2,
+                            landmark: checkoutState.landmark,
+                            city: checkoutState.city,
+                            state: checkoutState.state,
+                            pincode: checkoutState.pincode
                         })
                     });
 
@@ -2313,7 +2284,7 @@
                     saveOrderSuccessSnapshot({
                         orderId: normalizeValue(result.orderId),
                         amountPaid: normalizeValue(result.amountPaid),
-                        createdSource: "Bag"
+                        createdSource: "BAG"
                     });
                     window.location.href = result.paymentUrl;
                 } catch (error) {
