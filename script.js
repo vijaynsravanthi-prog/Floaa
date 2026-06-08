@@ -4,6 +4,7 @@
         const BRAND_CONTENT_URL = `https://opensheet.elk.sh/${SHEET_ID}/BrandContent`;
         const ORDERS_API_URL = "https://floaa-api.floaa.workers.dev/orders";
         const PAYMENT_LINK_API_URL = "https://floaa-api.floaa.workers.dev/create-payment-link";
+        const BAG_PAYMENT_LINK_API_URL = "https://floaa-api.floaa.workers.dev/create-bag-payment-link";
         const INDIAN_STATES_AND_UTS = [
             "Andhra Pradesh",
             "Arunachal Pradesh",
@@ -2019,6 +2020,317 @@
             };
         };
         const buyNowModal = createBuyNowModal();
+        const createBagCheckoutModal = () => {
+            if (typeof document === "undefined") {
+                return {
+                    open() {}
+                };
+            }
+
+            const popup = document.createElement("div");
+            popup.className = "floaa-order-modal floaa-order-modal--bag";
+            popup.hidden = true;
+            const stateOptionsMarkup = INDIAN_STATES_AND_UTS.map((stateName) =>
+                `<option value="${stateName}">${stateName}</option>`
+            ).join("");
+            popup.innerHTML = `
+                <div class="floaa-order-modal__backdrop" data-bag-checkout-close="true"></div>
+                <div class="floaa-order-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="floaa-bag-checkout-title">
+                    <button class="floaa-order-modal__close" type="button" aria-label="Close bag checkout form" data-bag-checkout-close="true">&times;</button>
+                    <div class="floaa-order-modal__panel floaa-order-modal__panel--form">
+                        <p class="floaa-order-modal__eyebrow">FLOAA Checkout</p>
+                        <h2 id="floaa-bag-checkout-title" class="floaa-order-modal__title">Bag Checkout</h2>
+                        <p class="floaa-order-modal__subtitle">Share your details to continue to secure checkout for your selected pieces.</p>
+                        <div class="floaa-order-modal__product"></div>
+                        <form class="floaa-order-modal__form" novalidate>
+                            <label class="floaa-order-modal__field">
+                                <span>Full Name *</span>
+                                <input type="text" name="customerName" autocomplete="name" placeholder="Your Full Name" required>
+                            </label>
+                            <label class="floaa-order-modal__field">
+                                <span>Phone *</span>
+                                <div class="floaa-order-modal__phone-field">
+                                    <span class="floaa-order-modal__phone-prefix">+91</span>
+                                    <input type="tel" name="phone" autocomplete="tel-national" inputmode="numeric" maxlength="10" placeholder="9876543210" required>
+                                </div>
+                                <small class="floaa-order-modal__helper">Enter 10-digit mobile number</small>
+                            </label>
+                            <label class="floaa-order-modal__field">
+                                <span>Email (Optional)</span>
+                                <input type="email" name="email" autocomplete="email" placeholder="your@email.com">
+                            </label>
+                            <label class="floaa-order-modal__field">
+                                <span>Address Line 1 *</span>
+                                <input type="text" name="addressLine1" autocomplete="address-line1" placeholder="House / Flat Number, Building Name" required>
+                            </label>
+                            <label class="floaa-order-modal__field">
+                                <span>Address Line 2 (Optional)</span>
+                                <input type="text" name="addressLine2" autocomplete="address-line2" placeholder="Area, Street, Apartment (Optional)">
+                            </label>
+                            <label class="floaa-order-modal__field">
+                                <span>Landmark (Optional)</span>
+                                <input type="text" name="landmark" autocomplete="off" placeholder="Near Mall, Metro Station, etc.">
+                            </label>
+                            <label class="floaa-order-modal__field">
+                                <span>Pincode *</span>
+                                <input type="tel" name="pincode" autocomplete="postal-code" inputmode="numeric" maxlength="6" placeholder="6-digit Pincode" required>
+                                <small class="floaa-order-modal__helper">Enter 6-digit pincode</small>
+                            </label>
+                            <label class="floaa-order-modal__field">
+                                <span>State *</span>
+                                <select name="state" autocomplete="address-level1" required>
+                                    <option value="">Select State / UT</option>
+                                    ${stateOptionsMarkup}
+                                </select>
+                            </label>
+                            <label class="floaa-order-modal__field">
+                                <span>City *</span>
+                                <input type="text" name="city" autocomplete="address-level2" placeholder="Your City" required>
+                            </label>
+                            <div class="floaa-order-modal__sticky-actions">
+                                <p class="floaa-order-modal__required-note">Fields marked * are required</p>
+                                <p class="floaa-order-modal__error" aria-live="polite" hidden></p>
+                                <button class="btn floaa-order-modal__submit floaa-order-modal__submit--bag" type="submit">
+                                    <span class="floaa-order-modal__submit-label">Continue to Secure Payment</span>
+                                    <span class="floaa-order-modal__spinner" aria-hidden="true" hidden></span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+            document.body.append(popup);
+
+            const productSummary = popup.querySelector(".floaa-order-modal__product");
+            const form = popup.querySelector(".floaa-order-modal__form");
+            const errorMessage = popup.querySelector(".floaa-order-modal__error");
+            const submitButton = form.querySelector(".floaa-order-modal__submit");
+            const submitLabel = form.querySelector(".floaa-order-modal__submit-label");
+            const spinner = form.querySelector(".floaa-order-modal__spinner");
+            const nameInput = form.querySelector('input[name="customerName"]');
+            const phoneInput = form.querySelector('input[name="phone"]');
+            const addressLine1Input = form.querySelector('input[name="addressLine1"]');
+            const addressLine2Input = form.querySelector('input[name="addressLine2"]');
+            const landmarkInput = form.querySelector('input[name="landmark"]');
+            const cityInput = form.querySelector('input[name="city"]');
+            const stateInput = form.querySelector('select[name="state"]');
+            const pincodeInput = form.querySelector('input[name="pincode"]');
+            const emailInput = form.querySelector('input[name="email"]');
+            let activeBagItems = [];
+            let activeBagTotal = "";
+            let previousActiveElement = null;
+            const phonePattern = /^[6-9]\d{9}$/;
+            const pincodePattern = /^\d{6}$/;
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const failureMessage = "Unable to create payment link. Please try again or contact us on WhatsApp.";
+
+            const setSubmittingState = (isSubmitting) => {
+                submitButton.disabled = isSubmitting;
+                submitButton.classList.toggle("is-loading", isSubmitting);
+                submitLabel.textContent = isSubmitting ? "Creating Payment Link..." : "Continue to Secure Payment";
+                spinner.hidden = !isSubmitting;
+            };
+
+            const resetCheckoutForm = () => {
+                form.reset();
+                nameInput.value = "";
+                phoneInput.value = "";
+                addressLine1Input.value = "";
+                addressLine2Input.value = "";
+                landmarkInput.value = "";
+                cityInput.value = "";
+                stateInput.value = "";
+                pincodeInput.value = "";
+                emailInput.value = "";
+                errorMessage.hidden = true;
+                errorMessage.textContent = "";
+                productSummary.innerHTML = "";
+                activeBagItems = [];
+                activeBagTotal = "";
+                setSubmittingState(false);
+            };
+
+            const closeCheckoutModal = () => {
+                setSubmittingState(false);
+                popup.hidden = true;
+                popup.classList.remove("is-open");
+                document.body.classList.remove("has-floaa-order-modal");
+                resetCheckoutForm();
+                if (previousActiveElement instanceof HTMLElement) {
+                    previousActiveElement.focus();
+                }
+            };
+
+            const openCheckoutModal = (items, bagTotal, trigger) => {
+                activeBagItems = Array.isArray(items) ? items.slice() : [];
+                activeBagTotal = normalizeValue(bagTotal);
+                previousActiveElement = trigger instanceof HTMLElement ? trigger : document.activeElement;
+                resetCheckoutForm();
+                activeBagItems = Array.isArray(items) ? items.slice() : [];
+                activeBagTotal = normalizeValue(bagTotal);
+                const summaryItems = activeBagItems
+                    .map((item) => `<li>${item.name}</li>`)
+                    .join("");
+                productSummary.innerHTML = `
+                        <p class="floaa-order-modal__product-name">${activeBagItems.length} FLOAA Items</p>
+                        <p class="floaa-order-modal__product-meta">${activeBagTotal}</p>
+                        <ul class="floaa-order-modal__bag-list">${summaryItems}</ul>
+                    `;
+                popup.hidden = false;
+                popup.classList.add("is-open");
+                document.body.classList.add("has-floaa-order-modal");
+                window.setTimeout(() => nameInput.focus(), 0);
+            };
+
+            resetCheckoutForm();
+
+            popup.addEventListener("click", (event) => {
+                if (event.target.closest("[data-bag-checkout-close='true']")) {
+                    closeCheckoutModal();
+                }
+            });
+
+            document.addEventListener("keydown", (event) => {
+                if (event.key === "Escape" && !popup.hidden) {
+                    closeCheckoutModal();
+                }
+            });
+
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                if (!activeBagItems.length) return;
+
+                const formData = new FormData(form);
+                const customerName = String(formData.get("customerName") || "").trim();
+                const phone = String(formData.get("phone") || "").trim();
+                const normalizedPhone = phone.replace(/\s+/g, "").replace(/\D+/g, "");
+                const addressLine1 = String(formData.get("addressLine1") || "").trim();
+                const addressLine2 = String(formData.get("addressLine2") || "").trim();
+                const landmark = String(formData.get("landmark") || "").trim();
+                const city = String(formData.get("city") || "").trim();
+                const state = String(formData.get("state") || "").trim();
+                const pincode = String(formData.get("pincode") || "").trim().replace(/\s+/g, "").replace(/\D+/g, "");
+                const email = String(formData.get("email") || "").trim();
+
+                if (!customerName) {
+                    errorMessage.textContent = "Please enter your full name.";
+                    errorMessage.hidden = false;
+                    nameInput.focus();
+                    return;
+                }
+
+                if (!normalizedPhone) {
+                    errorMessage.textContent = "Please enter your phone number.";
+                    errorMessage.hidden = false;
+                    phoneInput.focus();
+                    return;
+                }
+
+                if (!addressLine1) {
+                    errorMessage.textContent = "Please enter your address line 1.";
+                    errorMessage.hidden = false;
+                    addressLine1Input.focus();
+                    return;
+                }
+
+                if (!state) {
+                    errorMessage.textContent = "Please select your state or union territory.";
+                    errorMessage.hidden = false;
+                    stateInput.focus();
+                    return;
+                }
+
+                if (!pincode) {
+                    errorMessage.textContent = "Please enter your 6-digit pincode.";
+                    errorMessage.hidden = false;
+                    pincodeInput.focus();
+                    return;
+                }
+
+                if (!city) {
+                    errorMessage.textContent = "Please enter your city.";
+                    errorMessage.hidden = false;
+                    cityInput.focus();
+                    return;
+                }
+
+                if (!/^\d+$/.test(normalizedPhone) || !phonePattern.test(normalizedPhone)) {
+                    errorMessage.textContent = "Please enter a valid 10-digit mobile number";
+                    errorMessage.hidden = false;
+                    phoneInput.focus();
+                    return;
+                }
+
+                if (!pincodePattern.test(pincode)) {
+                    errorMessage.textContent = "Please enter a valid 6-digit pincode.";
+                    errorMessage.hidden = false;
+                    pincodeInput.focus();
+                    return;
+                }
+
+                if (email && !emailPattern.test(email)) {
+                    errorMessage.textContent = "Please enter a valid email address";
+                    errorMessage.hidden = false;
+                    emailInput.focus();
+                    return;
+                }
+
+                errorMessage.hidden = true;
+                errorMessage.textContent = "";
+                setSubmittingState(true);
+
+                try {
+                    const response = await fetch(BAG_PAYMENT_LINK_API_URL, {
+                        method: "POST",
+                        headers: {
+                            "content-type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            items: activeBagItems.map((item) => ({ productId: item.productId })),
+                            customerName,
+                            phone: normalizedPhone,
+                            email,
+                            addressLine1,
+                            addressLine2,
+                            landmark,
+                            city,
+                            state,
+                            pincode
+                        })
+                    });
+
+                    let result = null;
+                    try {
+                        result = await response.json();
+                    } catch (parseError) {
+                        result = null;
+                    }
+
+                    if (!response.ok || !result?.paymentUrl) {
+                        throw new Error(result?.message || failureMessage);
+                    }
+
+                    saveOrderSuccessSnapshot({
+                        orderId: normalizeValue(result.orderId),
+                        amountPaid: normalizeValue(result.amountPaid),
+                        createdSource: "Bag"
+                    });
+                    window.location.href = result.paymentUrl;
+                } catch (error) {
+                    console.error("bag checkout modal submit failed", error);
+                    errorMessage.textContent = failureMessage;
+                    errorMessage.hidden = false;
+                    setSubmittingState(false);
+                }
+            });
+
+            return {
+                open(items, bagTotal, trigger) {
+                    openCheckoutModal(items, bagTotal, trigger);
+                }
+            };
+        };
+        const bagCheckoutModal = createBagCheckoutModal();
         const getYouTubeVideoId = (value) => {
             try {
                 const url = new URL(value);
@@ -2036,6 +2348,301 @@
             return "";
         };
         const ORDER_SUCCESS_STORAGE_KEY = "floaa-order-success";
+        const BAG_STORAGE_KEY = "floaa_bag";
+        const normalizeBagItems = (value) => {
+            if (!Array.isArray(value)) return [];
+
+            return value.reduce((items, item) => {
+                const productId = normalizeValue(item?.productId);
+                const name = normalizeValue(item?.name);
+                const image = normalizeValue(item?.image);
+                const price = normalizeValue(item?.price);
+                const addedAt = normalizeValue(item?.addedAt);
+
+                if (!productId || !name || !image || !price || !addedAt) {
+                    return items;
+                }
+
+                items.push({
+                    productId,
+                    name,
+                    image,
+                    price,
+                    addedAt
+                });
+                return items;
+            }, []);
+        };
+        const readBagItems = () => {
+            try {
+                if (typeof window === "undefined" || !window.localStorage) return [];
+                const rawBag = window.localStorage.getItem(BAG_STORAGE_KEY);
+                if (!rawBag) return [];
+
+                const parsedBag = JSON.parse(rawBag);
+                if (Array.isArray(parsedBag)) {
+                    return normalizeBagItems(parsedBag);
+                }
+
+                if (parsedBag && typeof parsedBag === "object" && Array.isArray(parsedBag.items)) {
+                    return normalizeBagItems(parsedBag.items);
+                }
+            } catch (error) {
+                console.warn("bag read failed", error);
+            }
+
+            return [];
+        };
+        const writeBagItems = (items) => {
+            try {
+                if (typeof window === "undefined" || !window.localStorage) return;
+                window.localStorage.setItem(BAG_STORAGE_KEY, JSON.stringify(normalizeBagItems(items)));
+            } catch (error) {
+                console.warn("bag write failed", error);
+            }
+        };
+        const removeBagItem = (productId) => {
+            const normalizedProductId = normalizeValue(productId);
+            if (!normalizedProductId) {
+                return readBagItems();
+            }
+
+            const nextItems = readBagItems().filter((item) => item.productId !== normalizedProductId);
+            writeBagItems(nextItems);
+            return nextItems;
+        };
+        const addProductToBag = (product) => {
+            const currentItems = readBagItems();
+            const normalizedProductId = normalizeValue(product?.productId);
+            if (!normalizedProductId) {
+                return {
+                    status: "invalid",
+                    items: currentItems
+                };
+            }
+
+            const existingItem = currentItems.find((item) => item.productId === normalizedProductId);
+            if (existingItem) {
+                return {
+                    status: "existing",
+                    items: currentItems
+                };
+            }
+
+            const nextItems = [
+                ...currentItems,
+                {
+                    productId: normalizedProductId,
+                    name: normalizeValue(product?.name),
+                    image: normalizeValue(product?.image),
+                    price: normalizeValue(product?.discountPrice || product?.price),
+                    addedAt: new Date().toISOString()
+                }
+            ];
+            writeBagItems(nextItems);
+
+            return {
+                status: "added",
+                items: nextItems
+            };
+        };
+        const getBagCount = () => readBagItems().length;
+        const getBagItems = () => readBagItems();
+        const parseBagPriceValue = (value) => {
+            const normalizedPrice = normalizeValue(value).replace(/[^0-9.]/g, "");
+            const parsedPrice = Number(normalizedPrice);
+            return Number.isFinite(parsedPrice) ? parsedPrice : 0;
+        };
+        const formatBagPriceValue = (value) => {
+            if (!Number.isFinite(value) || value <= 0) {
+                return "";
+            }
+
+            return `₹${Math.round(value)}`;
+        };
+        const getBagTotalAmount = (items) => {
+            if (!Array.isArray(items)) return 0;
+            return items.reduce((sum, item) => sum + parseBagPriceValue(item?.price), 0);
+        };
+        let bagToastElement = null;
+        let bagToastMessageElement = null;
+        let bagToastLinkElement = null;
+        let bagToastTimeoutId = 0;
+        const showBagToast = (message) => {
+            if (typeof document === "undefined") return;
+
+            if (!bagToastElement) {
+                bagToastElement = document.createElement("div");
+                bagToastElement.className = "floaa-bag-toast";
+                bagToastElement.hidden = true;
+
+                bagToastMessageElement = document.createElement("span");
+                bagToastMessageElement.className = "floaa-bag-toast__message";
+                bagToastMessageElement.setAttribute("role", "status");
+                bagToastMessageElement.setAttribute("aria-live", "polite");
+
+                bagToastLinkElement = document.createElement("a");
+                bagToastLinkElement.className = "floaa-bag-toast__link";
+                bagToastLinkElement.href = "bag.html";
+                bagToastLinkElement.textContent = "View Bag \u2192";
+
+                bagToastElement.append(bagToastMessageElement, bagToastLinkElement);
+                document.body.append(bagToastElement);
+            }
+
+            if (bagToastTimeoutId) {
+                window.clearTimeout(bagToastTimeoutId);
+                bagToastTimeoutId = 0;
+            }
+
+            if (bagToastMessageElement) {
+                bagToastMessageElement.textContent = message;
+            }
+            bagToastElement.hidden = false;
+            bagToastElement.classList.remove("is-visible");
+            void bagToastElement.offsetWidth;
+            bagToastElement.classList.add("is-visible");
+
+            bagToastTimeoutId = window.setTimeout(() => {
+                bagToastElement?.classList.remove("is-visible");
+                bagToastTimeoutId = window.setTimeout(() => {
+                    if (bagToastElement) {
+                        bagToastElement.hidden = true;
+                    }
+                    bagToastTimeoutId = 0;
+                }, 220);
+            }, 2200);
+        };
+        const updateBagBadge = () => {
+            if (typeof document === "undefined") return;
+
+            const bagCount = getBagCount();
+            const bagLinks = Array.from(document.querySelectorAll(".icon-bag")).map((icon) => icon.closest("a, button")).filter(Boolean);
+            const uniqueBagLinks = Array.from(new Set(bagLinks));
+
+            uniqueBagLinks.forEach((bagLink) => {
+                let badge = bagLink.querySelector(".floaa-bag-badge");
+                if (!badge) {
+                    badge = document.createElement("span");
+                    badge.className = "floaa-bag-badge";
+                    badge.setAttribute("aria-live", "polite");
+                    bagLink.append(badge);
+                }
+
+                badge.textContent = String(bagCount);
+                badge.hidden = bagCount < 1;
+                bagLink.classList.add("has-bag-badge");
+            });
+        };
+        const renderBagPage = () => {
+            const bagPageContent = document.getElementById("bag-page-content");
+            if (!bagPageContent) return;
+
+            const bagItems = getBagItems();
+            bagPageContent.innerHTML = "";
+
+            if (!bagItems.length) {
+                const emptyState = document.createElement("div");
+                emptyState.className = "bag-empty-state";
+
+                const emptyTitle = document.createElement("h2");
+                emptyTitle.textContent = "Your Bag is Empty \u2728";
+
+                const emptyCopy = document.createElement("p");
+                emptyCopy.textContent = "Discover timeless jewellery designed to be loved.";
+
+                const continueShopping = document.createElement("a");
+                continueShopping.className = "btn bag-page-action";
+                continueShopping.href = "shop.html";
+                continueShopping.textContent = "Continue Shopping";
+
+                emptyState.append(emptyTitle, emptyCopy, continueShopping);
+                bagPageContent.append(emptyState);
+                return;
+            }
+
+            const bagLayout = document.createElement("div");
+            bagLayout.className = "bag-page-layout";
+
+            const bagList = document.createElement("div");
+            bagList.className = "bag-item-list";
+
+            bagItems.forEach((item) => {
+                const bagItemCard = document.createElement("article");
+                bagItemCard.className = "bag-item-card";
+                bagItemCard.dataset.productId = item.productId;
+
+                const bagItemImage = document.createElement("img");
+                bagItemImage.className = "bag-item-image";
+                bagItemImage.src = getProductThumbnailSrc(item.image);
+                bagItemImage.alt = getPreferredAltText(item.name, item.name);
+                bagItemImage.loading = "lazy";
+                bagItemImage.decoding = "async";
+                bagItemImage.addEventListener("error", () => {
+                    applyImageFallback(bagItemImage, `bag:${item.productId}`);
+                }, { once: true });
+
+                const bagItemBody = document.createElement("div");
+                bagItemBody.className = "bag-item-body";
+
+                const bagItemName = document.createElement("h2");
+                bagItemName.className = "bag-item-name";
+                bagItemName.textContent = item.name;
+
+                const bagItemPrice = document.createElement("p");
+                bagItemPrice.className = "bag-item-price";
+                bagItemPrice.textContent = item.price;
+
+                const removeAction = document.createElement("button");
+                removeAction.className = "bag-remove-action";
+                removeAction.type = "button";
+                removeAction.textContent = "Remove";
+                removeAction.addEventListener("click", () => {
+                    removeBagItem(item.productId);
+                    updateBagBadge();
+                    renderBagPage();
+                });
+
+                bagItemBody.append(bagItemName, bagItemPrice, removeAction);
+                bagItemCard.append(bagItemImage, bagItemBody);
+                bagList.append(bagItemCard);
+            });
+
+            const bagInfoCard = document.createElement("aside");
+            bagInfoCard.className = "bag-info-card";
+
+            const bagInfoTitle = document.createElement("h2");
+            bagInfoTitle.textContent = "Your Bag";
+
+            const bagInfoCopy = document.createElement("p");
+            bagInfoCopy.textContent = "Your selected pieces are safely saved in your Bag.";
+
+            const bagTotal = getBagTotalAmount(bagItems);
+            const bagTotalAmount = formatBagPriceValue(bagTotal);
+            const bagInfoTotal = document.createElement("p");
+            bagInfoTotal.className = "bag-page-total";
+            bagInfoTotal.textContent = bagTotalAmount ? `Total: ${bagTotalAmount}` : "";
+
+            const bagInfoCopySecondary = document.createElement("p");
+            bagInfoCopySecondary.textContent = "Review your pieces and continue to secure checkout when you're ready.";
+
+            const checkoutButton = document.createElement("button");
+            checkoutButton.className = "btn bag-page-action";
+            checkoutButton.type = "button";
+            checkoutButton.textContent = "Checkout";
+            checkoutButton.addEventListener("click", () => {
+                bagCheckoutModal.open(bagItems, bagTotalAmount, checkoutButton);
+            });
+
+            const continueShopping = document.createElement("a");
+            continueShopping.className = "btn bag-page-action";
+            continueShopping.href = "shop.html";
+            continueShopping.textContent = "Continue Shopping";
+
+            bagInfoCard.append(bagInfoTitle, bagInfoCopy, bagInfoTotal, bagInfoCopySecondary, checkoutButton, continueShopping);
+            bagLayout.append(bagList, bagInfoCard);
+            bagPageContent.append(bagLayout);
+        };
         const saveOrderSuccessSnapshot = (orderData) => {
             try {
                 if (typeof window === "undefined" || !window.sessionStorage) return;
@@ -2095,6 +2702,22 @@
                     orderId: orderId || storedOrder.orderId || "",
                     amountPaid: amountPaid || storedOrder.amountPaid || ""
                 });
+            }
+
+            if (normalizeValue(storedOrder.createdSource).toLowerCase() === "bag" && orderId) {
+                try {
+                    if (typeof window !== "undefined" && window.localStorage) {
+                        window.localStorage.removeItem(BAG_STORAGE_KEY);
+                    }
+                    saveOrderSuccessSnapshot({
+                        ...storedOrder,
+                        orderId: orderId || storedOrder.orderId || "",
+                        amountPaid: amountPaid || storedOrder.amountPaid || "",
+                        createdSource: ""
+                    });
+                } catch (error) {
+                    console.warn("bag clear on success failed", error);
+                }
             }
         };
 
@@ -2676,13 +3299,31 @@
                         buyNowBtn.textContent = "Buy Now";
                         buyNowBtn.addEventListener("click", () => buyNowModal.open(item, buyNowBtn));
 
+                        const addToBagBtn = document.createElement("button");
+                        addToBagBtn.className = "btn btn-add-to-bag";
+                        addToBagBtn.type = "button";
+                        addToBagBtn.textContent = "Add to Bag";
+                        addToBagBtn.addEventListener("click", () => {
+                            const bagResult = addProductToBag(item);
+                            updateBagBadge();
+
+                            if (bagResult.status === "existing") {
+                                showBagToast("Already in your Bag \u2728");
+                                return;
+                            }
+
+                            if (bagResult.status === "added") {
+                                showBagToast("Added to your Bag \u2728");
+                            }
+                        });
+
                         const assistanceBtn = document.createElement("button");
                         assistanceBtn.className = "btn btn-product-assistance";
                         assistanceBtn.type = "button";
-                        assistanceBtn.textContent = "Need Assistance?";
+                        assistanceBtn.textContent = "Need styling advice?";
                         assistanceBtn.addEventListener("click", () => handleProductAssistance(item));
 
-                        productCtaGroup.append(buyNowBtn, assistanceBtn);
+                        productCtaGroup.append(buyNowBtn, addToBagBtn, assistanceBtn);
                     }
 
                     productCard.addEventListener("click", (event) => {
@@ -2753,15 +3394,16 @@
             return brandContent;
         };
         void brandContentPromise.then(applyResolvedBrandContent);
-        const productsPromise = fetchProducts();
-        const products = await productsPromise;
-
         const homeGrid = document.getElementById("home-product-grid");
+        const shopGrid = document.getElementById("shop-product-grid");
+        const categoryGrid = document.getElementById("category-product-grid");
+        const needsProducts = Boolean(homeGrid || shopGrid || categoryGrid);
+        const products = needsProducts ? await fetchProducts() : [];
+
         if (homeGrid) {
             renderProducts(homeGrid, Array.isArray(products) ? products.slice(0, 8) : products, "shop.html");
         }
 
-        const shopGrid = document.getElementById("shop-product-grid");
         if (shopGrid) {
             const params = new URLSearchParams(window.location.search);
             const style = params.get("style");
@@ -2789,7 +3431,6 @@
             });
         }
 
-        const categoryGrid = document.getElementById("category-product-grid");
         if (categoryGrid) {
             const category = document.body.dataset.category;
             const filterButtons = Array.from(document.querySelectorAll("[data-filter]"));
@@ -2829,6 +3470,11 @@
 
         applyResolvedBrandContent(await brandContentPromise);
         initializeOrderSuccessCard();
+        void getBagItems();
+        updateBagBadge();
+        if (bodyPage === "bag") {
+            renderBagPage();
+        }
 
         const navToggle = document.querySelector(".nav-toggle");
         const mainNav = document.getElementById("site-nav");

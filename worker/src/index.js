@@ -245,6 +245,81 @@ const validatePaymentLinkRequest = (payload) => {
   };
 };
 
+const normalizeBagPaymentLinkItems = (items) => {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  const seenProductIds = new Set();
+
+  return items.reduce((normalizedItems, item) => {
+    const productId = normalizeValue(item?.productId);
+    const dedupeKey = productId.toLowerCase();
+
+    if (!productId || seenProductIds.has(dedupeKey)) {
+      return normalizedItems;
+    }
+
+    seenProductIds.add(dedupeKey);
+    normalizedItems.push({ productId });
+    return normalizedItems;
+  }, []);
+};
+
+const validateBagPaymentLinkRequest = (payload) => {
+  const normalizedItems = normalizeBagPaymentLinkItems(payload?.items);
+  if (!normalizedItems.length) {
+    return {
+      isValid: false,
+      items: [],
+      missingFields: [],
+      message: "Please add at least one product to your bag."
+    };
+  }
+
+  const requiredFields = ["customerName", "phone", "addressLine1", "city", "state", "pincode"];
+  const missingFields = requiredFields.filter((field) => {
+    const value = payload?.[field];
+    return typeof value !== "string" || !value.trim();
+  });
+
+  if (missingFields.length > 0) {
+    return {
+      isValid: false,
+      items: normalizedItems,
+      missingFields,
+      message: "Please fill in all required shipping details."
+    };
+  }
+
+  const normalizedPhone = normalizeDigits(payload?.phone);
+  if (!PHONE_PATTERN.test(normalizedPhone)) {
+    return {
+      isValid: false,
+      items: normalizedItems,
+      missingFields: [],
+      message: "Phone must be a valid 10-digit mobile number."
+    };
+  }
+
+  const normalizedPincode = normalizeDigits(payload?.pincode);
+  if (!PINCODE_PATTERN.test(normalizedPincode)) {
+    return {
+      isValid: false,
+      items: normalizedItems,
+      missingFields: [],
+      message: "Pincode must be a valid 6-digit code."
+    };
+  }
+
+  return {
+    isValid: true,
+    items: normalizedItems,
+    missingFields: [],
+    message: ""
+  };
+};
+
 const getColumnLetter = (columnNumber) => {
   let current = columnNumber;
   let column = "";
@@ -514,6 +589,33 @@ const appendPaymentLinkOrder = async (order, env) => {
   }
 };
 
+const appendBagPaymentLinkOrders = async (orders, env) => {
+  if (!Array.isArray(orders) || !orders.length) {
+    throw new Error("Bag orders are required");
+  }
+
+  const { accessToken, headerRow } = await fetchOrdersHeaderRow(env);
+  const rowValues = orders.map((order) => buildOrdersSheetRow(headerRow, order));
+  const range = `${ORDERS_SHEET_NAME}!A:${getColumnLetter(headerRow.length)}`;
+  const response = await fetch(
+    `${GOOGLE_SHEETS_API_BASE_URL}/${encodeURIComponent(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        "content-type": "application/json; charset=utf-8"
+      },
+      body: JSON.stringify({
+        values: rowValues
+      })
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Bag payment order append failed with status ${response.status}`);
+  }
+};
+
 const fetchProductById = async (productId) => {
   const products = await fetchProducts();
   const normalizedProductId = normalizeValue(productId);
@@ -566,6 +668,84 @@ const fetchProductById = async (productId) => {
     productName,
     amount
   };
+};
+
+const fetchBagProductsByIds = async (items) => {
+  const products = await fetchProducts();
+  const invalidItems = [];
+  const matchedProducts = [];
+
+  for (const item of items) {
+    const requestedProductId = normalizeValue(item?.productId);
+    const normalizedLookupSlug = buildProductSlug(requestedProductId);
+    const product = Array.isArray(products)
+      ? products.find((row) => {
+        const rowProductId = normalizeValue(getRowValue(row, ["ProductId", "Product ID", "productId"]));
+        const rowProductName = normalizeValue(getRowValue(row, ["Name", "ProductName", "Product Name"]));
+        const rowProductSlug = buildProductSlug(rowProductName);
+        return rowProductId === requestedProductId || rowProductSlug === normalizedLookupSlug;
+      })
+      : null;
+
+    if (!product) {
+      invalidItems.push({
+        productId: requestedProductId,
+        reason: "not_found"
+      });
+      continue;
+    }
+
+    const matchedProductId = normalizeValue(getRowValue(product, ["ProductId", "Product ID", "productId"]));
+    const productName = normalizeValue(getRowValue(product, ["Name", "ProductName", "Product Name"]));
+    const productStatus = normalizeKey(getRowValue(product, ["Product status", "ProductStatus", "Status"]));
+    const stockStatus = normalizeKey(getRowValue(product, ["Stock", "Stock status", "StockStatus"]));
+    const priceValue = getRowValue(product, ["Price"]);
+    const unavailableStatuses = new Set(["soldout", "outofstock", "inactive"]);
+    const hasExplicitInactiveStatus = productStatus && productStatus !== "active";
+    const isUnavailable = hasExplicitInactiveStatus || unavailableStatuses.has(productStatus) || unavailableStatuses.has(stockStatus);
+
+    if (!matchedProductId) {
+      invalidItems.push({
+        productId: requestedProductId,
+        reason: "not_found"
+      });
+      continue;
+    }
+
+    if (isUnavailable) {
+      invalidItems.push({
+        productId: matchedProductId,
+        reason: hasExplicitInactiveStatus ? "inactive" : "unavailable"
+      });
+      continue;
+    }
+
+    let amount;
+    try {
+      amount = parsePriceToPaise(priceValue);
+    } catch (error) {
+      invalidItems.push({
+        productId: matchedProductId,
+        reason: "invalid_price"
+      });
+      continue;
+    }
+
+    matchedProducts.push({
+      productId: matchedProductId,
+      productName,
+      amount
+    });
+  }
+
+  if (invalidItems.length > 0) {
+    const error = new Error("One or more bag items are invalid or unavailable.");
+    error.status = 400;
+    error.invalidItems = invalidItems;
+    throw error;
+  }
+
+  return matchedProducts;
 };
 
 const timingSafeEqual = (left, right) => {
@@ -1424,7 +1604,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if (request.method === "OPTIONS" && (url.pathname === "/orders" || url.pathname === "/create-payment-link" || url.pathname === "/razorpay-webhook" || url.pathname === "/whatsapp-webhook" || url.pathname === "/test-whatsapp" || url.pathname === "/test-whatsapp-status" || url.pathname === "/api/products")) {
+    if (request.method === "OPTIONS" && (url.pathname === "/orders" || url.pathname === "/create-payment-link" || url.pathname === "/create-bag-payment-link" || url.pathname === "/razorpay-webhook" || url.pathname === "/whatsapp-webhook" || url.pathname === "/test-whatsapp" || url.pathname === "/test-whatsapp-status" || url.pathname === "/api/products")) {
       return new Response(null, {
         status: 204,
         headers: getCorsHeaders(request)
@@ -1876,6 +2056,143 @@ export default {
           {
             success: false,
             message: "Unable to create payment link"
+          },
+          { status: 500 },
+          request
+        );
+      }
+    }
+
+    if (request.method === "POST" && url.pathname === "/create-bag-payment-link") {
+      console.log("bag payment link request received");
+
+      let payload;
+
+      try {
+        payload = await request.json();
+      } catch (error) {
+        return jsonResponse(
+          {
+            success: false,
+            message: "Invalid JSON request body"
+          },
+          { status: 400 },
+          request
+        );
+      }
+
+      const validation = validateBagPaymentLinkRequest(payload);
+      if (!validation.isValid) {
+        return jsonResponse(
+          {
+            success: false,
+            message: validation.message || "Missing required fields",
+            missingFields: validation.missingFields
+          },
+          { status: 400 },
+          request
+        );
+      }
+
+      try {
+        const products = await fetchBagProductsByIds(validation.items);
+        const orderId = generateOrderId();
+        const callbackBaseUrl = getCheckoutCallbackBaseUrl(request, env);
+        const createdAt = new Date().toISOString();
+        const updatedAt = createdAt;
+        const totalAmountPaise = products.reduce((sum, product) => sum + product.amount, 0);
+        const customer = {
+          customerName: payload.customerName.trim(),
+          phone: normalizeDigits(payload.phone),
+          email: typeof payload.email === "string" ? payload.email.trim() : "",
+          addressLine1: payload.addressLine1.trim(),
+          addressLine2: typeof payload.addressLine2 === "string" ? payload.addressLine2.trim() : "",
+          landmark: typeof payload.landmark === "string" ? payload.landmark.trim() : "",
+          city: typeof payload.city === "string" ? payload.city.trim() : "",
+          state: typeof payload.state === "string" ? payload.state.trim() : "",
+          pincode: normalizeDigits(payload.pincode)
+        };
+        const paymentLink = await createRazorpayPaymentLink({
+          orderId,
+          product: {
+            productId: "BAG-ORDER",
+            productName: `${products.length} FLOAA Items`,
+            amount: totalAmountPaise
+          },
+          customer,
+          env,
+          callbackUrl: `${callbackBaseUrl}/order-success/index.html`
+        });
+        const orders = products.map((product) => ({
+          orderId,
+          productId: product.productId,
+          productName: product.productName,
+          customerName: customer.customerName,
+          phone: customer.phone,
+          email: customer.email,
+          addressLine1: customer.addressLine1,
+          addressLine2: customer.addressLine2,
+          landmark: customer.landmark,
+          city: customer.city,
+          state: customer.state,
+          pincode: customer.pincode,
+          orderStatus: ORDER_STATUSES.CREATED,
+          paymentStatus: PAYMENT_STATUSES.CREATED,
+          createdAt,
+          updatedAt,
+          notes: "",
+          source: "Website",
+          amount: product.amount / 100,
+          currency: "INR",
+          paymentProvider: "Razorpay",
+          paymentLink: paymentLink.paymentUrl,
+          paymentLinkId: paymentLink.paymentLinkId,
+          paymentId: "",
+          paymentCapturedAt: "",
+          createdSource: ORDER_CREATED_SOURCES.BAG
+        }));
+
+        await appendBagPaymentLinkOrders(orders, env);
+
+        return jsonResponse(
+          {
+            success: true,
+            orderId,
+            amountPaid: totalAmountPaise / 100,
+            paymentUrl: paymentLink.paymentUrl
+          },
+          {},
+          request
+        );
+      } catch (error) {
+        if (error?.status === 400) {
+          return jsonResponse(
+            {
+              success: false,
+              message: error.message || "Unable to create bag payment link",
+              invalidItems: Array.isArray(error?.invalidItems) ? error.invalidItems : undefined
+            },
+            { status: 400 },
+            request
+          );
+        }
+
+        if (typeof error?.message === "string" && error.message.includes("Razorpay payment link creation failed:")) {
+          return jsonResponse(
+            {
+              success: false,
+              message: error.message
+            },
+            { status: 500 },
+            request
+          );
+        }
+
+        console.error("bag payment link failure", error);
+        return jsonResponse(
+          {
+            success: false,
+            message: "Unable to create bag payment link"
           },
           { status: 500 },
           request
