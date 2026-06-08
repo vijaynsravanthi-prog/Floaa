@@ -1,10 +1,13 @@
 const PRODUCTS_URL = "https://opensheet.elk.sh/1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs/1";
+const PRODUCTS_CACHE_TTL_SECONDS = 300;
+const PRODUCTS_CACHE_URL = "https://floaa-worker-cache.internal/products";
 const SPREADSHEET_ID = "1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs";
 const ORDERS_SHEET_NAME = "Orders";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const RAZORPAY_PAYMENT_LINKS_URL = "https://api.razorpay.com/v1/payment_links";
 const GOOGLE_SHEETS_API_BASE_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values`;
+const GOOGLE_SHEETS_BATCH_UPDATE_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values:batchUpdate`;
 const DEFAULT_SITE_URL = "https://floaa.in";
 const WHATSAPP_ORDER_CONFIRMATION_TEMPLATE_NAME = "floaa_order_confirmation";
 const WHATSAPP_ORDER_CONFIRMATION_TEMPLATE_LANGUAGE = "en_US";
@@ -42,8 +45,13 @@ const PAYMENT_STATUSES = {
   PAID: "Paid",
   EXPIRED: "Expired"
 };
+const ORDER_CREATED_SOURCES = {
+  BUY_NOW: "BUY_NOW",
+  BAG: "BAG"
+};
 const PHONE_PATTERN = /^[6-9]\d{9}$/;
 const PINCODE_PATTERN = /^\d{6}$/;
+const GOOGLE_SHEETS_429_RETRY_DELAYS_MS = [0, 1000, 2000];
 
 const getCorsHeaders = (request) => {
   const origin = request.headers.get("origin") || "";
@@ -66,6 +74,16 @@ const jsonResponse = (data, init = {}, request) =>
     ...init
   });
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const createWorkerExecutionContext = () => ({
+  googleAccessToken: "",
+  ordersHeaderRow: null,
+  ordersHeaderMap: null,
+  ordersSheetRows: null,
+  orderRowsByPaymentLinkId: new Map()
+});
+
 const buildProductsResponseHeaders = (request, extraHeaders = {}) => ({
   "content-type": "application/json; charset=utf-8",
   ...(request ? getCorsHeaders(request) : {}),
@@ -82,18 +100,11 @@ const buildProductsError = (type, details = {}) => {
   return error;
 };
 
-const fetchProducts = async () => {
-  console.log("product fetch started");
-  let response;
+const getProductsCacheRequest = () => new Request(PRODUCTS_CACHE_URL, {
+  method: "GET"
+});
 
-  try {
-    response = await fetch(PRODUCTS_URL);
-  } catch (error) {
-    throw buildProductsError("fetch-failed", {
-      message: error?.message || "Products request failed"
-    });
-  }
-
+const parseProductsResponse = async (response) => {
   const contentType = response.headers.get("content-type") || "";
   const responseText = await response.text();
   const bodyPreview = responseText.slice(0, 500);
@@ -133,6 +144,69 @@ const fetchProducts = async () => {
   console.log("product fetch success", {
     count: products.length
   });
+  return {
+    products,
+    responseText,
+    contentType
+  };
+};
+
+const cacheProductsResponse = async ({ responseText, contentType, count }) => {
+  const cache = caches.default;
+  const cacheRequest = getProductsCacheRequest();
+  const cacheResponse = new Response(responseText, {
+    headers: {
+      "cache-control": `public, max-age=${PRODUCTS_CACHE_TTL_SECONDS}`,
+      "content-type": contentType || "application/json; charset=utf-8"
+    }
+  });
+
+  await cache.put(cacheRequest, cacheResponse);
+  console.log("product cache refresh", {
+    count,
+    ttlSeconds: PRODUCTS_CACHE_TTL_SECONDS
+  });
+};
+
+const fetchProducts = async () => {
+  const cache = caches.default;
+  const cacheRequest = getProductsCacheRequest();
+  const cachedResponse = await cache.match(cacheRequest);
+
+  if (cachedResponse) {
+    console.log("product cache hit", {
+      ttlSeconds: PRODUCTS_CACHE_TTL_SECONDS
+    });
+    const { products } = await parseProductsResponse(cachedResponse);
+    return products;
+  }
+
+  console.log("product cache miss", {
+    ttlSeconds: PRODUCTS_CACHE_TTL_SECONDS
+  });
+
+  let response;
+
+  try {
+    response = await fetch(PRODUCTS_URL);
+  } catch (error) {
+    throw buildProductsError("fetch-failed", {
+      message: error?.message || "Products request failed"
+    });
+  }
+
+  const {
+    products,
+    responseText,
+    contentType
+  } = await parseProductsResponse(response);
+
+  await cacheProductsResponse({
+    responseText,
+    contentType,
+    count: products.length
+  });
+
   return products;
 };
 
@@ -241,6 +315,81 @@ const validatePaymentLinkRequest = (payload) => {
   };
 };
 
+const normalizeBagPaymentLinkItems = (items) => {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  const seenProductIds = new Set();
+
+  return items.reduce((normalizedItems, item) => {
+    const productId = normalizeValue(item?.productId);
+    const dedupeKey = productId.toLowerCase();
+
+    if (!productId || seenProductIds.has(dedupeKey)) {
+      return normalizedItems;
+    }
+
+    seenProductIds.add(dedupeKey);
+    normalizedItems.push({ productId });
+    return normalizedItems;
+  }, []);
+};
+
+const validateBagPaymentLinkRequest = (payload) => {
+  const normalizedItems = normalizeBagPaymentLinkItems(payload?.items);
+  if (!normalizedItems.length) {
+    return {
+      isValid: false,
+      items: [],
+      missingFields: [],
+      message: "Please add at least one product to your bag."
+    };
+  }
+
+  const requiredFields = ["customerName", "phone", "addressLine1", "city", "state", "pincode"];
+  const missingFields = requiredFields.filter((field) => {
+    const value = payload?.[field];
+    return typeof value !== "string" || !value.trim();
+  });
+
+  if (missingFields.length > 0) {
+    return {
+      isValid: false,
+      items: normalizedItems,
+      missingFields,
+      message: "Please fill in all required shipping details."
+    };
+  }
+
+  const normalizedPhone = normalizeDigits(payload?.phone);
+  if (!PHONE_PATTERN.test(normalizedPhone)) {
+    return {
+      isValid: false,
+      items: normalizedItems,
+      missingFields: [],
+      message: "Phone must be a valid 10-digit mobile number."
+    };
+  }
+
+  const normalizedPincode = normalizeDigits(payload?.pincode);
+  if (!PINCODE_PATTERN.test(normalizedPincode)) {
+    return {
+      isValid: false,
+      items: normalizedItems,
+      missingFields: [],
+      message: "Pincode must be a valid 6-digit code."
+    };
+  }
+
+  return {
+    isValid: true,
+    items: normalizedItems,
+    missingFields: [],
+    message: ""
+  };
+};
+
 const getColumnLetter = (columnNumber) => {
   let current = columnNumber;
   let column = "";
@@ -305,7 +454,11 @@ const pemToArrayBuffer = (pem) => {
   return bytes.buffer;
 };
 
-const getGoogleAccessToken = async (env) => {
+const getGoogleAccessToken = async (env, runtimeContext = null) => {
+  if (runtimeContext?.googleAccessToken) {
+    return runtimeContext.googleAccessToken;
+  }
+
   if (!env.GOOGLE_CLIENT_EMAIL || !env.GOOGLE_PRIVATE_KEY) {
     throw new Error("Google credentials missing");
   }
@@ -366,6 +519,9 @@ const getGoogleAccessToken = async (env) => {
   }
 
   console.log("google auth success");
+  if (runtimeContext) {
+    runtimeContext.googleAccessToken = tokenData.access_token;
+  }
   return tokenData.access_token;
 };
 
@@ -376,8 +532,17 @@ const logOrdersHeaderDiagnostics = (headerRow, headerMap) => {
   console.log("orders header index OrderStatus", headerMap[normalizeKey("OrderStatus")] ?? -1);
 };
 
-const fetchOrdersHeaderRow = async (env) => {
-  const accessToken = await getGoogleAccessToken(env);
+const fetchOrdersHeaderRow = async (env, runtimeContext = null) => {
+  if (runtimeContext?.ordersHeaderRow && runtimeContext?.ordersHeaderMap) {
+    const accessToken = await getGoogleAccessToken(env, runtimeContext);
+    return {
+      accessToken,
+      headerRow: runtimeContext.ordersHeaderRow,
+      headerMap: runtimeContext.ordersHeaderMap
+    };
+  }
+
+  const accessToken = await getGoogleAccessToken(env, runtimeContext);
   const range = `${ORDERS_SHEET_NAME}!1:1`;
   const response = await fetch(`${GOOGLE_SHEETS_API_BASE_URL}/${encodeURIComponent(range)}`, {
     headers: {
@@ -399,6 +564,11 @@ const fetchOrdersHeaderRow = async (env) => {
   const headerMap = buildHeaderMap(headerRow);
   logOrdersHeaderDiagnostics(headerRow, headerMap);
 
+  if (runtimeContext) {
+    runtimeContext.ordersHeaderRow = headerRow;
+    runtimeContext.ordersHeaderMap = headerMap;
+  }
+
   return {
     accessToken,
     headerRow,
@@ -406,8 +576,18 @@ const fetchOrdersHeaderRow = async (env) => {
   };
 };
 
-const fetchOrdersSheetRows = async (env) => {
-  const { accessToken, headerRow, headerMap } = await fetchOrdersHeaderRow(env);
+const fetchOrdersSheetRows = async (env, runtimeContext = null) => {
+  if (runtimeContext?.ordersSheetRows && runtimeContext?.ordersHeaderRow && runtimeContext?.ordersHeaderMap) {
+    const accessToken = await getGoogleAccessToken(env, runtimeContext);
+    return {
+      accessToken,
+      headerRow: runtimeContext.ordersHeaderRow,
+      headerMap: runtimeContext.ordersHeaderMap,
+      rows: runtimeContext.ordersSheetRows
+    };
+  }
+
+  const { accessToken, headerRow, headerMap } = await fetchOrdersHeaderRow(env, runtimeContext);
   const range = `${ORDERS_SHEET_NAME}!A:${getColumnLetter(headerRow.length)}`;
   const response = await fetch(`${GOOGLE_SHEETS_API_BASE_URL}/${encodeURIComponent(range)}`, {
     headers: {
@@ -421,6 +601,10 @@ const fetchOrdersSheetRows = async (env) => {
 
   const data = await response.json();
   const rows = Array.isArray(data.values) ? data.values : [];
+
+  if (runtimeContext) {
+    runtimeContext.ordersSheetRows = rows;
+  }
 
   return {
     accessToken,
@@ -453,6 +637,7 @@ const buildOrdersSheetRow = (headerRow, order) => {
     paymentlinkid: order.paymentLinkId,
     paymentid: order.paymentId,
     paymentcapturedat: order.paymentCapturedAt,
+    createdsource: order.createdSource,
     addressline1: order.addressLine1,
     addressline2: order.addressLine2,
     landmark: order.landmark,
@@ -509,6 +694,33 @@ const appendPaymentLinkOrder = async (order, env) => {
   }
 };
 
+const appendBagPaymentLinkOrders = async (orders, env) => {
+  if (!Array.isArray(orders) || !orders.length) {
+    throw new Error("Bag orders are required");
+  }
+
+  const { accessToken, headerRow } = await fetchOrdersHeaderRow(env);
+  const rowValues = orders.map((order) => buildOrdersSheetRow(headerRow, order));
+  const range = `${ORDERS_SHEET_NAME}!A:${getColumnLetter(headerRow.length)}`;
+  const response = await fetch(
+    `${GOOGLE_SHEETS_API_BASE_URL}/${encodeURIComponent(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        "content-type": "application/json; charset=utf-8"
+      },
+      body: JSON.stringify({
+        values: rowValues
+      })
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Bag payment order append failed with status ${response.status}`);
+  }
+};
+
 const fetchProductById = async (productId) => {
   const products = await fetchProducts();
   const normalizedProductId = normalizeValue(productId);
@@ -561,6 +773,84 @@ const fetchProductById = async (productId) => {
     productName,
     amount
   };
+};
+
+const fetchBagProductsByIds = async (items) => {
+  const products = await fetchProducts();
+  const invalidItems = [];
+  const matchedProducts = [];
+
+  for (const item of items) {
+    const requestedProductId = normalizeValue(item?.productId);
+    const normalizedLookupSlug = buildProductSlug(requestedProductId);
+    const product = Array.isArray(products)
+      ? products.find((row) => {
+        const rowProductId = normalizeValue(getRowValue(row, ["ProductId", "Product ID", "productId"]));
+        const rowProductName = normalizeValue(getRowValue(row, ["Name", "ProductName", "Product Name"]));
+        const rowProductSlug = buildProductSlug(rowProductName);
+        return rowProductId === requestedProductId || rowProductSlug === normalizedLookupSlug;
+      })
+      : null;
+
+    if (!product) {
+      invalidItems.push({
+        productId: requestedProductId,
+        reason: "not_found"
+      });
+      continue;
+    }
+
+    const matchedProductId = normalizeValue(getRowValue(product, ["ProductId", "Product ID", "productId"]));
+    const productName = normalizeValue(getRowValue(product, ["Name", "ProductName", "Product Name"]));
+    const productStatus = normalizeKey(getRowValue(product, ["Product status", "ProductStatus", "Status"]));
+    const stockStatus = normalizeKey(getRowValue(product, ["Stock", "Stock status", "StockStatus"]));
+    const priceValue = getRowValue(product, ["Price"]);
+    const unavailableStatuses = new Set(["soldout", "outofstock", "inactive"]);
+    const hasExplicitInactiveStatus = productStatus && productStatus !== "active";
+    const isUnavailable = hasExplicitInactiveStatus || unavailableStatuses.has(productStatus) || unavailableStatuses.has(stockStatus);
+
+    if (!matchedProductId) {
+      invalidItems.push({
+        productId: requestedProductId,
+        reason: "not_found"
+      });
+      continue;
+    }
+
+    if (isUnavailable) {
+      invalidItems.push({
+        productId: matchedProductId,
+        reason: hasExplicitInactiveStatus ? "inactive" : "unavailable"
+      });
+      continue;
+    }
+
+    let amount;
+    try {
+      amount = parsePriceToPaise(priceValue);
+    } catch (error) {
+      invalidItems.push({
+        productId: matchedProductId,
+        reason: "invalid_price"
+      });
+      continue;
+    }
+
+    matchedProducts.push({
+      productId: matchedProductId,
+      productName,
+      amount
+    });
+  }
+
+  if (invalidItems.length > 0) {
+    const error = new Error("One or more bag items are invalid or unavailable.");
+    error.status = 400;
+    error.invalidItems = invalidItems;
+    throw error;
+  }
+
+  return matchedProducts;
 };
 
 const timingSafeEqual = (left, right) => {
@@ -979,72 +1269,234 @@ const sendWhatsAppTextMessage = async ({ phone, body, env }) => {
   };
 };
 
-const fetchOrderRowByPaymentLinkId = async (paymentLinkId, env) => {
-  const { accessToken, headerRow, headerMap, rows } = await fetchOrdersSheetRows(env);
-  const targetPaymentLinkId = normalizeValue(paymentLinkId);
+const parseOrderAmount = (value) => {
+  const normalizedAmount = normalizeValue(value).replace(/[^0-9.]/g, "");
+  const amount = Number(normalizedAmount);
+  return Number.isFinite(amount) ? amount : 0;
+};
+
+const formatGroupedOrderAmount = (amount) => {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return "";
+  }
+
+  return String(Math.round(amount * 100) / 100).replace(/\.00$/, "");
+};
+
+const getFirstGroupedValue = (orderRecords, fieldName) => {
+  if (!Array.isArray(orderRecords)) {
+    return "";
+  }
+
+  for (const record of orderRecords) {
+    const value = getOrderRecordValue(record, fieldName);
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+};
+
+const isBagOrderRecord = (orderRecord) => normalizeKey(getOrderRecordValue(orderRecord, "CreatedSource")) === normalizeKey(ORDER_CREATED_SOURCES.BAG);
+
+const formatBagAdminItemSummary = (orderRecords) => {
+  const items = Array.isArray(orderRecords)
+    ? orderRecords
+      .map((record) => getOrderRecordValue(record, "ProductName"))
+      .filter(Boolean)
+    : [];
+
+  if (!items.length) {
+    return "";
+  }
+
+  const visibleItems = items.slice(0, 5);
+  const summary = visibleItems.join(", ");
+  const remainingCount = items.length - visibleItems.length;
+
+  return remainingCount > 0 ? `${summary}, +${remainingCount} more` : summary;
+};
+
+const buildGroupedOrderRecord = (orderRecords) => {
+  const primaryRecord = Array.isArray(orderRecords) ? orderRecords[0] : null;
+  if (!primaryRecord) {
+    return {};
+  }
+
+  if (!isBagOrderRecord(primaryRecord)) {
+    return primaryRecord;
+  }
+
+  const totalAmount = orderRecords.reduce((sum, record) => sum + parseOrderAmount(getOrderRecordValue(record, "Amount")), 0);
+  const productCount = orderRecords.length;
+
+  return {
+    ...primaryRecord,
+    Amount: formatGroupedOrderAmount(totalAmount),
+    amount: formatGroupedOrderAmount(totalAmount),
+    ProductId: `${productCount} Products`,
+    productid: `${productCount} Products`,
+    ProductName: formatBagAdminItemSummary(orderRecords),
+    productname: formatBagAdminItemSummary(orderRecords),
+    ProductLink: "Bag Order",
+    productlink: "Bag Order",
+    Quantity: String(productCount),
+    quantity: String(productCount),
+    CustomerWhatsAppSentAt: getFirstGroupedValue(orderRecords, "CustomerWhatsAppSentAt"),
+    customerwhatsappsentat: getFirstGroupedValue(orderRecords, "CustomerWhatsAppSentAt"),
+    AdminWhatsAppSentAt: getFirstGroupedValue(orderRecords, "AdminWhatsAppSentAt"),
+    adminwhatsappsentat: getFirstGroupedValue(orderRecords, "AdminWhatsAppSentAt")
+  };
+};
+
+const fetchOrderRowsByPaymentLinkId = async (paymentLinkId, env, runtimeContext = null) => {
+  const normalizedPaymentLinkId = normalizeValue(paymentLinkId);
+  const paymentLinkCacheKey = normalizedPaymentLinkId.toLowerCase();
+  const cachedOrderRows = runtimeContext?.orderRowsByPaymentLinkId?.get(paymentLinkCacheKey);
+  if (cachedOrderRows) {
+    return cachedOrderRows;
+  }
+
+  const { accessToken, headerRow, headerMap, rows } = await fetchOrdersSheetRows(env, runtimeContext);
+  const targetPaymentLinkId = normalizedPaymentLinkId;
 
   const paymentLinkIdIndex = headerMap[normalizeKey("PaymentLinkId")] ?? -1;
   if (paymentLinkIdIndex === -1) {
     throw new Error("PaymentLinkId column not found");
   }
 
+  const matches = [];
+
   for (let index = 1; index < rows.length; index += 1) {
     const row = rows[index];
     const rowPaymentLinkId = normalizeValue(row[paymentLinkIdIndex]);
 
     if (rowPaymentLinkId === targetPaymentLinkId) {
-      return {
+      matches.push({
         accessToken,
         rowIndex: index + 1,
         headerRow,
         headerMap,
         rowValues: row,
         orderRecord: buildOrderRecordFromRow(headerRow, row)
-      };
+      });
     }
   }
 
-  throw new Error("Payment link not found");
+  if (!matches.length) {
+    throw new Error("Payment link not found");
+  }
+
+  const result = {
+    accessToken,
+    headerRow,
+    headerMap,
+    matches,
+    orderRecords: matches.map((match) => match.orderRecord),
+    orderRecord: buildGroupedOrderRecord(matches.map((match) => match.orderRecord))
+  };
+
+  if (runtimeContext?.orderRowsByPaymentLinkId) {
+    runtimeContext.orderRowsByPaymentLinkId.set(paymentLinkCacheKey, result);
+  }
+
+  return result;
 };
 
-const fetchMatchedOrderRowValues = async ({ paymentLinkId, env }) => fetchOrderRowByPaymentLinkId(paymentLinkId, env);
+const fetchMatchedOrderRowValues = async ({ paymentLinkId, env, runtimeContext = null }) => fetchOrderRowsByPaymentLinkId(paymentLinkId, env, runtimeContext);
 
-const updateOrderRowFields = async ({ paymentLinkId, updates, env }) => {
-  const { accessToken, rowIndex, headerMap } = await fetchOrderRowByPaymentLinkId(paymentLinkId, env);
+const updateOrderRowFields = async ({ paymentLinkId, updates, env, runtimeContext = null }) => {
+  const { accessToken, headerMap, matches } = await fetchOrderRowsByPaymentLinkId(paymentLinkId, env, runtimeContext);
   const fieldsToUpdate = {
     ...updates,
     PaymentLinkId: paymentLinkId
   };
 
-  for (const [columnName, value] of Object.entries(fieldsToUpdate)) {
-    const columnIndex = headerMap[normalizeKey(columnName)] ?? -1;
-    if (columnIndex === -1) {
-      throw new Error(`${columnName} column not found`);
+  const valueUpdates = [];
+
+  for (const match of matches) {
+    for (const [columnName, value] of Object.entries(fieldsToUpdate)) {
+      const columnIndex = headerMap[normalizeKey(columnName)] ?? -1;
+      if (columnIndex === -1) {
+        throw new Error(`${columnName} column not found`);
+      }
+
+      const columnLetter = getColumnLetter(columnIndex + 1);
+      valueUpdates.push({
+        range: `${ORDERS_SHEET_NAME}!${columnLetter}${match.rowIndex}`,
+        majorDimension: "ROWS",
+        values: [[value]]
+      });
+    }
+  }
+
+  for (let attemptIndex = 0; attemptIndex < GOOGLE_SHEETS_429_RETRY_DELAYS_MS.length; attemptIndex += 1) {
+    const retryDelayMs = GOOGLE_SHEETS_429_RETRY_DELAYS_MS[attemptIndex];
+    if (retryDelayMs > 0) {
+      await wait(retryDelayMs);
     }
 
-    const columnLetter = getColumnLetter(columnIndex + 1);
-    const updateRange = `${ORDERS_SHEET_NAME}!${columnLetter}${rowIndex}`;
     const response = await fetch(
-      `${GOOGLE_SHEETS_API_BASE_URL}/${encodeURIComponent(updateRange)}?valueInputOption=RAW`,
+      GOOGLE_SHEETS_BATCH_UPDATE_URL,
       {
-        method: "PUT",
+        method: "POST",
         headers: {
           authorization: `Bearer ${accessToken}`,
           "content-type": "application/json; charset=utf-8"
         },
         body: JSON.stringify({
-          values: [[value]]
+          valueInputOption: "RAW",
+          data: valueUpdates
         })
       }
     );
 
-    if (!response.ok) {
-      throw new Error(`Payment status update failed with status ${response.status}`);
+    if (response.ok) {
+      if (runtimeContext?.orderRowsByPaymentLinkId) {
+        runtimeContext.orderRowsByPaymentLinkId.delete(normalizeValue(paymentLinkId).toLowerCase());
+      }
+
+      if (runtimeContext?.ordersSheetRows) {
+        for (const match of matches) {
+          for (const [columnName, value] of Object.entries(fieldsToUpdate)) {
+            const columnIndex = headerMap[normalizeKey(columnName)] ?? -1;
+            if (columnIndex === -1) {
+              continue;
+            }
+
+            if (!Array.isArray(match.rowValues)) {
+              match.rowValues = [];
+            }
+
+            while (match.rowValues.length <= columnIndex) {
+              match.rowValues.push("");
+            }
+
+            match.rowValues[columnIndex] = value;
+          }
+        }
+      }
+
+      return;
     }
+
+    if (response.status === 429 && attemptIndex < GOOGLE_SHEETS_429_RETRY_DELAYS_MS.length - 1) {
+      const nextRetryDelayMs = GOOGLE_SHEETS_429_RETRY_DELAYS_MS[attemptIndex + 1];
+      console.warn("google sheets batch update rate limited; retrying", {
+        paymentLinkId,
+        attempt: attemptIndex + 1,
+        retryDelayMs: nextRetryDelayMs,
+        updates: valueUpdates.length
+      });
+      continue;
+    }
+
+    throw new Error(`Payment status update failed with status ${response.status}`);
   }
 };
 
-const updatePaymentStatus = async ({ paymentLinkId, paymentId, paidAt, env }) => {
+const updatePaymentStatus = async ({ paymentLinkId, paymentId, paidAt, env, runtimeContext = null }) => {
   const paidAtIso = toIsoTimestamp(paidAt);
   const updatedAt = new Date().toISOString();
 
@@ -1057,13 +1509,14 @@ const updatePaymentStatus = async ({ paymentLinkId, paymentId, paidAt, env }) =>
       PaymentCapturedAt: paidAtIso,
       UpdatedAt: updatedAt
     },
-    env
+    env,
+    runtimeContext
   });
 
   console.log("payment status updated", { paymentLinkId, paymentId });
 };
 
-const updateExpiredPaymentStatus = async ({ paymentLinkId, env }) => {
+const updateExpiredPaymentStatus = async ({ paymentLinkId, env, runtimeContext = null }) => {
   const updatedAt = new Date().toISOString();
 
   await updateOrderRowFields({
@@ -1072,14 +1525,15 @@ const updateExpiredPaymentStatus = async ({ paymentLinkId, env }) => {
       PaymentStatus: PAYMENT_STATUSES.EXPIRED,
       UpdatedAt: updatedAt
     },
-    env
+    env,
+    runtimeContext
   });
 
   console.log("payment expired updated", { paymentLinkId });
 };
 
-const sendOrderConfirmationWhatsApp = async ({ paymentLinkId, env }) => {
-  const { orderRecord } = await fetchMatchedOrderRowValues({ paymentLinkId, env });
+const sendOrderConfirmationWhatsApp = async ({ paymentLinkId, env, runtimeContext = null }) => {
+  const { orderRecord } = await fetchMatchedOrderRowValues({ paymentLinkId, env, runtimeContext });
   const existingSentAt = getOrderRecordValue(orderRecord, "CustomerWhatsAppSentAt");
   if (existingSentAt) {
     console.log("order confirmation whatsapp already sent", { paymentLinkId, sentAt: existingSentAt });
@@ -1113,7 +1567,8 @@ const sendOrderConfirmationWhatsApp = async ({ paymentLinkId, env }) => {
       LastUpdatedBy: ORDER_CONFIRMATION_UPDATED_BY,
       LastUpdatedAt: sentAt
     },
-    env
+    env,
+    runtimeContext
   });
 
   console.log("order confirmation whatsapp sent", {
@@ -1161,7 +1616,7 @@ const buildAdminOrderNotificationMessage = async (orderRecord, env) => {
   ].join("\n");
 };
 
-const sendAdminOrderWhatsApp = async ({ paymentLinkId, env }) => {
+const sendAdminOrderWhatsApp = async ({ paymentLinkId, env, runtimeContext = null }) => {
   const adminPhone = normalizeValue(env?.WHATSAPP_ADMIN_PHONE);
   if (!adminPhone) {
     console.log("admin whatsapp skipped: WHATSAPP_ADMIN_PHONE not configured", { paymentLinkId });
@@ -1171,7 +1626,7 @@ const sendAdminOrderWhatsApp = async ({ paymentLinkId, env }) => {
     };
   }
 
-  const { orderRecord } = await fetchMatchedOrderRowValues({ paymentLinkId, env });
+  const { orderRecord } = await fetchMatchedOrderRowValues({ paymentLinkId, env, runtimeContext });
   const existingSentAt = getOrderRecordValue(orderRecord, "AdminWhatsAppSentAt");
   if (existingSentAt) {
     console.log("admin whatsapp already sent", { paymentLinkId, sentAt: existingSentAt });
@@ -1187,7 +1642,9 @@ const sendAdminOrderWhatsApp = async ({ paymentLinkId, env }) => {
     throw new Error(`Payment status must be ${PAYMENT_STATUSES.PAID} before sending admin notification`);
   }
 
-  const productLink = await buildCanonicalProductUrlForOrder(orderRecord, env);
+  const productLink = isBagOrderRecord(orderRecord)
+    ? "Bag Order"
+    : await buildCanonicalProductUrlForOrder(orderRecord, env);
   const components = buildAdminOrderAlertTemplateComponents({
     ...orderRecord,
     ProductLink: productLink,
@@ -1211,7 +1668,8 @@ const sendAdminOrderWhatsApp = async ({ paymentLinkId, env }) => {
       LastUpdatedBy: ADMIN_ORDER_NOTIFICATION_UPDATED_BY,
       LastUpdatedAt: sentAt
     },
-    env
+    env,
+    runtimeContext
   });
 
   console.log("admin whatsapp sent", {
@@ -1419,7 +1877,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if (request.method === "OPTIONS" && (url.pathname === "/orders" || url.pathname === "/create-payment-link" || url.pathname === "/razorpay-webhook" || url.pathname === "/whatsapp-webhook" || url.pathname === "/test-whatsapp" || url.pathname === "/test-whatsapp-status" || url.pathname === "/api/products")) {
+    if (request.method === "OPTIONS" && (url.pathname === "/orders" || url.pathname === "/create-payment-link" || url.pathname === "/create-bag-payment-link" || url.pathname === "/razorpay-webhook" || url.pathname === "/whatsapp-webhook" || url.pathname === "/test-whatsapp" || url.pathname === "/test-whatsapp-status" || url.pathname === "/api/products")) {
       return new Response(null, {
         status: 204,
         headers: getCorsHeaders(request)
@@ -1827,6 +2285,7 @@ export default {
           paymentLinkId: paymentLink.paymentLinkId,
           paymentId: "",
           paymentCapturedAt: "",
+          createdSource: ORDER_CREATED_SOURCES.BUY_NOW,
           quantity: 1
         };
 
@@ -1877,9 +2336,148 @@ export default {
       }
     }
 
+    if (request.method === "POST" && url.pathname === "/create-bag-payment-link") {
+      console.log("bag payment link request received");
+
+      let payload;
+
+      try {
+        payload = await request.json();
+      } catch (error) {
+        return jsonResponse(
+          {
+            success: false,
+            message: "Invalid JSON request body"
+          },
+          { status: 400 },
+          request
+        );
+      }
+
+      const validation = validateBagPaymentLinkRequest(payload);
+      if (!validation.isValid) {
+        return jsonResponse(
+          {
+            success: false,
+            message: validation.message || "Missing required fields",
+            missingFields: validation.missingFields
+          },
+          { status: 400 },
+          request
+        );
+      }
+
+      try {
+        const products = await fetchBagProductsByIds(validation.items);
+        const orderId = generateOrderId();
+        const callbackBaseUrl = getCheckoutCallbackBaseUrl(request, env);
+        const createdAt = new Date().toISOString();
+        const updatedAt = createdAt;
+        const totalAmountPaise = products.reduce((sum, product) => sum + product.amount, 0);
+        const customer = {
+          customerName: payload.customerName.trim(),
+          phone: normalizeDigits(payload.phone),
+          email: typeof payload.email === "string" ? payload.email.trim() : "",
+          addressLine1: payload.addressLine1.trim(),
+          addressLine2: typeof payload.addressLine2 === "string" ? payload.addressLine2.trim() : "",
+          landmark: typeof payload.landmark === "string" ? payload.landmark.trim() : "",
+          city: typeof payload.city === "string" ? payload.city.trim() : "",
+          state: typeof payload.state === "string" ? payload.state.trim() : "",
+          pincode: normalizeDigits(payload.pincode)
+        };
+        const paymentLink = await createRazorpayPaymentLink({
+          orderId,
+          product: {
+            productId: "BAG-ORDER",
+            productName: `${products.length} FLOAA Items`,
+            amount: totalAmountPaise
+          },
+          customer,
+          env,
+          callbackUrl: `${callbackBaseUrl}/order-success/index.html`
+        });
+        const orders = products.map((product) => ({
+          orderId,
+          productId: product.productId,
+          productName: product.productName,
+          customerName: customer.customerName,
+          phone: customer.phone,
+          email: customer.email,
+          addressLine1: customer.addressLine1,
+          addressLine2: customer.addressLine2,
+          landmark: customer.landmark,
+          city: customer.city,
+          state: customer.state,
+          pincode: customer.pincode,
+          orderStatus: ORDER_STATUSES.CREATED,
+          paymentStatus: PAYMENT_STATUSES.CREATED,
+          createdAt,
+          updatedAt,
+          notes: "",
+          source: "Website",
+          amount: product.amount / 100,
+          currency: "INR",
+          paymentProvider: "Razorpay",
+          paymentLink: paymentLink.paymentUrl,
+          paymentLinkId: paymentLink.paymentLinkId,
+          paymentId: "",
+          paymentCapturedAt: "",
+          createdSource: ORDER_CREATED_SOURCES.BAG,
+          quantity: 1
+        }));
+
+        await appendBagPaymentLinkOrders(orders, env);
+
+        return jsonResponse(
+          {
+            success: true,
+            orderId,
+            amountPaid: totalAmountPaise / 100,
+            paymentUrl: paymentLink.paymentUrl
+          },
+          {},
+          request
+        );
+      } catch (error) {
+        if (error?.status === 400) {
+          return jsonResponse(
+            {
+              success: false,
+              message: error.message || "Unable to create bag payment link",
+              invalidItems: Array.isArray(error?.invalidItems) ? error.invalidItems : undefined
+            },
+            { status: 400 },
+            request
+          );
+        }
+
+        if (typeof error?.message === "string" && error.message.includes("Razorpay payment link creation failed:")) {
+          return jsonResponse(
+            {
+              success: false,
+              message: error.message
+            },
+            { status: 500 },
+            request
+          );
+        }
+
+        console.error("bag payment link failure", error);
+        return jsonResponse(
+          {
+            success: false,
+            message: "Unable to create bag payment link"
+          },
+          { status: 500 },
+          request
+        );
+      }
+    }
+
     if (request.method === "POST" && url.pathname === "/razorpay-webhook") {
       console.log("webhook received");
       const rawBody = await request.text();
+      const runtimeContext = createWorkerExecutionContext();
       let payload;
 
       try {
@@ -1932,17 +2530,20 @@ export default {
             paymentLinkId,
             paymentId,
             paidAt,
-            env
+            env,
+            runtimeContext
           });
           await sendOrderConfirmationWhatsApp({
             paymentLinkId,
-            env
+            env,
+            runtimeContext
           });
 
           try {
             await sendAdminOrderWhatsApp({
               paymentLinkId,
-              env
+              env,
+              runtimeContext
             });
           } catch (error) {
             console.error("admin whatsapp failure", error);
@@ -1982,7 +2583,8 @@ export default {
         try {
           await updateExpiredPaymentStatus({
             paymentLinkId,
-            env
+            env,
+            runtimeContext
           });
         } catch (error) {
           console.error("payment link expiry failure", error);
