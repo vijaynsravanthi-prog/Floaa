@@ -43,8 +43,8 @@ const PAYMENT_STATUSES = {
   EXPIRED: "Expired"
 };
 const ORDER_CREATED_SOURCES = {
-  BUY_NOW: "Buy_Now",
-  BAG: "Bag"
+  BUY_NOW: "BUY_NOW",
+  BAG: "BAG"
 };
 const PHONE_PATTERN = /^[6-9]\d{9}$/;
 const PINCODE_PATTERN = /^\d{6}$/;
@@ -1164,7 +1164,88 @@ const sendWhatsAppTextMessage = async ({ phone, body, env }) => {
   };
 };
 
-const fetchOrderRowByPaymentLinkId = async (paymentLinkId, env) => {
+const parseOrderAmount = (value) => {
+  const normalizedAmount = normalizeValue(value).replace(/[^0-9.]/g, "");
+  const amount = Number(normalizedAmount);
+  return Number.isFinite(amount) ? amount : 0;
+};
+
+const formatGroupedOrderAmount = (amount) => {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return "";
+  }
+
+  return String(Math.round(amount * 100) / 100).replace(/\.00$/, "");
+};
+
+const getFirstGroupedValue = (orderRecords, fieldName) => {
+  if (!Array.isArray(orderRecords)) {
+    return "";
+  }
+
+  for (const record of orderRecords) {
+    const value = getOrderRecordValue(record, fieldName);
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+};
+
+const isBagOrderRecord = (orderRecord) => normalizeKey(getOrderRecordValue(orderRecord, "CreatedSource")) === normalizeKey(ORDER_CREATED_SOURCES.BAG);
+
+const formatBagAdminItemSummary = (orderRecords) => {
+  const items = Array.isArray(orderRecords)
+    ? orderRecords
+      .map((record) => getOrderRecordValue(record, "ProductName"))
+      .filter(Boolean)
+    : [];
+
+  if (!items.length) {
+    return "";
+  }
+
+  const visibleItems = items.slice(0, 5);
+  const summary = visibleItems.join(", ");
+  const remainingCount = items.length - visibleItems.length;
+
+  return remainingCount > 0 ? `${summary}, +${remainingCount} more` : summary;
+};
+
+const buildGroupedOrderRecord = (orderRecords) => {
+  const primaryRecord = Array.isArray(orderRecords) ? orderRecords[0] : null;
+  if (!primaryRecord) {
+    return {};
+  }
+
+  if (!isBagOrderRecord(primaryRecord)) {
+    return primaryRecord;
+  }
+
+  const totalAmount = orderRecords.reduce((sum, record) => sum + parseOrderAmount(getOrderRecordValue(record, "Amount")), 0);
+  const productCount = orderRecords.length;
+
+  return {
+    ...primaryRecord,
+    Amount: formatGroupedOrderAmount(totalAmount),
+    amount: formatGroupedOrderAmount(totalAmount),
+    ProductId: `${productCount} Products`,
+    productid: `${productCount} Products`,
+    ProductName: formatBagAdminItemSummary(orderRecords),
+    productname: formatBagAdminItemSummary(orderRecords),
+    ProductLink: "Bag Order",
+    productlink: "Bag Order",
+    Quantity: String(productCount),
+    quantity: String(productCount),
+    CustomerWhatsAppSentAt: getFirstGroupedValue(orderRecords, "CustomerWhatsAppSentAt"),
+    customerwhatsappsentat: getFirstGroupedValue(orderRecords, "CustomerWhatsAppSentAt"),
+    AdminWhatsAppSentAt: getFirstGroupedValue(orderRecords, "AdminWhatsAppSentAt"),
+    adminwhatsappsentat: getFirstGroupedValue(orderRecords, "AdminWhatsAppSentAt")
+  };
+};
+
+const fetchOrderRowsByPaymentLinkId = async (paymentLinkId, env) => {
   const { accessToken, headerRow, headerMap, rows } = await fetchOrdersSheetRows(env);
   const targetPaymentLinkId = normalizeValue(paymentLinkId);
 
@@ -1173,58 +1254,73 @@ const fetchOrderRowByPaymentLinkId = async (paymentLinkId, env) => {
     throw new Error("PaymentLinkId column not found");
   }
 
+  const matches = [];
+
   for (let index = 1; index < rows.length; index += 1) {
     const row = rows[index];
     const rowPaymentLinkId = normalizeValue(row[paymentLinkIdIndex]);
 
     if (rowPaymentLinkId === targetPaymentLinkId) {
-      return {
+      matches.push({
         accessToken,
         rowIndex: index + 1,
         headerRow,
         headerMap,
         rowValues: row,
         orderRecord: buildOrderRecordFromRow(headerRow, row)
-      };
+      });
     }
   }
 
-  throw new Error("Payment link not found");
+  if (!matches.length) {
+    throw new Error("Payment link not found");
+  }
+
+  return {
+    accessToken,
+    headerRow,
+    headerMap,
+    matches,
+    orderRecords: matches.map((match) => match.orderRecord),
+    orderRecord: buildGroupedOrderRecord(matches.map((match) => match.orderRecord))
+  };
 };
 
-const fetchMatchedOrderRowValues = async ({ paymentLinkId, env }) => fetchOrderRowByPaymentLinkId(paymentLinkId, env);
+const fetchMatchedOrderRowValues = async ({ paymentLinkId, env }) => fetchOrderRowsByPaymentLinkId(paymentLinkId, env);
 
 const updateOrderRowFields = async ({ paymentLinkId, updates, env }) => {
-  const { accessToken, rowIndex, headerMap } = await fetchOrderRowByPaymentLinkId(paymentLinkId, env);
+  const { accessToken, headerMap, matches } = await fetchOrderRowsByPaymentLinkId(paymentLinkId, env);
   const fieldsToUpdate = {
     ...updates,
     PaymentLinkId: paymentLinkId
   };
 
-  for (const [columnName, value] of Object.entries(fieldsToUpdate)) {
-    const columnIndex = headerMap[normalizeKey(columnName)] ?? -1;
-    if (columnIndex === -1) {
-      throw new Error(`${columnName} column not found`);
-    }
-
-    const columnLetter = getColumnLetter(columnIndex + 1);
-    const updateRange = `${ORDERS_SHEET_NAME}!${columnLetter}${rowIndex}`;
-    const response = await fetch(
-      `${GOOGLE_SHEETS_API_BASE_URL}/${encodeURIComponent(updateRange)}?valueInputOption=RAW`,
-      {
-        method: "PUT",
-        headers: {
-          authorization: `Bearer ${accessToken}`,
-          "content-type": "application/json; charset=utf-8"
-        },
-        body: JSON.stringify({
-          values: [[value]]
-        })
+  for (const match of matches) {
+    for (const [columnName, value] of Object.entries(fieldsToUpdate)) {
+      const columnIndex = headerMap[normalizeKey(columnName)] ?? -1;
+      if (columnIndex === -1) {
+        throw new Error(`${columnName} column not found`);
       }
-    );
 
-    if (!response.ok) {
-      throw new Error(`Payment status update failed with status ${response.status}`);
+      const columnLetter = getColumnLetter(columnIndex + 1);
+      const updateRange = `${ORDERS_SHEET_NAME}!${columnLetter}${match.rowIndex}`;
+      const response = await fetch(
+        `${GOOGLE_SHEETS_API_BASE_URL}/${encodeURIComponent(updateRange)}?valueInputOption=RAW`,
+        {
+          method: "PUT",
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            "content-type": "application/json; charset=utf-8"
+          },
+          body: JSON.stringify({
+            values: [[value]]
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Payment status update failed with status ${response.status}`);
+      }
     }
   }
 };
@@ -1372,7 +1468,9 @@ const sendAdminOrderWhatsApp = async ({ paymentLinkId, env }) => {
     throw new Error(`Payment status must be ${PAYMENT_STATUSES.PAID} before sending admin notification`);
   }
 
-  const productLink = await buildCanonicalProductUrlForOrder(orderRecord, env);
+  const productLink = isBagOrderRecord(orderRecord)
+    ? "Bag Order"
+    : await buildCanonicalProductUrlForOrder(orderRecord, env);
   const components = buildAdminOrderAlertTemplateComponents({
     ...orderRecord,
     ProductLink: productLink,
@@ -2149,7 +2247,8 @@ export default {
           paymentLinkId: paymentLink.paymentLinkId,
           paymentId: "",
           paymentCapturedAt: "",
-          createdSource: ORDER_CREATED_SOURCES.BAG
+          createdSource: ORDER_CREATED_SOURCES.BAG,
+          quantity: 1
         }));
 
         await appendBagPaymentLinkOrders(orders, env);
