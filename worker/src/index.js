@@ -1,10 +1,13 @@
 const PRODUCTS_URL = "https://opensheet.elk.sh/1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs/1";
+const PRODUCTS_CACHE_TTL_SECONDS = 300;
+const PRODUCTS_CACHE_URL = "https://floaa-worker-cache.internal/products";
 const SPREADSHEET_ID = "1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs";
 const ORDERS_SHEET_NAME = "Orders";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const RAZORPAY_PAYMENT_LINKS_URL = "https://api.razorpay.com/v1/payment_links";
 const GOOGLE_SHEETS_API_BASE_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values`;
+const GOOGLE_SHEETS_BATCH_UPDATE_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values:batchUpdate`;
 const DEFAULT_SITE_URL = "https://floaa.in";
 const WHATSAPP_ORDER_CONFIRMATION_TEMPLATE_NAME = "floaa_order_confirmation";
 const WHATSAPP_ORDER_CONFIRMATION_TEMPLATE_LANGUAGE = "en_US";
@@ -48,6 +51,7 @@ const ORDER_CREATED_SOURCES = {
 };
 const PHONE_PATTERN = /^[6-9]\d{9}$/;
 const PINCODE_PATTERN = /^\d{6}$/;
+const GOOGLE_SHEETS_429_RETRY_DELAYS_MS = [0, 1000, 2000];
 
 const getCorsHeaders = (request) => {
   const origin = request.headers.get("origin") || "";
@@ -70,6 +74,16 @@ const jsonResponse = (data, init = {}, request) =>
     ...init
   });
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const createWorkerExecutionContext = () => ({
+  googleAccessToken: "",
+  ordersHeaderRow: null,
+  ordersHeaderMap: null,
+  ordersSheetRows: null,
+  orderRowsByPaymentLinkId: new Map()
+});
+
 const buildProductsResponseHeaders = (request, extraHeaders = {}) => ({
   "content-type": "application/json; charset=utf-8",
   ...(request ? getCorsHeaders(request) : {}),
@@ -86,18 +100,11 @@ const buildProductsError = (type, details = {}) => {
   return error;
 };
 
-const fetchProducts = async () => {
-  console.log("product fetch started");
-  let response;
+const getProductsCacheRequest = () => new Request(PRODUCTS_CACHE_URL, {
+  method: "GET"
+});
 
-  try {
-    response = await fetch(PRODUCTS_URL);
-  } catch (error) {
-    throw buildProductsError("fetch-failed", {
-      message: error?.message || "Products request failed"
-    });
-  }
-
+const parseProductsResponse = async (response) => {
   const contentType = response.headers.get("content-type") || "";
   const responseText = await response.text();
   const bodyPreview = responseText.slice(0, 500);
@@ -137,6 +144,69 @@ const fetchProducts = async () => {
   console.log("product fetch success", {
     count: products.length
   });
+  return {
+    products,
+    responseText,
+    contentType
+  };
+};
+
+const cacheProductsResponse = async ({ responseText, contentType, count }) => {
+  const cache = caches.default;
+  const cacheRequest = getProductsCacheRequest();
+  const cacheResponse = new Response(responseText, {
+    headers: {
+      "cache-control": `public, max-age=${PRODUCTS_CACHE_TTL_SECONDS}`,
+      "content-type": contentType || "application/json; charset=utf-8"
+    }
+  });
+
+  await cache.put(cacheRequest, cacheResponse);
+  console.log("product cache refresh", {
+    count,
+    ttlSeconds: PRODUCTS_CACHE_TTL_SECONDS
+  });
+};
+
+const fetchProducts = async () => {
+  const cache = caches.default;
+  const cacheRequest = getProductsCacheRequest();
+  const cachedResponse = await cache.match(cacheRequest);
+
+  if (cachedResponse) {
+    console.log("product cache hit", {
+      ttlSeconds: PRODUCTS_CACHE_TTL_SECONDS
+    });
+    const { products } = await parseProductsResponse(cachedResponse);
+    return products;
+  }
+
+  console.log("product cache miss", {
+    ttlSeconds: PRODUCTS_CACHE_TTL_SECONDS
+  });
+
+  let response;
+
+  try {
+    response = await fetch(PRODUCTS_URL);
+  } catch (error) {
+    throw buildProductsError("fetch-failed", {
+      message: error?.message || "Products request failed"
+    });
+  }
+
+  const {
+    products,
+    responseText,
+    contentType
+  } = await parseProductsResponse(response);
+
+  await cacheProductsResponse({
+    responseText,
+    contentType,
+    count: products.length
+  });
+
   return products;
 };
 
@@ -384,7 +454,11 @@ const pemToArrayBuffer = (pem) => {
   return bytes.buffer;
 };
 
-const getGoogleAccessToken = async (env) => {
+const getGoogleAccessToken = async (env, runtimeContext = null) => {
+  if (runtimeContext?.googleAccessToken) {
+    return runtimeContext.googleAccessToken;
+  }
+
   if (!env.GOOGLE_CLIENT_EMAIL || !env.GOOGLE_PRIVATE_KEY) {
     throw new Error("Google credentials missing");
   }
@@ -445,6 +519,9 @@ const getGoogleAccessToken = async (env) => {
   }
 
   console.log("google auth success");
+  if (runtimeContext) {
+    runtimeContext.googleAccessToken = tokenData.access_token;
+  }
   return tokenData.access_token;
 };
 
@@ -455,8 +532,17 @@ const logOrdersHeaderDiagnostics = (headerRow, headerMap) => {
   console.log("orders header index OrderStatus", headerMap[normalizeKey("OrderStatus")] ?? -1);
 };
 
-const fetchOrdersHeaderRow = async (env) => {
-  const accessToken = await getGoogleAccessToken(env);
+const fetchOrdersHeaderRow = async (env, runtimeContext = null) => {
+  if (runtimeContext?.ordersHeaderRow && runtimeContext?.ordersHeaderMap) {
+    const accessToken = await getGoogleAccessToken(env, runtimeContext);
+    return {
+      accessToken,
+      headerRow: runtimeContext.ordersHeaderRow,
+      headerMap: runtimeContext.ordersHeaderMap
+    };
+  }
+
+  const accessToken = await getGoogleAccessToken(env, runtimeContext);
   const range = `${ORDERS_SHEET_NAME}!1:1`;
   const response = await fetch(`${GOOGLE_SHEETS_API_BASE_URL}/${encodeURIComponent(range)}`, {
     headers: {
@@ -478,6 +564,11 @@ const fetchOrdersHeaderRow = async (env) => {
   const headerMap = buildHeaderMap(headerRow);
   logOrdersHeaderDiagnostics(headerRow, headerMap);
 
+  if (runtimeContext) {
+    runtimeContext.ordersHeaderRow = headerRow;
+    runtimeContext.ordersHeaderMap = headerMap;
+  }
+
   return {
     accessToken,
     headerRow,
@@ -485,8 +576,18 @@ const fetchOrdersHeaderRow = async (env) => {
   };
 };
 
-const fetchOrdersSheetRows = async (env) => {
-  const { accessToken, headerRow, headerMap } = await fetchOrdersHeaderRow(env);
+const fetchOrdersSheetRows = async (env, runtimeContext = null) => {
+  if (runtimeContext?.ordersSheetRows && runtimeContext?.ordersHeaderRow && runtimeContext?.ordersHeaderMap) {
+    const accessToken = await getGoogleAccessToken(env, runtimeContext);
+    return {
+      accessToken,
+      headerRow: runtimeContext.ordersHeaderRow,
+      headerMap: runtimeContext.ordersHeaderMap,
+      rows: runtimeContext.ordersSheetRows
+    };
+  }
+
+  const { accessToken, headerRow, headerMap } = await fetchOrdersHeaderRow(env, runtimeContext);
   const range = `${ORDERS_SHEET_NAME}!A:${getColumnLetter(headerRow.length)}`;
   const response = await fetch(`${GOOGLE_SHEETS_API_BASE_URL}/${encodeURIComponent(range)}`, {
     headers: {
@@ -500,6 +601,10 @@ const fetchOrdersSheetRows = async (env) => {
 
   const data = await response.json();
   const rows = Array.isArray(data.values) ? data.values : [];
+
+  if (runtimeContext) {
+    runtimeContext.ordersSheetRows = rows;
+  }
 
   return {
     accessToken,
@@ -1245,9 +1350,16 @@ const buildGroupedOrderRecord = (orderRecords) => {
   };
 };
 
-const fetchOrderRowsByPaymentLinkId = async (paymentLinkId, env) => {
-  const { accessToken, headerRow, headerMap, rows } = await fetchOrdersSheetRows(env);
-  const targetPaymentLinkId = normalizeValue(paymentLinkId);
+const fetchOrderRowsByPaymentLinkId = async (paymentLinkId, env, runtimeContext = null) => {
+  const normalizedPaymentLinkId = normalizeValue(paymentLinkId);
+  const paymentLinkCacheKey = normalizedPaymentLinkId.toLowerCase();
+  const cachedOrderRows = runtimeContext?.orderRowsByPaymentLinkId?.get(paymentLinkCacheKey);
+  if (cachedOrderRows) {
+    return cachedOrderRows;
+  }
+
+  const { accessToken, headerRow, headerMap, rows } = await fetchOrdersSheetRows(env, runtimeContext);
+  const targetPaymentLinkId = normalizedPaymentLinkId;
 
   const paymentLinkIdIndex = headerMap[normalizeKey("PaymentLinkId")] ?? -1;
   if (paymentLinkIdIndex === -1) {
@@ -1276,7 +1388,7 @@ const fetchOrderRowsByPaymentLinkId = async (paymentLinkId, env) => {
     throw new Error("Payment link not found");
   }
 
-  return {
+  const result = {
     accessToken,
     headerRow,
     headerMap,
@@ -1284,16 +1396,24 @@ const fetchOrderRowsByPaymentLinkId = async (paymentLinkId, env) => {
     orderRecords: matches.map((match) => match.orderRecord),
     orderRecord: buildGroupedOrderRecord(matches.map((match) => match.orderRecord))
   };
+
+  if (runtimeContext?.orderRowsByPaymentLinkId) {
+    runtimeContext.orderRowsByPaymentLinkId.set(paymentLinkCacheKey, result);
+  }
+
+  return result;
 };
 
-const fetchMatchedOrderRowValues = async ({ paymentLinkId, env }) => fetchOrderRowsByPaymentLinkId(paymentLinkId, env);
+const fetchMatchedOrderRowValues = async ({ paymentLinkId, env, runtimeContext = null }) => fetchOrderRowsByPaymentLinkId(paymentLinkId, env, runtimeContext);
 
-const updateOrderRowFields = async ({ paymentLinkId, updates, env }) => {
-  const { accessToken, headerMap, matches } = await fetchOrderRowsByPaymentLinkId(paymentLinkId, env);
+const updateOrderRowFields = async ({ paymentLinkId, updates, env, runtimeContext = null }) => {
+  const { accessToken, headerMap, matches } = await fetchOrderRowsByPaymentLinkId(paymentLinkId, env, runtimeContext);
   const fieldsToUpdate = {
     ...updates,
     PaymentLinkId: paymentLinkId
   };
+
+  const valueUpdates = [];
 
   for (const match of matches) {
     for (const [columnName, value] of Object.entries(fieldsToUpdate)) {
@@ -1303,29 +1423,80 @@ const updateOrderRowFields = async ({ paymentLinkId, updates, env }) => {
       }
 
       const columnLetter = getColumnLetter(columnIndex + 1);
-      const updateRange = `${ORDERS_SHEET_NAME}!${columnLetter}${match.rowIndex}`;
-      const response = await fetch(
-        `${GOOGLE_SHEETS_API_BASE_URL}/${encodeURIComponent(updateRange)}?valueInputOption=RAW`,
-        {
-          method: "PUT",
-          headers: {
-            authorization: `Bearer ${accessToken}`,
-            "content-type": "application/json; charset=utf-8"
-          },
-          body: JSON.stringify({
-            values: [[value]]
-          })
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Payment status update failed with status ${response.status}`);
-      }
+      valueUpdates.push({
+        range: `${ORDERS_SHEET_NAME}!${columnLetter}${match.rowIndex}`,
+        majorDimension: "ROWS",
+        values: [[value]]
+      });
     }
+  }
+
+  for (let attemptIndex = 0; attemptIndex < GOOGLE_SHEETS_429_RETRY_DELAYS_MS.length; attemptIndex += 1) {
+    const retryDelayMs = GOOGLE_SHEETS_429_RETRY_DELAYS_MS[attemptIndex];
+    if (retryDelayMs > 0) {
+      await wait(retryDelayMs);
+    }
+
+    const response = await fetch(
+      GOOGLE_SHEETS_BATCH_UPDATE_URL,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          "content-type": "application/json; charset=utf-8"
+        },
+        body: JSON.stringify({
+          valueInputOption: "RAW",
+          data: valueUpdates
+        })
+      }
+    );
+
+    if (response.ok) {
+      if (runtimeContext?.orderRowsByPaymentLinkId) {
+        runtimeContext.orderRowsByPaymentLinkId.delete(normalizeValue(paymentLinkId).toLowerCase());
+      }
+
+      if (runtimeContext?.ordersSheetRows) {
+        for (const match of matches) {
+          for (const [columnName, value] of Object.entries(fieldsToUpdate)) {
+            const columnIndex = headerMap[normalizeKey(columnName)] ?? -1;
+            if (columnIndex === -1) {
+              continue;
+            }
+
+            if (!Array.isArray(match.rowValues)) {
+              match.rowValues = [];
+            }
+
+            while (match.rowValues.length <= columnIndex) {
+              match.rowValues.push("");
+            }
+
+            match.rowValues[columnIndex] = value;
+          }
+        }
+      }
+
+      return;
+    }
+
+    if (response.status === 429 && attemptIndex < GOOGLE_SHEETS_429_RETRY_DELAYS_MS.length - 1) {
+      const nextRetryDelayMs = GOOGLE_SHEETS_429_RETRY_DELAYS_MS[attemptIndex + 1];
+      console.warn("google sheets batch update rate limited; retrying", {
+        paymentLinkId,
+        attempt: attemptIndex + 1,
+        retryDelayMs: nextRetryDelayMs,
+        updates: valueUpdates.length
+      });
+      continue;
+    }
+
+    throw new Error(`Payment status update failed with status ${response.status}`);
   }
 };
 
-const updatePaymentStatus = async ({ paymentLinkId, paymentId, paidAt, env }) => {
+const updatePaymentStatus = async ({ paymentLinkId, paymentId, paidAt, env, runtimeContext = null }) => {
   const paidAtIso = toIsoTimestamp(paidAt);
   const updatedAt = new Date().toISOString();
 
@@ -1338,13 +1509,14 @@ const updatePaymentStatus = async ({ paymentLinkId, paymentId, paidAt, env }) =>
       PaymentCapturedAt: paidAtIso,
       UpdatedAt: updatedAt
     },
-    env
+    env,
+    runtimeContext
   });
 
   console.log("payment status updated", { paymentLinkId, paymentId });
 };
 
-const updateExpiredPaymentStatus = async ({ paymentLinkId, env }) => {
+const updateExpiredPaymentStatus = async ({ paymentLinkId, env, runtimeContext = null }) => {
   const updatedAt = new Date().toISOString();
 
   await updateOrderRowFields({
@@ -1353,14 +1525,15 @@ const updateExpiredPaymentStatus = async ({ paymentLinkId, env }) => {
       PaymentStatus: PAYMENT_STATUSES.EXPIRED,
       UpdatedAt: updatedAt
     },
-    env
+    env,
+    runtimeContext
   });
 
   console.log("payment expired updated", { paymentLinkId });
 };
 
-const sendOrderConfirmationWhatsApp = async ({ paymentLinkId, env }) => {
-  const { orderRecord } = await fetchMatchedOrderRowValues({ paymentLinkId, env });
+const sendOrderConfirmationWhatsApp = async ({ paymentLinkId, env, runtimeContext = null }) => {
+  const { orderRecord } = await fetchMatchedOrderRowValues({ paymentLinkId, env, runtimeContext });
   const existingSentAt = getOrderRecordValue(orderRecord, "CustomerWhatsAppSentAt");
   if (existingSentAt) {
     console.log("order confirmation whatsapp already sent", { paymentLinkId, sentAt: existingSentAt });
@@ -1394,7 +1567,8 @@ const sendOrderConfirmationWhatsApp = async ({ paymentLinkId, env }) => {
       LastUpdatedBy: ORDER_CONFIRMATION_UPDATED_BY,
       LastUpdatedAt: sentAt
     },
-    env
+    env,
+    runtimeContext
   });
 
   console.log("order confirmation whatsapp sent", {
@@ -1442,7 +1616,7 @@ const buildAdminOrderNotificationMessage = async (orderRecord, env) => {
   ].join("\n");
 };
 
-const sendAdminOrderWhatsApp = async ({ paymentLinkId, env }) => {
+const sendAdminOrderWhatsApp = async ({ paymentLinkId, env, runtimeContext = null }) => {
   const adminPhone = normalizeValue(env?.WHATSAPP_ADMIN_PHONE);
   if (!adminPhone) {
     console.log("admin whatsapp skipped: WHATSAPP_ADMIN_PHONE not configured", { paymentLinkId });
@@ -1452,7 +1626,7 @@ const sendAdminOrderWhatsApp = async ({ paymentLinkId, env }) => {
     };
   }
 
-  const { orderRecord } = await fetchMatchedOrderRowValues({ paymentLinkId, env });
+  const { orderRecord } = await fetchMatchedOrderRowValues({ paymentLinkId, env, runtimeContext });
   const existingSentAt = getOrderRecordValue(orderRecord, "AdminWhatsAppSentAt");
   if (existingSentAt) {
     console.log("admin whatsapp already sent", { paymentLinkId, sentAt: existingSentAt });
@@ -1494,7 +1668,8 @@ const sendAdminOrderWhatsApp = async ({ paymentLinkId, env }) => {
       LastUpdatedBy: ADMIN_ORDER_NOTIFICATION_UPDATED_BY,
       LastUpdatedAt: sentAt
     },
-    env
+    env,
+    runtimeContext
   });
 
   console.log("admin whatsapp sent", {
@@ -2302,6 +2477,7 @@ export default {
     if (request.method === "POST" && url.pathname === "/razorpay-webhook") {
       console.log("webhook received");
       const rawBody = await request.text();
+      const runtimeContext = createWorkerExecutionContext();
       let payload;
 
       try {
@@ -2354,17 +2530,20 @@ export default {
             paymentLinkId,
             paymentId,
             paidAt,
-            env
+            env,
+            runtimeContext
           });
           await sendOrderConfirmationWhatsApp({
             paymentLinkId,
-            env
+            env,
+            runtimeContext
           });
 
           try {
             await sendAdminOrderWhatsApp({
               paymentLinkId,
-              env
+              env,
+              runtimeContext
             });
           } catch (error) {
             console.error("admin whatsapp failure", error);
@@ -2404,7 +2583,8 @@ export default {
         try {
           await updateExpiredPaymentStatus({
             paymentLinkId,
-            env
+            env,
+            runtimeContext
           });
         } catch (error) {
           console.error("payment link expiry failure", error);

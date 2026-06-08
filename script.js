@@ -2051,6 +2051,9 @@
             return {
                 open(item, trigger) {
                     openCheckoutModal(item, trigger);
+                },
+                restoreSubmittingState() {
+                    setSubmittingState(false);
                 }
             };
         };
@@ -2125,7 +2128,7 @@
                             <div class="floaa-order-modal__sticky-actions">
                                 <p class="floaa-order-modal__required-note">Fields marked * are required</p>
                                 <p class="floaa-order-modal__error" aria-live="polite" hidden></p>
-                                <button class="btn floaa-order-modal__submit floaa-order-modal__submit--bag" type="submit">
+                                <button class="btn floaa-order-modal__submit floaa-order-modal__submit--buy-now" type="submit">
                                     <span class="floaa-order-modal__submit-label">Continue to Secure Payment</span>
                                     <span class="floaa-order-modal__spinner" aria-hidden="true" hidden></span>
                                 </button>
@@ -2298,10 +2301,20 @@
             return {
                 open(items, bagTotal, trigger) {
                     openCheckoutModal(items, bagTotal, trigger);
+                },
+                restoreSubmittingState() {
+                    setSubmittingState(false);
                 }
             };
         };
         const bagCheckoutModal = createBagCheckoutModal();
+        if (typeof window !== "undefined") {
+            window.addEventListener("pageshow", () => {
+                buyNowModal.restoreSubmittingState?.();
+                bagCheckoutModal.restoreSubmittingState?.();
+                updateBagBadge();
+            });
+        }
         const getYouTubeVideoId = (value) => {
             try {
                 const url = new URL(value);
