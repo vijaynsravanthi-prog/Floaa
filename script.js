@@ -966,6 +966,199 @@
             };
         };
         const productGalleryLightbox = createProductGalleryLightbox();
+
+        let searchProductsCache = null;
+        const createSearchOverlay = () => {
+            const overlay = document.createElement("div");
+            overlay.className = "search-overlay";
+            overlay.setAttribute("role", "dialog");
+            overlay.setAttribute("aria-modal", "true");
+            overlay.setAttribute("aria-label", "Search products");
+            overlay.setAttribute("aria-hidden", "true");
+            overlay.innerHTML = `
+                <div class="search-overlay__header">
+                    <div class="search-overlay__input-wrap">
+                        <svg class="search-overlay__search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke-width="2"/><line x1="15.5" y1="15.5" x2="21" y2="21" stroke-width="2" stroke-linecap="round"/></svg>
+                        <input type="search" class="search-overlay__input" placeholder="Search jewellery..." aria-label="Search products" autocomplete="off" autocorrect="off" spellcheck="false">
+                    </div>
+                    <button type="button" class="search-overlay__close" aria-label="Close search">Cancel</button>
+                </div>
+                <div class="search-overlay__body">
+                    <div class="search-overlay__popular">
+                        <p class="search-overlay__section-label">Popular Searches</p>
+                        <div class="search-overlay__chips">
+                            <button type="button" class="search-overlay__chip">Green Earrings</button>
+                            <button type="button" class="search-overlay__chip">Pearl Necklace</button>
+                            <button type="button" class="search-overlay__chip">Luxury Combos</button>
+                            <button type="button" class="search-overlay__chip">Bracelets</button>
+                        </div>
+                    </div>
+                    <div class="search-overlay__results" aria-live="polite" aria-label="Search results" hidden></div>
+                    <div class="search-overlay__empty" hidden>
+                        <p class="search-overlay__empty-text">No matching products found</p>
+                        <p class="search-overlay__section-label">Browse by category</p>
+                        <div class="search-overlay__browse-links">
+                            <a href="earrings.html" class="search-overlay__browse-link">Earrings</a>
+                            <a href="necklaces.html" class="search-overlay__browse-link">Necklaces</a>
+                            <a href="bracelets.html" class="search-overlay__browse-link">Bracelets</a>
+                            <a href="rings.html" class="search-overlay__browse-link">Combos</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.append(overlay);
+
+            const input = overlay.querySelector(".search-overlay__input");
+            const closeBtn = overlay.querySelector(".search-overlay__close");
+            const popularEl = overlay.querySelector(".search-overlay__popular");
+            const resultsEl = overlay.querySelector(".search-overlay__results");
+            const emptyEl = overlay.querySelector(".search-overlay__empty");
+
+            let currentTrigger = null;
+            let lazyFetchPromise = null;
+
+            const showDefault = () => {
+                popularEl.hidden = false;
+                resultsEl.hidden = true;
+                emptyEl.hidden = true;
+                resultsEl.innerHTML = "";
+            };
+
+            const renderResults = (items) => {
+                popularEl.hidden = true;
+                emptyEl.hidden = true;
+                resultsEl.hidden = false;
+                resultsEl.innerHTML = "";
+                items.forEach((item) => {
+                    const card = document.createElement("button");
+                    card.type = "button";
+                    card.className = "search-result-card";
+                    const thumb = item.image ? getProductThumbnailSrc(item.image) : "";
+                    const displayPrice = item.discountPrice || item.price;
+                    card.innerHTML = `
+                        <img class="search-result-card__img" src="${escapeHtml(thumb)}" alt="${escapeHtml(item.name)}" width="60" height="60" loading="lazy">
+                        <div class="search-result-card__info">
+                            <span class="search-result-card__name">${escapeHtml(item.name)}</span>
+                            <span class="search-result-card__price">${escapeHtml(displayPrice)}</span>
+                        </div>
+                        <span class="search-result-card__arrow" aria-hidden="true"></span>
+                    `;
+                    card.addEventListener("click", () => {
+                        const savedTrigger = currentTrigger;
+                        trackEvent("search_result_click", {
+                            product_name: item.name,
+                            product_category: item.category,
+                            query: input.value.trim()
+                        });
+                        closeOverlay(false);
+                        productGalleryLightbox.open(item, savedTrigger);
+                    });
+                    resultsEl.append(card);
+                });
+            };
+
+            const runSearch = (query) => {
+                const q = query.trim().toLowerCase();
+                if (!q) { showDefault(); return; }
+                if (!searchProductsCache) {
+                    if (!lazyFetchPromise) {
+                        lazyFetchPromise = fetchProducts().then((p) => {
+                            searchProductsCache = p;
+                            if (input.value.trim().toLowerCase() === q) runSearch(input.value);
+                        });
+                    }
+                    return;
+                }
+                const scored = searchProductsCache
+                    .map((item) => {
+                        const name = (item.name || "").toLowerCase();
+                        const category = (item.category || "").toLowerCase();
+                        const desc = (item.description || "").toLowerCase();
+                        const tag = (item.tag || "").toLowerCase();
+                        let score = 0;
+                        if (name.startsWith(q)) score = 100;
+                        else if (name.includes(q)) score = 80;
+                        else if (category.includes(q)) score = 60;
+                        else if (desc.includes(q)) score = 40;
+                        else if (tag.includes(q)) score = 20;
+                        return { item, score };
+                    })
+                    .filter(({ score }) => score > 0)
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, 8)
+                    .map(({ item }) => item);
+                if (scored.length > 0) renderResults(scored);
+                else {
+                    popularEl.hidden = true;
+                    resultsEl.hidden = true;
+                    emptyEl.hidden = false;
+                }
+            };
+
+            const openOverlay = (triggerEl) => {
+                currentTrigger = triggerEl || null;
+                overlay.setAttribute("aria-hidden", "false");
+                overlay.classList.add("is-open");
+                document.body.classList.add("has-search-overlay");
+                trackEvent("search_open", { page: window.location.pathname });
+                requestAnimationFrame(() => input.focus());
+            };
+
+            const closeOverlay = (restoreFocus = true) => {
+                overlay.setAttribute("aria-hidden", "true");
+                overlay.classList.remove("is-open");
+                document.body.classList.remove("has-search-overlay");
+                input.value = "";
+                showDefault();
+                if (restoreFocus && currentTrigger) currentTrigger.focus();
+                currentTrigger = null;
+            };
+
+            const getFocusable = () => Array.from(
+                overlay.querySelectorAll("button, input, a[href]")
+            ).filter((el) => !el.closest("[hidden]"));
+
+            overlay.addEventListener("keydown", (e) => {
+                if (e.key === "Escape") { e.preventDefault(); closeOverlay(); return; }
+                if (e.key === "Tab") {
+                    const focusable = getFocusable();
+                    if (!focusable.length) return;
+                    const first = focusable[0];
+                    const last = focusable[focusable.length - 1];
+                    if (e.shiftKey && document.activeElement === first) {
+                        e.preventDefault(); last.focus();
+                    } else if (!e.shiftKey && document.activeElement === last) {
+                        e.preventDefault(); first.focus();
+                    }
+                }
+            });
+
+            let touchStartY = 0;
+            overlay.addEventListener("touchstart", (e) => { touchStartY = e.touches[0].clientY; }, { passive: true });
+            overlay.addEventListener("touchend", (e) => {
+                if (e.changedTouches[0].clientY - touchStartY > 80) closeOverlay();
+            }, { passive: true });
+
+            input.addEventListener("input", () => runSearch(input.value));
+
+            overlay.querySelectorAll(".search-overlay__chip").forEach((chip) => {
+                chip.addEventListener("click", () => {
+                    input.value = chip.textContent;
+                    input.dispatchEvent(new Event("input"));
+                    input.focus();
+                });
+            });
+
+            closeBtn.addEventListener("click", () => closeOverlay());
+
+            overlay.querySelector(".search-overlay__body").addEventListener("click", (e) => {
+                if (e.target === e.currentTarget) closeOverlay();
+            });
+
+            return { open: openOverlay, close: closeOverlay };
+        };
+        const searchOverlay = createSearchOverlay();
+
         const createWhatsAppIntentPopup = () => {
             const popup = document.createElement("div");
             popup.className = "whatsapp-intent-popup";
@@ -3389,6 +3582,7 @@
         const categoryGrid = document.getElementById("category-product-grid");
         const needsProducts = Boolean(homeGrid || shopGrid || categoryGrid);
         const products = needsProducts ? await fetchProducts() : [];
+        if (needsProducts && Array.isArray(products)) searchProductsCache = products;
 
         if (homeGrid) {
             renderProducts(homeGrid, Array.isArray(products) ? products.slice(0, 8) : products, "shop.html");
@@ -3523,6 +3717,14 @@
             whatsappIcon.append(bubblePath, phonePath);
             whatsappButton.append(whatsappIcon);
             document.body.append(whatsappButton);
+        }
+
+        const mobileSearchBtn = document.querySelector(".mobile-search");
+        if (mobileSearchBtn) {
+            mobileSearchBtn.addEventListener("click", (e) => {
+                e.preventDefault();
+                searchOverlay.open(mobileSearchBtn);
+            });
         }
 
     };

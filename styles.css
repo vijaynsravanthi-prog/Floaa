@@ -3849,3 +3849,259 @@ body[data-page="home"] #home-product-grid .product-stock {
     top: 150px !important;
   }
 }
+
+/* ============================================================
+   Search Overlay
+   ============================================================ */
+
+.has-search-overlay {
+    overflow: hidden;
+}
+
+.search-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10005;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    pointer-events: none;
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0.25s;
+}
+
+.search-overlay.is-open {
+    pointer-events: auto;
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0s;
+}
+
+.search-overlay__header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.search-overlay__input-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.55rem 0.85rem;
+}
+
+.search-overlay__search-icon {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    stroke: var(--muted);
+    fill: none;
+}
+
+.search-overlay__input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: "Manrope", sans-serif;
+    font-size: 1rem;
+    color: var(--text);
+    line-height: 1.4;
+    min-width: 0;
+}
+
+.search-overlay__input::placeholder {
+    color: var(--muted);
+}
+
+.search-overlay__input::-webkit-search-cancel-button {
+    display: none;
+}
+
+.search-overlay__close {
+    flex: 0 0 auto;
+    background: none;
+    border: none;
+    padding: 0.4rem 0.2rem;
+    font-family: "Manrope", sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--gold-deep);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.search-overlay__close:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.search-overlay__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem 1rem;
+    -webkit-overflow-scrolling: touch;
+}
+
+.search-overlay__section-label {
+    font-family: "Manrope", sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.85rem;
+}
+
+.search-overlay__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.search-overlay__chip {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.45rem 1rem;
+    font-family: "Manrope", sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.search-overlay__chip:hover,
+.search-overlay__chip:focus-visible {
+    background: var(--bg-soft);
+    border-color: var(--gold);
+    outline: none;
+}
+
+.search-overlay__results {
+    display: flex;
+    flex-direction: column;
+}
+
+.search-result-card {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.85rem 0;
+    border: none;
+    border-bottom: 1px solid var(--line);
+    width: 100%;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.search-result-card:first-child {
+    border-top: 1px solid var(--line);
+}
+
+.search-result-card:hover,
+.search-result-card:focus-visible {
+    background: var(--surface);
+    outline: none;
+}
+
+.search-result-card__img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex: 0 0 60px;
+    background: var(--surface);
+}
+
+.search-result-card__info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.search-result-card__name {
+    font-family: "Manrope", sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+.search-result-card__price {
+    font-family: "Manrope", sans-serif;
+    font-size: 0.82rem;
+    color: var(--muted);
+    display: block;
+}
+
+.search-result-card__arrow {
+    width: 8px;
+    height: 8px;
+    border-right: 1.5px solid var(--muted);
+    border-top: 1.5px solid var(--muted);
+    transform: rotate(45deg);
+    flex: 0 0 8px;
+    opacity: 0.4;
+}
+
+.search-overlay__empty {
+    padding-top: 1.5rem;
+    text-align: center;
+}
+
+.search-overlay__empty-text {
+    font-family: "Manrope", sans-serif;
+    font-size: 0.95rem;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+}
+
+.search-overlay__browse-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.search-overlay__browse-link {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.45rem 1rem;
+    font-family: "Manrope", sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text);
+    text-decoration: none;
+    transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.search-overlay__browse-link:hover,
+.search-overlay__browse-link:focus-visible {
+    background: var(--bg-soft);
+    border-color: var(--gold);
+    outline: none;
+}
