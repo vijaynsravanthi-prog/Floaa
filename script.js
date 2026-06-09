@@ -3337,6 +3337,27 @@
             });
             document.head.append(schemaScript);
         };
+        const setupCardReveal = (container) => {
+            if (!container || typeof IntersectionObserver === "undefined") return;
+            if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+            const cards = Array.from(container.querySelectorAll(".product-card"));
+            if (!cards.length) return;
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (!entry.isIntersecting) return;
+                    const card = entry.target;
+                    const delay = (card._revealIndex || 0) * 30;
+                    setTimeout(() => card.classList.remove("is-card-hidden"), delay);
+                    observer.unobserve(card);
+                });
+            }, { threshold: 0.06, rootMargin: "0px 0px -32px 0px" });
+            cards.forEach((card, i) => {
+                card._revealIndex = i;
+                card.classList.add("is-card-hidden");
+                observer.observe(card);
+            });
+        };
+
         const renderProducts = (container, items, href) => {
             if (!container) return;
             if (!Array.isArray(items)) {
@@ -3536,6 +3557,7 @@
             container.innerHTML = "";
             clearGridSkeletons(container);
             container.append(fragment);
+            setupCardReveal(container);
             signalGridRefresh(container);
             scrollToProductAnchor(container);
             injectProductSchema(container, items);
@@ -3717,6 +3739,15 @@
             whatsappIcon.append(bubblePath, phonePath);
             whatsappButton.append(whatsappIcon);
             document.body.append(whatsappButton);
+        }
+
+        const siteHeader = document.querySelector(".site-header");
+        if (siteHeader) {
+            const onHeaderScroll = () => {
+                siteHeader.classList.toggle("is-scrolled", window.scrollY > 30);
+            };
+            window.addEventListener("scroll", onHeaderScroll, { passive: true });
+            onHeaderScroll();
         }
 
         const mobileSearchBtn = document.querySelector(".mobile-search");
