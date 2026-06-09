@@ -25,17 +25,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
 })(window,document,'script','dataLayer','GTM-TSV5NZ97');</script>
 <!-- End Google Tag Manager -->
-
-<!-- Google tag (gtag.js) -->
-
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-K6EF8T14DH"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'G-K6EF8T14DH');
-    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="strict-origin-when-cross-origin">
@@ -94,7 +83,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             "@id": "https://floaa.in/#organization",
             "name": "FLOAA",
             "alternateName": "Floaa Jewellery",
-            "description": "FLOAA is a European-inspired luxury jewellery brand offering romantic colour-stone earrings, refined bracelets, necklaces, rings, and gift-ready pieces for women in India.",
+            "description": "FLOAA is a European-inspired luxury jewellery brand offering romantic colour-stone earrings, refined bracelets, necklaces, jewellery combos, and gift-ready pieces for women in India.",
             "url": "https://floaa.in/",
             "logo": "https://floaa.in/assets/branding/floaa-logo.jpeg",
             "sameAs": [
@@ -879,7 +868,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <a href="about.html">About Us</a>
                 <a href="contact.html">Contact Us</a>
                 <a href="mailto:floaa.jewels@gmail.com?subject=FLOAA%20Inquiry">floaa.jewels@gmail.com</a>
-                <a href="https://wa.me/919960144483?text=Hi%20FLOAA%2C%20I%20am%20interested%20in%20your%20collection" target="_blank" rel="noopener" onclick="fbq('trackCustom', 'WhatsAppClick'); gtag('event', 'whatsapp_chat_click', {'location': 'footer'});">WhatsApp</a>
+                <a href="https://wa.me/919960144483?text=Hi%20FLOAA%2C%20I%20am%20interested%20in%20your%20collection" target="_blank" rel="noopener" onclick="fbq('trackCustom', 'WhatsAppClick'); window.trackEvent('whatsapp_chat_click', {'location': 'footer'});">WhatsApp</a>
             </div>
             <div>
                 <h3>Policies</h3>
@@ -953,7 +942,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           depths.forEach(function(d) {
             if (pct >= d && !fired[d]) {
               fired[d] = true;
-              gtag('event', 'scroll_depth', { depth_percent: d, page: 'home' });
+              window.trackEvent('scroll_depth', { depth_percent: d, page: 'home' });
             }
           });
         }, { passive: true });
@@ -963,7 +952,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       (function() {
         var t0 = Date.now();
         window.addEventListener('beforeunload', function() {
-          gtag('event', 'time_on_page', {
+          window.trackEvent('time_on_page', {
             seconds: Math.round((Date.now() - t0) / 1000),
             page: window.location.pathname
           });

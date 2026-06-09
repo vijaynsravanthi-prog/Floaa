@@ -413,12 +413,14 @@
             window.fbq("trackCustom", eventName);
         };
         const trackEvent = (eventName, params = {}) => {
-            if (typeof window.gtag !== "function") return;
-            window.gtag("event", eventName, {
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({
+                event: eventName,
                 page_path: window.location.pathname,
                 ...params
             });
         };
+        window.trackEvent = trackEvent;
         const getProductWhatsAppPayload = (item) => {
             const finalPrice = item.discountPrice || item.price;
             let imageUrl = "";

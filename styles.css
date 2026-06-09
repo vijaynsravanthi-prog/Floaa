@@ -3288,30 +3288,9 @@ body[data-page="home"] #home-product-grid .product-stock {
 }
 
 @media (max-width: 480px) {
-    .site-header {
-        grid-template-columns: 34px minmax(0, 1fr) 34px;
-    }
-
-    .instagram-link.mobile-icon-link {
+    .mobile-header-actions .mobile-icon-link[aria-label="Account and appointments"],
+    .mobile-header-actions .mobile-icon-link[aria-label="Contact FLOAA"] {
         display: none;
-    }
-
-    .mobile-search {
-        display: none;
-    }
-
-    .mobile-header-actions .mobile-icon-link:not([aria-label="Shopping bag"]) {
-        display: none;
-    }
-
-    .mobile-header-actions {
-        grid-column: 3;
-        width: 34px;
-    }
-
-    .brand-logo-link {
-        grid-column: 2;
-        justify-self: center;
     }
 
     .utility-bar {
