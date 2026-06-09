@@ -1446,17 +1446,21 @@ img.img--failed {
 }
 
 .product-card .btn {
+    align-items: center;
     background: var(--pill-bg);
     border: 1px solid var(--pill-border);
     border-radius: 999px;
     box-shadow: var(--pill-shadow);
     color: var(--pill-text);
+    display: inline-flex;
     font-size: 0.76rem;
     font-weight: 600;
     letter-spacing: 0.12em;
+    justify-content: center;
     margin-top: auto;
     min-height: 40px;
     padding: 0.78rem 1rem;
+    text-align: center;
     text-transform: uppercase;
     width: 100%;
 }
@@ -1469,9 +1473,9 @@ img.img--failed {
 }
 
 .product-cta-group {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 0.5rem;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-top: auto;
 }
 
@@ -1479,9 +1483,22 @@ img.img--failed {
     margin-top: 0;
 }
 
-.product-cta-group > .btn:only-child,
-.product-card .btn-product-assistance {
-    grid-column: 1 / -1;
+.product-card-actions {
+    align-items: stretch;
+    display: flex;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.product-card-actions .btn {
+    flex: 1 1 0;
+    margin-top: 0;
+    min-width: 0;
+    width: auto;
+}
+
+.product-cta-group > .btn:only-child {
+    margin-top: 0;
 }
 
 .product-card .btn-buy-now {
@@ -3145,6 +3162,10 @@ body[data-page="home"] #home-product-grid .product-stock {
         letter-spacing: 0.12em;
         min-height: 38px;
         padding: 10px 0;
+    }
+
+    .product-card-actions {
+        gap: 0.5rem;
     }
 
     .floaa-bag-toast {

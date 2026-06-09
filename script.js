@@ -3277,14 +3277,17 @@
                         productBtn.textContent = "Sold Out";
                         productCtaGroup.append(productBtn);
                     } else {
+                        const productCardActions = document.createElement("div");
+                        productCardActions.className = "product-card-actions";
+
                         const buyNowBtn = document.createElement("button");
-                        buyNowBtn.className = "btn btn-buy-now";
+                        buyNowBtn.className = "btn btn-buy-now buy-now-btn";
                         buyNowBtn.type = "button";
                         buyNowBtn.textContent = "Buy Now";
                         buyNowBtn.addEventListener("click", () => buyNowModal.open(item, buyNowBtn));
 
                         const addToBagBtn = document.createElement("button");
-                        addToBagBtn.className = "btn btn-add-to-bag";
+                        addToBagBtn.className = "btn btn-add-to-bag add-to-bag-btn";
                         addToBagBtn.type = "button";
                         addToBagBtn.textContent = "Add to Bag";
                         addToBagBtn.addEventListener("click", () => {
@@ -3307,7 +3310,8 @@
                         assistanceBtn.textContent = "Need styling advice?";
                         assistanceBtn.addEventListener("click", () => handleProductAssistance(item));
 
-                        productCtaGroup.append(buyNowBtn, addToBagBtn, assistanceBtn);
+                        productCardActions.append(buyNowBtn, addToBagBtn);
+                        productCtaGroup.append(productCardActions, assistanceBtn);
                     }
 
                     productCard.addEventListener("click", (event) => {
