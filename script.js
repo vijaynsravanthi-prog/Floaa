@@ -2692,6 +2692,59 @@
                 }, 220);
             }, 2200);
         };
+        let linkToastEl = null;
+        let linkToastTimeoutId = 0;
+        const showLinkCopiedToast = () => {
+            if (typeof document === "undefined") return;
+            if (!linkToastEl) {
+                linkToastEl = document.createElement("div");
+                linkToastEl.className = "floaa-link-toast";
+                linkToastEl.setAttribute("role", "status");
+                linkToastEl.setAttribute("aria-live", "polite");
+                linkToastEl.hidden = true;
+                linkToastEl.textContent = "Link copied";
+                document.body.append(linkToastEl);
+            }
+            if (linkToastTimeoutId) {
+                window.clearTimeout(linkToastTimeoutId);
+                linkToastTimeoutId = 0;
+            }
+            linkToastEl.hidden = false;
+            linkToastEl.classList.remove("is-visible");
+            void linkToastEl.offsetWidth;
+            linkToastEl.classList.add("is-visible");
+            linkToastTimeoutId = window.setTimeout(() => {
+                linkToastEl?.classList.remove("is-visible");
+                linkToastTimeoutId = window.setTimeout(() => {
+                    if (linkToastEl) linkToastEl.hidden = true;
+                    linkToastTimeoutId = 0;
+                }, 220);
+            }, 2200);
+        };
+        const handleProductShare = async (item, card) => {
+            const anchor = card.id ? `#${card.id}` : "";
+            const url = `${window.location.origin}${window.location.pathname}${anchor}`;
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title: item.name || "FLOAA", url });
+                    return;
+                } catch (err) {
+                    if (err?.name === "AbortError") return;
+                }
+            }
+            try {
+                await navigator.clipboard.writeText(url);
+            } catch {
+                const tempEl = document.createElement("input");
+                tempEl.value = url;
+                tempEl.style.cssText = "position:fixed;opacity:0;pointer-events:none;";
+                document.body.append(tempEl);
+                tempEl.select();
+                document.execCommand("copy");
+                tempEl.remove();
+            }
+            showLinkCopiedToast();
+        };
         const updateBagBadge = () => {
             if (typeof document === "undefined") return;
 
@@ -3444,6 +3497,29 @@
                         productMedia.style.position = "relative";
                         productMedia.append(newBadge);
                     }
+
+                    const productMediaIcons = document.createElement("div");
+                    productMediaIcons.className = "product-media-icons";
+
+                    const wishlistBtn = document.createElement("button");
+                    wishlistBtn.className = "product-media-btn product-wishlist-btn";
+                    wishlistBtn.type = "button";
+                    wishlistBtn.setAttribute("aria-label", `Save ${item.name} to wishlist`);
+                    wishlistBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="18" height="18"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+                    wishlistBtn.addEventListener("click", (e) => { e.stopPropagation(); });
+
+                    const shareBtn = document.createElement("button");
+                    shareBtn.className = "product-media-btn product-share-btn";
+                    shareBtn.type = "button";
+                    shareBtn.setAttribute("aria-label", `Share ${item.name}`);
+                    shareBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="18" height="18"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
+                    shareBtn.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        handleProductShare(item, productCard);
+                    });
+
+                    productMediaIcons.append(wishlistBtn, shareBtn);
+                    productMedia.append(productMediaIcons);
 
                     const productInfo = document.createElement("div");
                     productInfo.className = "product-info";
