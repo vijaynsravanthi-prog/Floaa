@@ -1195,7 +1195,7 @@ img.img--failed {
     display: block;
 }
 
-/* Desktop: reveal overlay on card hover; mobile: always visible */
+/* Desktop: reveal overlay on card hover; hide action row */
 @media (hover: hover) {
     .product-media-icons {
         opacity: 0;
@@ -1206,6 +1206,58 @@ img.img--failed {
     .product-card:focus-within .product-media-icons {
         opacity: 1;
     }
+
+    .product-action-row {
+        display: none;
+    }
+}
+
+/* Touch devices: hide overlay, show inline action row */
+@media (hover: none) {
+    .product-media-icons {
+        display: none;
+    }
+}
+
+/* Inline action row — visible on touch, hidden on desktop via hover: hover above */
+.product-action-row {
+    align-items: center;
+    border-top: 1px solid var(--line);
+    display: flex;
+    margin: 0 0.55rem;
+}
+
+.product-action-row .product-media-btn {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+    gap: 0.4rem;
+    justify-content: center;
+    letter-spacing: 0.09em;
+    min-height: 44px;
+    opacity: 0.65;
+    padding: 0;
+    text-transform: uppercase;
+}
+
+.product-action-row .product-media-btn:active {
+    color: var(--gold-deep);
+    opacity: 1;
+}
+
+.product-action-row .product-wishlist-btn {
+    border-right: 1px solid var(--line);
+}
+
+.product-action-row .product-wishlist-btn::after {
+    content: "Wishlist";
+}
+
+.product-action-row .product-share-btn::after {
+    content: "Share";
 }
 
 .has-product-gallery-open {

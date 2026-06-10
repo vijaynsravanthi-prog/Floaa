@@ -3521,6 +3521,29 @@
                     productMediaIcons.append(wishlistBtn, shareBtn);
                     productMedia.append(productMediaIcons);
 
+                    // Mobile action row — CSS hides this on hover-capable devices
+                    const productActionRow = document.createElement("div");
+                    productActionRow.className = "product-action-row";
+
+                    const actionWishlistBtn = document.createElement("button");
+                    actionWishlistBtn.className = "product-media-btn product-wishlist-btn";
+                    actionWishlistBtn.type = "button";
+                    actionWishlistBtn.setAttribute("aria-label", `Save ${item.name} to wishlist`);
+                    actionWishlistBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="18" height="18"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+                    actionWishlistBtn.addEventListener("click", (e) => { e.stopPropagation(); });
+
+                    const actionShareBtn = document.createElement("button");
+                    actionShareBtn.className = "product-media-btn product-share-btn";
+                    actionShareBtn.type = "button";
+                    actionShareBtn.setAttribute("aria-label", `Share ${item.name}`);
+                    actionShareBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="18" height="18"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
+                    actionShareBtn.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        handleProductShare(item, productCard);
+                    });
+
+                    productActionRow.append(actionWishlistBtn, actionShareBtn);
+
                     const productInfo = document.createElement("div");
                     productInfo.className = "product-info";
 
@@ -3616,7 +3639,7 @@
                     });
 
                     productInfo.append(productTag, productName, productPrice, productDescription, productStock, productCtaGroup);
-                    productCard.append(productMedia, productInfo);
+                    productCard.append(productMedia, productActionRow, productInfo);
                     fragment.append(productCard);
                 });
             } catch (error) {
