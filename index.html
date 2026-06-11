@@ -46,27 +46,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     <meta name="twitter:title" content="FLOAA &ndash; Luxury Jewellery Inspired by European Elegance">
     <meta name="twitter:description" content="Discover FLOAA luxury jewellery inspired by European elegance. Romantic earrings, refined bracelets, necklaces and gift-ready pieces for women in India.">
     <meta name="twitter:image" content="https://floaa.in/assets/floaa-jew-pics/pistachio-model.webp">
-    <style>
-      .hero-slide-copy .hero-title {
-        color: var(--text);
-        font-family: "Cormorant Garamond", serif;
-        font-size: clamp(2.25rem, 3.5vw, 3.45rem);
-        font-weight: 600;
-        letter-spacing: 0.01em;
-        line-height: 1.08;
-        margin-top: 0.1rem;
-      }
-
-      @media (max-width: 768px) {
-        .hero-slide-copy .hero-title {
-          font-size: clamp(1.72rem, 4.5vw, 1.94rem);
-          line-height: 1.03;
-          margin-top: 0;
-          max-width: 13.5ch;
-          text-wrap: balance;
-        }
-      }
-    </style>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -191,168 +170,46 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div>
 
     <main>
+        <section class="floaa-mobile-editorial-hero" aria-label="FLOAA editorial introduction">
+            <div class="floaa-mobile-editorial-hero__visual" aria-hidden="true">
+                <img
+                    class="floaa-mobile-editorial-hero__image"
+                    src="assets/branding/PistachioModel.jpeg"
+                    alt="Model wearing FLOAA pistachio green jewellery including earrings and pendant necklace"
+                    width="1086"
+                    height="1448"
+                    fetchpriority="high"
+                    loading="eager"
+                    decoding="async"
+                >
+            </div>
+            <div class="floaa-mobile-editorial-hero__content">
+                <p class="floaa-mobile-editorial-hero__brand"></p>
+                <p class="floaa-mobile-editorial-hero__kicker">MODERN HEIRLOOMS</p>
+                <h2 class="floaa-mobile-editorial-hero__headline">
+                    <span>Made to Woo.</span>
+                    <em>Effortlessly You.</em>
+                </h2>
+                <p class="floaa-mobile-editorial-hero__body">Jewellery inspired by European elegance</p>
+                <a class="floaa-mobile-editorial-hero__cta" href="shop.html" aria-label="Explore the FLOAA collection">
+                    <span>EXPLORE COLLECTION</span>
+                    <svg viewBox="0 0 48 10" fill="none" aria-hidden="true" focusable="false">
+                        <line x1="0" y1="5" x2="41" y2="5" stroke="currentColor" stroke-width="1"></line>
+                        <polyline points="37,1 43,5 37,9" stroke="currentColor" stroke-width="1" fill="none" stroke-linejoin="round"></polyline>
+                    </svg>
+                </a>
+            </div>
+        </section>
         <section class="hero-cinema hero-slider" aria-label="FLOAA featured collections">
             <div class="hero-slider-track">
                 <article class="hero-slide hero-slide--signature is-active is-image-ready">
                     <img alt="Minimal green crystal drop earrings" src="assets/floaa-jew-pics/pistachio-model.webp" width="1448" height="1086" fetchpriority="high" loading="eager" decoding="async">
-                    <script>
-                      (function () {
-                        var heroImage = document.currentScript.previousElementSibling;
-                        var heroSlide = heroImage && heroImage.closest(".hero-slide");
-                        if (!heroImage || !window.__floaaBrandRowsPromise) return;
-
-                        var normalizeValue = function (value) {
-                          return String(value || "").trim();
-                        };
-
-                        var cleanSheetValue = function (value) {
-                          return normalizeValue(value)
-                            .replace(/^"+|"+$/g, "")
-                            .replace(/^'+|'+$/g, "")
-                            .replace(/",$/, "")
-                            .trim();
-                        };
-
-                        var normalizeSlug = function (value) {
-                          return normalizeValue(value).toLowerCase();
-                        };
-
-                        var normalizeKey = function (value) {
-                          return normalizeSlug(value).replace(/[\s_-]+/g, "-");
-                        };
-
-                        var getRowValue = function (row, names) {
-                          var normalizedNames = names.map(normalizeSlug);
-                          var matchingKey = Object.keys(row).find(function (key) {
-                            return normalizedNames.includes(normalizeSlug(key));
-                          });
-                          return matchingKey ? row[matchingKey] : "";
-                        };
-
-                        var normalizeImagePath = function (value) {
-                          var image = cleanSheetValue(value);
-                          if (!image) return "";
-                          if (/^https?:\/\//i.test(image) || image.indexOf("assets/") === 0) return image;
-                          return "assets/floaa-jew-pics/" + image;
-                        };
-
-                        var getContentEntry = function (rows, keys) {
-                          for (var index = 0; index < rows.length; index += 1) {
-                            var row = rows[index];
-                            var key = normalizeKey(getRowValue(row, ["Key", "Name", "Asset", "Type"]));
-                            if (keys.indexOf(key) !== -1) {
-                              return {
-                                exists: true,
-                                value: cleanSheetValue(getRowValue(row, ["Value", "URL", "Url", "Path", "Image", "Video"]))
-                              };
-                            }
-                          }
-
-                          return {
-                            exists: false,
-                            value: ""
-                          };
-                        };
-
-                        window.__floaaBrandRowsPromise.then(function (rows) {
-                          var heroCopy = heroSlide && heroSlide.querySelector(".hero-slide-copy");
-                          var heroKicker = heroCopy && heroCopy.querySelector(".hero-kicker");
-                          var heroHeading = heroCopy && heroCopy.querySelector(".hero-title");
-                          var heroSubtitle = heroCopy && heroCopy.querySelector(".hero-subtitle");
-                          var heroButton = heroCopy && heroCopy.querySelector(".btn");
-                          var showCopy = function () {
-                            if (heroCopy) {
-                              heroCopy.style.visibility = "visible";
-                            }
-                          };
-
-                          if (!Array.isArray(rows)) {
-                            showCopy();
-                            return;
-                          }
-
-                          var kickerEntry = getContentEntry(rows, ["hero-slide-1-kicker"]);
-                          var headingEntry = getContentEntry(rows, ["hero-slide-1-heading"]);
-                          var subtitleEntry = getContentEntry(rows, ["hero-slide-1-subtitle", "hero-slide-1-subtext"]);
-                          var buttonTextEntry = getContentEntry(rows, ["hero-slide-1-button-text"]);
-                          var buttonLinkEntry = getContentEntry(rows, ["hero-slide-1-button-link"]);
-                          var altEntry = getContentEntry(rows, ["hero-slide-1-alt"]);
-
-                          if (heroKicker && kickerEntry.exists) {
-                            heroKicker.textContent = kickerEntry.value;
-                            heroKicker.style.display = kickerEntry.value ? "" : "none";
-                          }
-
-                          if (heroHeading && headingEntry.exists) {
-                            heroHeading.textContent = headingEntry.value;
-                          }
-
-                          if (heroSubtitle && subtitleEntry.exists) {
-                            heroSubtitle.textContent = subtitleEntry.value;
-                            heroSubtitle.style.display = subtitleEntry.value ? "" : "none";
-                          }
-
-                          if (heroButton && buttonTextEntry.exists) {
-                            heroButton.textContent = buttonTextEntry.value;
-                            heroButton.style.display = buttonTextEntry.value ? "" : "none";
-                          }
-
-                          if (heroButton && buttonLinkEntry.exists) {
-                            heroButton.href = buttonLinkEntry.value || "#";
-                          }
-
-                          if (altEntry.exists) {
-                            heroImage.alt = altEntry.value;
-                          }
-
-                          var slideRow = rows.find(function (row) {
-                            var key = normalizeKey(getRowValue(row, ["Key", "Name", "Asset", "Type"]));
-                            return key === "hero-slide-1-image" || key === "hero-slide-1";
-                          });
-
-                          if (!slideRow) {
-                            showCopy();
-                            return;
-                          }
-
-                          var nextImageSrc = normalizeImagePath(getRowValue(slideRow, ["Value", "URL", "Url", "Path", "Image", "Video"]));
-                          if (!nextImageSrc) {
-                            showCopy();
-                            return;
-                          }
-
-                          var optimizedHeroImageMap = {
-                            "assets/floaa-jew-pics/pistachio-model.png": "assets/floaa-jew-pics/pistachio-model.webp"
-                          };
-                          var preferredImageSrc = optimizedHeroImageMap[nextImageSrc] || nextImageSrc;
-                          var safeImageSrc = /^https?:\/\//i.test(preferredImageSrc) ? preferredImageSrc : encodeURI(preferredImageSrc);
-                          heroImage.addEventListener("load", function () {
-                            if (heroSlide) {
-                              heroSlide.classList.add("is-image-ready");
-                            }
-                            showCopy();
-                          }, { once: true });
-                          heroImage.addEventListener("error", function () {
-                            if (heroSlide) {
-                              heroSlide.classList.remove("is-image-ready");
-                            }
-                            showCopy();
-                          }, { once: true });
-                          heroImage.src = safeImageSrc;
-
-                          if (heroImage.complete) {
-                            heroSlide && heroSlide.classList.add("is-image-ready");
-                            showCopy();
-                          }
-                        });
-                      })();
-                    </script>
                 <div class="hero-slide-overlay">
                         <div class="hero-slide-copy">
                             <p class="hero-kicker">Refined Jewellery</p>
                             <h1 class="hero-title">European-Inspired Luxury Jewellery by FLOAA</h1>
                             <p class="hero-subtitle">Romantic colour stones, polished details and gift-ready pieces designed for women who dress with intention.</p>
-                            <p class="hero-social-proof" style="font-size: 0.85rem; letter-spacing: 0.08em; color: inherit; opacity: 0.85; margin-top: 0.5rem; margin-bottom: 0;">&#9733;&#9733;&#9733;&#9733;&#9733; Loved by 1000+ customers</p>
+                            <p class="hero-social-proof">&#9733;&#9733;&#9733;&#9733;&#9733; Loved by 1000+ customers</p>
                             <a href="#home-products" class="btn btn-primary">Shop Bestsellers</a>
                         </div>
                     </div>
@@ -364,16 +221,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             <p class="hero-kicker">COLOUR STONES</p>
                             <h2 class="hero-title">Colour that moves with you.</h2>
                             <a href="earrings.html" class="btn btn-primary">Shop Earrings</a>
-                        </div>
-                    </div>
-                </article>
-                <article class="hero-slide hero-slide--shipping" data-hero-disabled="true" aria-hidden="true" hidden>
-                  <img src="assets/floaa-jew-pics/floaa-09.jpeg" alt="Delicate gold charm bracelet with floral details" width="1774" height="887" loading="lazy" decoding="async">
-                    <div class="hero-slide-overlay">
-                        <div class="hero-slide-copy">
-                            <p class="hero-kicker">FREE SHIPPING</p>
-                            <h2 class="hero-title">Free Shipping on All Orders</h2>
-                            <a href="shop.html" class="btn btn-primary">Shop Now</a>
                         </div>
                     </div>
                 </article>
@@ -404,28 +251,28 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             </div>
             <div class="category-tile-grid">
                 <a class="category-tile" href="earrings.html">
-                    <div class="category-tile-media is-ready" style="background-image: url('assets/floaa-jew-pics/Spring Petal Earrings-thumb.jpg');"></div>
+                    <div class="category-tile-media category-tile-media--earrings is-ready"></div>
                     <div class="category-tile-copy">
                         <h3>Earrings</h3>
                         <p>Romantic colour-stone drops</p>
                     </div>
                 </a>
                 <a class="category-tile" href="necklaces.html">
-                    <div class="category-tile-media is-ready" style="background-image: url('assets/floaa-jew-pics/Verde Royale Set-thumb.jpg');"></div>
+                    <div class="category-tile-media category-tile-media--necklaces is-ready"></div>
                     <div class="category-tile-copy">
                         <h3>Necklaces</h3>
                         <p>Polished layers</p>
                     </div>
                 </a>
                 <a class="category-tile" href="bracelets.html">
-                    <div class="category-tile-media is-ready" style="background-image: url('assets/floaa-jew-pics/Heart Glow Tennis Bracelet-thumb.jpg');"></div>
+                    <div class="category-tile-media category-tile-media--bracelets is-ready"></div>
                     <div class="category-tile-copy">
                         <h3>Bracelets</h3>
                         <p>Refined wrist details</p>
                     </div>
                 </a>
                 <a class="category-tile" href="rings.html">
-                    <div class="category-tile-media is-ready" style="background-image: url('assets/floaa-jew-pics/Pistachio that girl combo set-thumb.jpg');"></div>
+                    <div class="category-tile-media category-tile-media--combos is-ready"></div>
                     <div class="category-tile-copy">
                         <h3>Combos</h3>
                         <p>Gift-ready sets</p>
@@ -882,55 +729,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </footer>
 
     <script src="script.js?v=20260528-1"></script>
-    <script>
-      (function () {
-        var normalizeValue = function (value) {
-          return String(value || "").trim();
-        };
-
-        var cleanSheetValue = function (value) {
-          return normalizeValue(value)
-            .replace(/^"+|"+$/g, "")
-            .replace(/^'+|'+$/g, "")
-            .replace(/",$/, "")
-            .trim();
-        };
-
-        var normalizeKey = function (value) {
-          return normalizeValue(value).toLowerCase().replace(/[\s_-]+/g, "-");
-        };
-
-        var getRowValue = function (row, names) {
-          var normalizedNames = names.map(function (name) {
-            return normalizeValue(name).toLowerCase();
-          });
-          var matchingKey = Object.keys(row).find(function (key) {
-            return normalizedNames.indexOf(normalizeValue(key).toLowerCase()) !== -1;
-          });
-          return matchingKey ? row[matchingKey] : "";
-        };
-
-        window.__floaaBrandRowsPromise.then(function (rows) {
-          if (!Array.isArray(rows)) return;
-
-          Array.prototype.forEach.call(document.querySelectorAll(".hero-slide"), function (slide, index) {
-            var heroCopy = slide.querySelector(".hero-slide-copy");
-            var heroHeading = heroCopy && heroCopy.querySelector(".hero-title");
-            if (!heroHeading) return;
-
-            var slideNumber = index + 1;
-            var headingRow = rows.find(function (row) {
-              return normalizeKey(getRowValue(row, ["Key", "Name", "Asset", "Type"])) === "hero-slide-" + slideNumber + "-heading";
-            });
-            var headingValue = cleanSheetValue(getRowValue(headingRow || {}, ["Value", "URL", "Url", "Path", "Image", "Video"]));
-
-            if (headingValue) {
-              heroHeading.textContent = headingValue;
-            }
-          });
-        });
-      })();
-    </script>
     <script>
       (function() {
         var fired = {};
