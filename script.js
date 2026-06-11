@@ -49,8 +49,31 @@
             ["assets/floaa-jew-pics/ruby-model.png", "assets/floaa-jew-pics/ruby-model.webp"],
             ["assets/floaa-jew-pics/tripti-blue-model.png", "assets/floaa-jew-pics/tripti-blue-model.webp"]
         ]);
+        const mobileHeroImageAliasMap = new Map([
+            ["lavender-empress-set.png", "assets/branding/TriptiBllueModel.jpeg"],
+            ["lavender-empress-set.webp", "assets/branding/TriptiBllueModel.jpeg"],
+            ["pistachio-model.png", "assets/branding/PistachioModel.jpeg"],
+            ["pistachio-model.webp", "assets/branding/PistachioModel.jpeg"],
+            ["ruby-model.png", "assets/branding/RubyModel.jpeg"],
+            ["ruby-model.webp", "assets/branding/RubyModel.jpeg"],
+            ["tripti-blue-model.png", "assets/branding/TriptiBllueModel.jpeg"],
+            ["tripti-blue-model.webp", "assets/branding/TriptiBllueModel.jpeg"]
+        ]);
         const IMAGE_PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice"><rect width="100%" height="100%" fill="#f6f6f6"/></svg>');
         const imagePreloadCache = new Map();
+        const getBrandRowsPromise = () => {
+            if (typeof window === "undefined") {
+                return Promise.resolve([]);
+            }
+
+            if (!window.__floaaBrandRowsPromise) {
+                window.__floaaBrandRowsPromise = fetch(BRAND_CONTENT_URL)
+                    .then((response) => response.ok ? response.json() : [])
+                    .catch(() => []);
+            }
+
+            return window.__floaaBrandRowsPromise;
+        };
 
         const applyImageFallback = (img, context = '') => {
             try {
@@ -94,26 +117,16 @@
             surface.style.backgroundImage = `url("${loadedImageSrc}")`;
             surface.classList.add("is-ready");
         };
-        const getPreferredHeroImageSrc = (imagePath) => optimizedHeroImageMap.get(imagePath) || imagePath;
         const getPreferredAltText = (name, description = "") => cleanSheetValue(description) || normalizeValue(name);
         const initHeroSlider = () => {
             const slider = document.querySelector(".hero-slider");
             if (!slider) return;
 
-            const allSlides = Array.from(slider.querySelectorAll(".hero-slide"));
-            const slides = allSlides.filter((slide) => slide.dataset.heroDisabled !== "true");
+            const slides = Array.from(slider.querySelectorAll(".hero-slide"));
             const dots = Array.from(slider.querySelectorAll(".hero-slider-dots button"));
             const previousButton = slider.querySelector(".hero-slider-prev");
             const nextButton = slider.querySelector(".hero-slider-next");
             if (slides.length <= 1) return;
-
-            allSlides.forEach((slide) => {
-                if (slide.dataset.heroDisabled !== "true") return;
-                slide.setAttribute("aria-hidden", "true");
-                slide.querySelectorAll("a, button").forEach((element) => {
-                    element.setAttribute("tabindex", "-1");
-                });
-            });
 
             let activeIndex = Math.max(0, slides.findIndex((slide) => slide.classList.contains("is-active")));
             let intervalId;
@@ -181,25 +194,94 @@
             startAutoSlide();
         };
 
-        const setHeroSlideImage = (image, nextImageSrc) => {
-            if (!image || !nextImageSrc) return;
+        const finalizeHeroImagePath = (imagePath, { mobile = false } = {}) => {
+            if (!imagePath || mobile) return imagePath;
+            return optimizedHeroImageMap.get(imagePath) || imagePath;
+        };
+        const getHeroImagePath = (value, { mobile = false } = {}) => {
+            const image = cleanSheetValue(value);
+            if (!image) return "";
+            if (/^https?:\/\//i.test(image)) return image;
 
-            const slide = image.closest(".hero-slide");
-            const preferredImageSrc = getPreferredHeroImageSrc(nextImageSrc);
-            const safeImageSrc = /^https?:\/\//i.test(preferredImageSrc) ? preferredImageSrc : encodeURI(preferredImageSrc);
+            let resolvedImagePath = image;
+            if (image.startsWith("./assets/")) {
+                resolvedImagePath = image.slice(2);
+            } else if (image.startsWith("../assets/")) {
+                resolvedImagePath = image.slice(3);
+            } else if (image.startsWith("assets/") || image.startsWith("/assets/")) {
+                resolvedImagePath = image;
+            } else if (image.startsWith("./branding/")) {
+                resolvedImagePath = `assets/${image.slice(2)}`;
+            } else if (image.startsWith("../branding/")) {
+                resolvedImagePath = `assets/${image.slice(3)}`;
+            } else if (image.startsWith("branding/")) {
+                resolvedImagePath = `assets/${image}`;
+            } else if (image.startsWith("./floaa-jew-pics/")) {
+                resolvedImagePath = `assets/${image.slice(2)}`;
+            } else if (image.startsWith("../floaa-jew-pics/")) {
+                resolvedImagePath = `assets/${image.slice(3)}`;
+            } else if (image.startsWith("floaa-jew-pics/")) {
+                resolvedImagePath = `assets/${image}`;
+            } else if (mobile) {
+                resolvedImagePath = mobileHeroImageAliasMap.get(image.toLowerCase()) || `assets/branding/${image}`;
+            } else {
+                resolvedImagePath = `assets/floaa-jew-pics/${image}`;
+            }
 
+            return finalizeHeroImagePath(resolvedImagePath, { mobile });
+        };
+        const getHeroAlt = (value, fallbackValue = "") => cleanSheetValue(value) || normalizeValue(fallbackValue);
+        const setHeroImage = async (image, nextImageSrc, { altText = "", mobile = false } = {}) => {
+            if (!image) return;
+
+            const resolvedAltText = getHeroAlt(altText, image.alt);
+            if (resolvedAltText) {
+                image.alt = resolvedAltText;
+            }
+
+            const resolvedImagePath = getHeroImagePath(nextImageSrc, { mobile });
+            if (!resolvedImagePath) return;
+
+            const safeImageSrc = /^https?:\/\//i.test(resolvedImagePath) ? resolvedImagePath : encodeURI(resolvedImagePath);
+            const slide = mobile ? null : image.closest(".hero-slide");
             const handleReady = () => {
+                if (mobile) {
+                    image.classList.add("is-loaded");
+                    return;
+                }
+
                 slide?.classList.add("is-image-ready");
             };
             const handleError = () => {
-                // apply a safe fallback so the slide doesn't appear blank
-                applyImageFallback(image, 'hero');
+                if (mobile) {
+                    image.classList.add("is-loaded");
+                    return;
+                }
+
+                applyImageFallback(image, "hero");
                 slide?.classList.add("is-image-ready");
                 slide?.classList.add("is-image-failed");
             };
 
             if (image.getAttribute("src") === safeImageSrc) {
-                if (image.complete) {
+                if (image.complete && image.naturalWidth > 0) {
+                    handleReady();
+                } else {
+                    image.addEventListener("load", handleReady, { once: true });
+                    image.addEventListener("error", handleError, { once: true });
+                }
+                return;
+            }
+
+            if (mobile) {
+                const loadedImageSrc = await preloadImageSource(safeImageSrc);
+                if (!loadedImageSrc) {
+                    handleReady();
+                    return;
+                }
+
+                image.src = loadedImageSrc;
+                if (image.complete && image.naturalWidth > 0) {
                     handleReady();
                 } else {
                     image.addEventListener("load", handleReady, { once: true });
@@ -235,8 +317,28 @@
             });
         };
 
+        const prepareMobileEditorialHero = () => {
+            const heroImage = document.querySelector(".floaa-mobile-editorial-hero__image");
+            if (!heroImage) return;
+
+            const markReady = () => {
+                heroImage.classList.add("is-loaded");
+            };
+
+            if (heroImage.complete && heroImage.naturalWidth > 0) {
+                markReady();
+                return;
+            }
+
+            heroImage.addEventListener("load", markReady, { once: true });
+            heroImage.addEventListener("error", () => {
+                heroImage.classList.add("is-loaded");
+            }, { once: true });
+        };
+
         initHeroSlider();
         prepareHeroImages();
+        prepareMobileEditorialHero();
 
         const normalizeValue = (value) => String(value || "").trim();
         const cleanSheetValue = (value) => normalizeValue(value)
@@ -3009,17 +3111,7 @@
 
         const fetchBrandContent = async () => {
             try {
-                const earlyRows = await window.__floaaBrandRowsPromise;
-                const rows = Array.isArray(earlyRows) && earlyRows.length
-                    ? earlyRows
-                    : await (async () => {
-                        const response = await fetch(BRAND_CONTENT_URL);
-                        if (!response.ok) {
-                            throw new Error(`Brand content request failed: ${response.status}`);
-                        }
-
-                        return response.json();
-                    })();
+                const rows = await getBrandRowsPromise();
                 if (!Array.isArray(rows)) return {};
 
                 return rows.reduce((content, row) => {
@@ -3040,6 +3132,39 @@
         };
 
         const applyBrandContent = (content) => {
+            const applyHeroSlideTextContent = (slide, slideNumber) => {
+                if (!slide) return;
+
+                const kicker = getBrandValue(content, [`hero-slide-${slideNumber}-kicker`]);
+                const heading = getBrandValue(content, [`hero-slide-${slideNumber}-heading`]);
+                const subtitle = getBrandValue(content, [`hero-slide-${slideNumber}-subtitle`]);
+                const buttonText = getBrandValue(content, [`hero-slide-${slideNumber}-button-text`]);
+                const buttonLink = getBrandValue(content, [`hero-slide-${slideNumber}-button-link`]);
+                const kickerElement = slide.querySelector(".hero-kicker");
+                const headingElement = slide.querySelector(".hero-title");
+                const subtitleElement = slide.querySelector(".hero-subtitle");
+                const buttonElement = slide.querySelector(".btn");
+
+                if (kicker && kickerElement) {
+                    kickerElement.textContent = kicker;
+                }
+
+                if (heading && headingElement) {
+                    headingElement.textContent = heading;
+                }
+
+                if (subtitle && subtitleElement) {
+                    subtitleElement.textContent = subtitle;
+                }
+
+                if (buttonText && buttonElement) {
+                    buttonElement.textContent = buttonText;
+                }
+
+                if (buttonLink && buttonElement) {
+                    buttonElement.href = buttonLink;
+                }
+            };
             const logo = content.logo || content["floaa-logo"];
             if (logo?.value) {
                 const normalizedLogoSrc = normalizeImagePath(logo.value) || logo.value;
@@ -3154,72 +3279,36 @@
             heroSlides.forEach((slide, index) => {
                 const slideNumber = index + 1;
                 const image = slide.querySelector("img");
-                const copy = slide.querySelector(".hero-slide-copy");
-                const heading = copy?.querySelector("h1");
-                const button = copy?.querySelector(".btn");
-                let kicker = copy?.querySelector(".hero-kicker");
-                let subtitle = copy?.querySelector(".hero-subtitle");
                 const slideImage = content[`hero-slide-${slideNumber}-image`] || content[`hero-slide-${slideNumber}`];
                 const slideAlt = content[`hero-slide-${slideNumber}-alt`];
-                const slideKicker = content[`hero-slide-${slideNumber}-kicker`];
-                const slideHeading = content[`hero-slide-${slideNumber}-heading`];
-                const slideSubtitle = content[`hero-slide-${slideNumber}-subtitle`] || content[`hero-slide-${slideNumber}-subtext`];
-                const slideButtonText = content[`hero-slide-${slideNumber}-button-text`];
-                const slideButtonLink = content[`hero-slide-${slideNumber}-button-link`];
-                const hasSlideKicker = Object.prototype.hasOwnProperty.call(content, `hero-slide-${slideNumber}-kicker`);
-                const hasSlideHeading = Object.prototype.hasOwnProperty.call(content, `hero-slide-${slideNumber}-heading`);
-                const hasSlideSubtitle =
-                    Object.prototype.hasOwnProperty.call(content, `hero-slide-${slideNumber}-subtitle`) ||
-                    Object.prototype.hasOwnProperty.call(content, `hero-slide-${slideNumber}-subtext`);
-                const hasSlideButtonText = Object.prototype.hasOwnProperty.call(content, `hero-slide-${slideNumber}-button-text`);
-                const hasSlideButtonLink = Object.prototype.hasOwnProperty.call(content, `hero-slide-${slideNumber}-button-link`);
 
                 if (image && slideImage?.value) {
-                    const nextImageSrc = normalizeImagePath(slideImage.value);
-                    if (nextImageSrc) {
-                        setHeroSlideImage(image, nextImageSrc);
+                    void setHeroImage(image, slideImage.value, {
+                        altText: slideAlt?.value
+                    });
+                } else if (image) {
+                    const resolvedAlt = getHeroAlt(slideAlt?.value, image.alt);
+                    if (resolvedAlt) {
+                        image.alt = resolvedAlt;
                     }
                 }
-                if (image && slideAlt?.value) {
-                    image.alt = getPreferredAltText(slideAlt.value, slideHeading?.value || slideSubtitle?.value);
-                }
-                if (copy && hasSlideKicker) {
-                    if (!kicker) {
-                        kicker = document.createElement("p");
-                        kicker.className = "hero-kicker";
-                        copy.insertBefore(kicker, heading || copy.firstChild);
-                    }
-                    kicker.textContent = slideKicker?.value || "";
-                    kicker.style.display = slideKicker?.value ? "" : "none";
-                }
-                if (heading && hasSlideHeading) {
-                    heading.textContent = slideHeading?.value || "";
-                }
-                if (copy && hasSlideSubtitle) {
-                    if (!subtitle) {
-                        subtitle = document.createElement("p");
-                        subtitle.className = "hero-subtitle";
-                        if (button) {
-                            copy.insertBefore(subtitle, button);
-                        } else {
-                            copy.append(subtitle);
-                        }
-                    }
-                    subtitle.textContent = slideSubtitle?.value || "";
-                    subtitle.style.display = slideSubtitle?.value ? "" : "none";
-                }
-                if (button && hasSlideButtonText) {
-                    button.textContent = slideButtonText?.value || "";
-                    button.style.display = slideButtonText?.value ? "" : "none";
-                }
-                const socialProof = copy?.querySelector('.hero-social-proof');
-                if (socialProof && button) {
-                    button.insertAdjacentElement('beforebegin', socialProof);
-                }
-                if (button && hasSlideButtonLink) {
-                    button.href = slideButtonLink?.value || "#";
-                }
+                applyHeroSlideTextContent(slide, slideNumber);
             });
+
+            const mobileHeroImage = document.querySelector(".floaa-mobile-editorial-hero__image");
+            const mobileHeroAsset = content["hero-mobile-image"];
+            const mobileHeroAlt = content["hero-mobile-alt"];
+            if (mobileHeroImage && mobileHeroAsset?.value) {
+                void setHeroImage(mobileHeroImage, mobileHeroAsset.value, {
+                    altText: mobileHeroAlt?.value,
+                    mobile: true
+                });
+            } else if (mobileHeroImage) {
+                const resolvedMobileAlt = getHeroAlt(mobileHeroAlt?.value, mobileHeroImage.alt);
+                if (resolvedMobileAlt) {
+                    mobileHeroImage.alt = resolvedMobileAlt;
+                }
+            }
 
             ["earrings", "necklaces", "bracelets", "combos"].forEach((category) => {
                 const categoryImage = content[`category-${category}`] || content[`${category}-image`];

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>FLOAA — Editorial Hero · Design Lab</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Preload hero image (portrait branding asset) -->
+  <link rel="preload" as="image" href="../assets/branding/PistachioModel.jpeg">
+
+  <link rel="stylesheet" href="home-editorial.css">
+</head>
+<body>
+
+  <!-- ─────────────────────────────────────
+       Floating nav
+  ───────────────────────────────────── -->
+  <header class="fl-nav" id="fl-nav" role="banner">
+
+    <a class="fl-nav__brand" href="../index.html" aria-label="FLOAA — return to homepage">
+      FLOAA
+    </a>
+
+    <nav class="fl-nav__links" aria-label="Primary navigation">
+      <a class="fl-nav__link" href="../earrings.html">Earrings</a>
+      <a class="fl-nav__link" href="../bracelets.html">Bracelets</a>
+      <a class="fl-nav__link" href="../necklaces.html">Necklaces</a>
+      <a class="fl-nav__link" href="../rings.html">Rings</a>
+    </nav>
+
+    <div class="fl-nav__utils" aria-label="Utility navigation">
+      <a class="fl-nav__cta-link" href="../shop.html">Shop All</a>
+    </div>
+
+  </header>
+
+
+  <!-- ─────────────────────────────────────
+       Editorial hero
+       Desktop:  full-bleed image, text over natural right-side negative space
+       Mobile:   full-bleed portrait image, text anchored at bottom
+  ───────────────────────────────────── -->
+  <section class="fl-hero" id="fl-hero" aria-label="FLOAA — New Collection">
+
+    <!-- Image: portrait campaign asset fills the hero -->
+    <div class="fl-hero__visual" aria-hidden="true">
+      <img
+        id="fl-hero-img"
+        class="fl-hero__img"
+        src="../assets/branding/PistachioModel.jpeg"
+        alt="Model wearing FLOAA emerald green jewellery — earrings and pendant necklace"
+        fetchpriority="high"
+        loading="eager"
+        decoding="async"
+        data-hero-pistachio="../assets/branding/PistachioModel.jpeg"
+        data-hero-ruby="../assets/branding/RubyModel.jpeg"
+        data-hero-blue="../assets/branding/TriptiBllueModel.jpeg"
+      >
+    </div>
+
+    <!-- Editorial content: right-side negative space on desktop, bottom overlay on mobile -->
+    <div class="fl-hero__editorial">
+
+      <div class="fl-hero__content">
+
+        <p class="fl-hero__kicker">New Collection</p>
+
+        <h1 class="fl-hero__headline">
+          <span class="fl-hero__headline-roman">Made to Woo.</span>
+          <span class="fl-hero__headline-italic">Effortlessly You.</span>
+        </h1>
+
+        <p class="fl-hero__body">
+          European-inspired jewellery<br>
+          for the woman who lives beautifully.
+        </p>
+
+        <a class="fl-hero__cta" href="../shop.html" aria-label="Explore the collection">
+          <span class="fl-hero__cta-label">Explore Collection</span>
+          <svg class="fl-hero__cta-arrow" viewBox="0 0 48 10" fill="none" aria-hidden="true" focusable="false">
+            <line x1="0" y1="5" x2="41" y2="5" stroke="currentColor" stroke-width="1"/>
+            <polyline points="37,1 43,5 37,9" stroke="currentColor" stroke-width="1" fill="none" stroke-linejoin="round"/>
+          </svg>
+        </a>
+
+      </div>
+
+      <!-- Scroll cue — desktop only -->
+      <div class="fl-hero__scroll" aria-hidden="true">
+        <span class="fl-hero__scroll-line"></span>
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- ─────────────────────────────────────
+       Design Lab controls
+       (concept evaluation tool — not for production)
+  ───────────────────────────────────── -->
+  <aside class="lab-panel" aria-label="Design Lab" role="complementary">
+    <p class="lab-panel__label">Hero mood</p>
+    <div class="lab-panel__swatches">
+      <button class="lab-swatch is-active" data-mood="pistachio" aria-label="Pistachio mood" aria-pressed="true">
+        <span class="lab-swatch__dot" style="background: #b0c4a0;"></span>
+      </button>
+      <button class="lab-swatch" data-mood="ruby" aria-label="Ruby mood" aria-pressed="false">
+        <span class="lab-swatch__dot" style="background: #c47070;"></span>
+      </button>
+      <button class="lab-swatch" data-mood="blue" aria-label="Blue mood" aria-pressed="false">
+        <span class="lab-swatch__dot" style="background: #7098c4;"></span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="lab-watermark" aria-hidden="true">Design Lab · Concept Only · Not for Production</div>
+
+  <script src="home-editorial.js"></script>
+</body>
+</html>
