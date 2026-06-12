@@ -85,9 +85,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     <link rel="preconnect" href="https://opensheet.elk.sh" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" as="image" href="assets/floaa-jew-pics/pistachio-model.webp">
+    <link rel="preload" as="image" href="assets/branding/PistachioModel.jpeg" media="(max-width: 768px)" fetchpriority="high">
+    <link rel="preload" as="image" href="assets/floaa-jew-pics/pistachio-model.webp" media="(min-width: 769px)" fetchpriority="high">
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260530-1">
+    <link rel="stylesheet" href="styles.css?v=20260612-3">
 </head>
 <body data-page="home">
 
@@ -202,7 +203,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </section>
         <section class="hero-cinema hero-slider" aria-label="FLOAA featured collections">
             <div class="hero-slider-track">
-                <article class="hero-slide hero-slide--signature is-active is-image-ready">
+                <article class="hero-slide hero-slide--signature is-active">
                     <img alt="Minimal green crystal drop earrings" src="assets/floaa-jew-pics/pistachio-model.webp" width="1448" height="1086" fetchpriority="high" loading="eager" decoding="async">
                 <div class="hero-slide-overlay">
                         <div class="hero-slide-copy">
@@ -215,7 +216,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     </div>
                 </article>
                 <article class="hero-slide hero-slide--colour">
-                  <img src="assets/floaa-jew-pics/ruby-model.webp" alt="Statement ruby crystal drop earrings" width="1774" height="887" loading="lazy" decoding="async">
+                  <img src="assets/floaa-jew-pics/ruby-model.webp" alt="Statement ruby crystal drop earrings" width="1774" height="887" loading="eager" decoding="async">
                     <div class="hero-slide-overlay">
                         <div class="hero-slide-copy">
                             <p class="hero-kicker">COLOUR STONES</p>
@@ -225,7 +226,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     </div>
                 </article>
                 <article class="hero-slide hero-slide--gifting">
-                  <img src="assets/floaa-jew-pics/lavender-empress-set.webp" alt="Lavender floral jewellery set with pendant and earrings" width="1537" height="1023" loading="lazy" decoding="async">
+                  <img src="assets/floaa-jew-pics/tripti-blue-model.webp" alt="European-inspired blue gemstone jewellery styled on model" width="1774" height="887" loading="eager" decoding="async">
                     <div class="hero-slide-overlay">
                         <div class="hero-slide-copy">
                             <p class="hero-kicker">GIFTING</p>
@@ -254,30 +255,33 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     <div class="category-tile-media category-tile-media--earrings is-ready"></div>
                     <div class="category-tile-copy">
                         <h3>Earrings</h3>
-                        <p>Romantic colour-stone drops</p>
+                        <p>Colour-stone edit</p>
                     </div>
                 </a>
                 <a class="category-tile" href="necklaces.html">
                     <div class="category-tile-media category-tile-media--necklaces is-ready"></div>
                     <div class="category-tile-copy">
                         <h3>Necklaces</h3>
-                        <p>Polished layers</p>
+                        <p>Everyday layering</p>
                     </div>
                 </a>
                 <a class="category-tile" href="bracelets.html">
                     <div class="category-tile-media category-tile-media--bracelets is-ready"></div>
                     <div class="category-tile-copy">
                         <h3>Bracelets</h3>
-                        <p>Refined wrist details</p>
+                        <p>Delicate wrist styling</p>
                     </div>
                 </a>
                 <a class="category-tile" href="rings.html">
                     <div class="category-tile-media category-tile-media--combos is-ready"></div>
                     <div class="category-tile-copy">
                         <h3>Combos</h3>
-                        <p>Gift-ready sets</p>
+                        <p>Curated pairings</p>
                     </div>
                 </a>
+            </div>
+            <div class="category-tile-footer">
+                <a class="category-tile-cta" href="shop.html">Explore all collections →</a>
             </div>
         </section>
 
@@ -286,28 +290,46 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <p class="eyebrow">Shop by Style</p>
                 <h2>Browse by the mood you want to wear.</h2>
             </div>
-            <div class="style-link-row">
-                <a href="shop.html?style=everyday-wear">Everyday Elegance</a>
-                <a href="shop.html?style=colour-stone">Colour-Stone Pieces</a>
-                <a href="shop.html?style=stackable-styles">Refined Stacks</a>
-                <a href="shop.html?style=occasion">Occasion Ready</a>
+            <div class="style-nav-grid">
+                <a class="style-nav-item" href="shop.html?style=everyday-wear">
+                    <span class="style-nav-item__title">Everyday Elegance</span>
+                </a>
+                <a class="style-nav-item" href="shop.html?style=colour-stone">
+                    <span class="style-nav-item__title">Colour-Stone Pieces</span>
+                </a>
+                <a class="style-nav-item" href="shop.html?style=stackable-styles">
+                    <span class="style-nav-item__title">Refined Stacks</span>
+                </a>
+                <a class="style-nav-item" href="shop.html?style=occasion">
+                    <span class="style-nav-item__title">Occasion Ready</span>
+                </a>
             </div>
         </section>
 
         <section class="section split-feature">
-            <div class="section-intro">
-                <p class="eyebrow">The FLOAA Mood</p>
-                <h2>European-inspired details, romantic colour stones, and a polished luxury finish.</h2>
-            </div>
             <div class="feature-panel">
                 <div class="feature-copy">
-                    <h3>Jewellery with a romantic point of view</h3>
+                    <p class="eyebrow">The FLOAA Mood</p>
+                    <h2>European-inspired details, romantic colour stones, and a polished luxury finish.</h2>
                     <p>FLOAA brings together colour, shine and feminine detail in pieces that feel occasion-ready, gift-worthy and easy to style.</p>
                     <a href="about.html" class="text-link">Read About FLOAA</a>
                 </div>
-                <div class="feature-surface feature-surface-one"></div>
+                <div class="feature-surface feature-surface-one">
+                    <img class="feature-surface__img"
+                         src="assets/floaa-jew-pics/floaa-editorial-coastal.png"
+                         alt="FLOAA jewellery editorial styling"
+                         loading="lazy"
+                         decoding="async">
+                </div>
             </div>
         </section>
+
+        <div class="editorial-break editorial-break--daylight" aria-hidden="true">
+            <img src="assets/floaa-jew-pics/floaa-editorial-daylight.png"
+                 alt=""
+                 loading="lazy"
+                 decoding="async">
+        </div>
 
         <section class="section product-section" id="home-products">
             <div class="section-heading">
@@ -323,7 +345,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             .floaa-testimonials {
                 background: #fff;
                 font-family: "Manrope", sans-serif;
-                padding: clamp(4rem, 8vw, 7rem) clamp(1.2rem, 4vw, 4rem);
+                padding: clamp(2rem, 3.5vw, 3.5rem) clamp(1.2rem, 4vw, 4rem);
             }
 
             .floaa-testimonials__inner {
@@ -381,7 +403,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 color: #6f6870;
                 flex: 1;
                 font-family: "Manrope", sans-serif;
-                font-size: 0.96rem;
+                font-size: 0.92rem;
                 line-height: 1.7;
                 margin-bottom: 1.35rem;
             }
@@ -486,6 +508,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </section>
         <!-- FLOAA TESTIMONIALS SECTION END -->
 
+        <div class="editorial-break editorial-break--evening" aria-hidden="true">
+            <img src="assets/floaa-jew-pics/floaa-editorial-evening.png"
+                 alt=""
+                 loading="lazy"
+                 decoding="async">
+        </div>
+
         <!-- TRUST SECTION START -->
 
         <section class="trust-section" aria-labelledby="trust-heading">
@@ -535,7 +564,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <style>
             .floaa-faq {
                 background: linear-gradient(180deg, #fffdf9 0%, #f8f4ee 100%);
-                padding: clamp(4rem, 8vw, 6.5rem) clamp(1.2rem, 4vw, 4rem);
+                padding: clamp(2rem, 3.5vw, 4rem) clamp(1.2rem, 4vw, 4rem);
             }
 
             .floaa-faq__inner {
@@ -550,11 +579,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             }
 
             .floaa-faq__eyebrow {
-                color: #8d7a63;
+                color: #d9c58d;
                 font-family: "Manrope", sans-serif;
-                font-size: 0.76rem;
+                font-size: 0.78rem;
                 font-weight: 600;
-                letter-spacing: 0.24em;
+                letter-spacing: 0.26em;
                 margin-bottom: 0.8rem;
                 text-transform: uppercase;
             }
@@ -562,8 +591,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             .floaa-faq__title {
                 color: #242225;
                 font-family: "Cormorant Garamond", serif;
-                font-size: clamp(2.2rem, 4vw, 3.6rem);
-                font-weight: 500;
+                font-size: clamp(1.8rem, 3.2vw, 2.95rem);
+                font-weight: 600;
                 letter-spacing: 0.01em;
                 line-height: 1.02;
                 margin-bottom: 0.9rem;
@@ -572,7 +601,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             .floaa-faq__description {
                 color: #6f6870;
                 font-family: "Manrope", sans-serif;
-                font-size: 1rem;
+                font-size: 0.92rem;
                 line-height: 1.75;
                 margin: 0 auto;
                 max-width: 58ch;
@@ -728,7 +757,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <p class="footer-note">Copyright 2026 FLOAA. All rights reserved.</p>
     </footer>
 
-    <script src="script.js?v=20260528-1"></script>
+    <script src="script.js?v=20260612-3"></script>
     <script>
       (function() {
         var fired = {};
