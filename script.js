@@ -43,22 +43,6 @@
             "Lakshadweep",
             "Puducherry"
         ];
-        const optimizedHeroImageMap = new Map([
-            ["assets/floaa-jew-pics/lavender-empress-set.png", "assets/floaa-jew-pics/lavender-empress-set.webp"],
-            ["assets/floaa-jew-pics/pistachio-model.png", "assets/floaa-jew-pics/pistachio-model.webp"],
-            ["assets/floaa-jew-pics/ruby-model.png", "assets/floaa-jew-pics/ruby-model.webp"],
-            ["assets/floaa-jew-pics/tripti-blue-model.png", "assets/floaa-jew-pics/tripti-blue-model.webp"]
-        ]);
-        const mobileHeroImageAliasMap = new Map([
-            ["lavender-empress-set.png", "assets/branding/TriptiBllueModel.jpeg"],
-            ["lavender-empress-set.webp", "assets/branding/TriptiBllueModel.jpeg"],
-            ["pistachio-model.png", "assets/branding/PistachioModel.jpeg"],
-            ["pistachio-model.webp", "assets/branding/PistachioModel.jpeg"],
-            ["ruby-model.png", "assets/branding/RubyModel.jpeg"],
-            ["ruby-model.webp", "assets/branding/RubyModel.jpeg"],
-            ["tripti-blue-model.png", "assets/branding/TriptiBllueModel.jpeg"],
-            ["tripti-blue-model.webp", "assets/branding/TriptiBllueModel.jpeg"]
-        ]);
         const IMAGE_PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice"><rect width="100%" height="100%" fill="#f6f6f6"/></svg>');
         const imagePreloadCache = new Map();
         const getBrandRowsPromise = () => {
@@ -194,151 +178,9 @@
             startAutoSlide();
         };
 
-        const finalizeHeroImagePath = (imagePath, { mobile = false } = {}) => {
-            if (!imagePath || mobile) return imagePath;
-            return optimizedHeroImageMap.get(imagePath) || imagePath;
-        };
-        const getHeroImagePath = (value, { mobile = false } = {}) => {
-            const image = cleanSheetValue(value);
-            if (!image) return "";
-            if (/^https?:\/\//i.test(image)) return image;
-
-            let resolvedImagePath = image;
-            if (image.startsWith("./assets/")) {
-                resolvedImagePath = image.slice(2);
-            } else if (image.startsWith("../assets/")) {
-                resolvedImagePath = image.slice(3);
-            } else if (image.startsWith("assets/") || image.startsWith("/assets/")) {
-                resolvedImagePath = image;
-            } else if (image.startsWith("./branding/")) {
-                resolvedImagePath = `assets/${image.slice(2)}`;
-            } else if (image.startsWith("../branding/")) {
-                resolvedImagePath = `assets/${image.slice(3)}`;
-            } else if (image.startsWith("branding/")) {
-                resolvedImagePath = `assets/${image}`;
-            } else if (image.startsWith("./floaa-jew-pics/")) {
-                resolvedImagePath = `assets/${image.slice(2)}`;
-            } else if (image.startsWith("../floaa-jew-pics/")) {
-                resolvedImagePath = `assets/${image.slice(3)}`;
-            } else if (image.startsWith("floaa-jew-pics/")) {
-                resolvedImagePath = `assets/${image}`;
-            } else if (mobile) {
-                resolvedImagePath = mobileHeroImageAliasMap.get(image.toLowerCase()) || `assets/branding/${image}`;
-            } else {
-                resolvedImagePath = `assets/floaa-jew-pics/${image}`;
-            }
-
-            return finalizeHeroImagePath(resolvedImagePath, { mobile });
-        };
         const getHeroAlt = (value, fallbackValue = "") => cleanSheetValue(value) || normalizeValue(fallbackValue);
-        const setHeroImage = async (image, nextImageSrc, { altText = "", mobile = false } = {}) => {
-            if (!image) return;
-
-            const resolvedAltText = getHeroAlt(altText, image.alt);
-            if (resolvedAltText) {
-                image.alt = resolvedAltText;
-            }
-
-            const resolvedImagePath = getHeroImagePath(nextImageSrc, { mobile });
-            if (!resolvedImagePath) return;
-
-            const safeImageSrc = /^https?:\/\//i.test(resolvedImagePath) ? resolvedImagePath : encodeURI(resolvedImagePath);
-            const slide = mobile ? null : image.closest(".hero-slide");
-            const handleReady = () => {
-                if (mobile) {
-                    image.classList.add("is-loaded");
-                    return;
-                }
-
-                slide?.classList.add("is-image-ready");
-            };
-            const handleError = () => {
-                if (mobile) {
-                    image.classList.add("is-loaded");
-                    return;
-                }
-
-                applyImageFallback(image, "hero");
-                slide?.classList.add("is-image-ready");
-                slide?.classList.add("is-image-failed");
-            };
-
-            if (image.getAttribute("src") === safeImageSrc) {
-                if (image.complete && image.naturalWidth > 0) {
-                    handleReady();
-                } else {
-                    image.addEventListener("load", handleReady, { once: true });
-                    image.addEventListener("error", handleError, { once: true });
-                }
-                return;
-            }
-
-            if (mobile) {
-                const loadedImageSrc = await preloadImageSource(safeImageSrc);
-                if (!loadedImageSrc) {
-                    handleReady();
-                    return;
-                }
-
-                image.src = loadedImageSrc;
-                if (image.complete && image.naturalWidth > 0) {
-                    handleReady();
-                } else {
-                    image.addEventListener("load", handleReady, { once: true });
-                    image.addEventListener("error", handleError, { once: true });
-                }
-                return;
-            }
-
-            slide?.classList.remove("is-image-ready");
-            image.addEventListener("load", handleReady, { once: true });
-            image.addEventListener("error", handleError, { once: true });
-            image.src = safeImageSrc;
-
-            if (image.complete) {
-                handleReady();
-            }
-        };
-
-        const prepareHeroImages = () => {
-            const heroImages = Array.from(document.querySelectorAll(".hero-slide img"));
-            if (!heroImages.length) return;
-
-            const markReady = (image) => {
-                image.closest(".hero-slide")?.classList.add("is-image-ready");
-            };
-
-            heroImages.forEach((image) => {
-                if (image.complete) {
-                    markReady(image);
-                } else if (image.getAttribute("src")) {
-                    image.addEventListener("load", () => markReady(image), { once: true });
-                }
-            });
-        };
-
-        const prepareMobileEditorialHero = () => {
-            const heroImage = document.querySelector(".floaa-mobile-editorial-hero__image");
-            if (!heroImage) return;
-
-            const markReady = () => {
-                heroImage.classList.add("is-loaded");
-            };
-
-            if (heroImage.complete && heroImage.naturalWidth > 0) {
-                markReady();
-                return;
-            }
-
-            heroImage.addEventListener("load", markReady, { once: true });
-            heroImage.addEventListener("error", () => {
-                heroImage.classList.add("is-loaded");
-            }, { once: true });
-        };
 
         initHeroSlider();
-        prepareHeroImages();
-        prepareMobileEditorialHero();
 
         const normalizeValue = (value) => String(value || "").trim();
         const cleanSheetValue = (value) => normalizeValue(value)
@@ -3279,14 +3121,9 @@
             heroSlides.forEach((slide, index) => {
                 const slideNumber = index + 1;
                 const image = slide.querySelector("img");
-                const slideImage = content[`hero-slide-${slideNumber}-image`] || content[`hero-slide-${slideNumber}`];
                 const slideAlt = content[`hero-slide-${slideNumber}-alt`];
 
-                if (image && slideImage?.value) {
-                    void setHeroImage(image, slideImage.value, {
-                        altText: slideAlt?.value
-                    });
-                } else if (image) {
+                if (image) {
                     const resolvedAlt = getHeroAlt(slideAlt?.value, image.alt);
                     if (resolvedAlt) {
                         image.alt = resolvedAlt;
@@ -3296,14 +3133,8 @@
             });
 
             const mobileHeroImage = document.querySelector(".floaa-mobile-editorial-hero__image");
-            const mobileHeroAsset = content["hero-mobile-image"];
             const mobileHeroAlt = content["hero-mobile-alt"];
-            if (mobileHeroImage && mobileHeroAsset?.value) {
-                void setHeroImage(mobileHeroImage, mobileHeroAsset.value, {
-                    altText: mobileHeroAlt?.value,
-                    mobile: true
-                });
-            } else if (mobileHeroImage) {
+            if (mobileHeroImage) {
                 const resolvedMobileAlt = getHeroAlt(mobileHeroAlt?.value, mobileHeroImage.alt);
                 if (resolvedMobileAlt) {
                     mobileHeroImage.alt = resolvedMobileAlt;

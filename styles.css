@@ -225,9 +225,9 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
     align-items: center;
     display: inline-flex;
     flex: 0 0 auto;
-    height: 140px;
+    height: 104px;
     overflow: hidden;
-    width: clamp(250px, 34vw, 520px);
+    width: clamp(240px, 27vw, 400px);
 }
 
 .brand-logo {
@@ -236,7 +236,9 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
     min-width: 100%;
     object-fit: cover;
     object-position: center 100%;
-     width: 100%;
+    transform: scale(1.02);
+    transform-origin: center bottom;
+    width: 100%;
 }
 
 .mobile-icon-link,
@@ -272,12 +274,12 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
 .header-icon-svg {
     display: block;
     fill: none;
-    height: 22px;
+    height: 20px;
     stroke: currentColor;
     stroke-linecap: round;
     stroke-linejoin: round;
-    stroke-width: 1.75;
-    width: 22px;
+    stroke-width: 1.6;
+    width: 20px;
 }
 
 .instagram-link {
@@ -294,8 +296,8 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
 }
 
 .instagram-link .header-icon-svg {
-    height: 20px;
-    width: 20px;
+    height: 18px;
+    width: 18px;
 }
 
 .desktop-instagram-link {
@@ -322,6 +324,7 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
     display: block;
     height: 30px;
     position: relative;
+    transform: scale(0.93);
     width: 30px;
 }
 
@@ -512,22 +515,16 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
     filter: saturate(0.98) contrast(1) brightness(0.98);
     height: 100%;
     margin-right: auto;
-    opacity: 0;
+    opacity: 1;
     object-fit: cover;
     object-position: center center;
     padding: 0;
-    transition: opacity 0.45s ease;
     width: 100%;
 }
 
 .hero-slide img:not([src]),
 .hero-slide img[src=""] {
     visibility: hidden;
-}
-
-.hero-slide.is-image-ready img {
-    opacity: 1;
-    visibility: visible;
 }
 
 .hero-slide-overlay {
@@ -726,9 +723,11 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
 .hero-kicker,
 .eyebrow {
     color: #d9c58d;
-    font-size: 0.82rem;
-    letter-spacing: 0.28em;
-    margin-bottom: 0.9rem;
+    font-family: "Manrope", sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.26em;
+    margin-bottom: 0.8rem;
     text-transform: uppercase;
 }
 
@@ -902,8 +901,16 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
 }
 
 .category-tile {
+    border-color: rgba(210, 186, 135, 0.18);
     border-radius: 1.5rem;
+    box-shadow: 0 4px 24px rgba(92, 82, 88, 0.06);
     overflow: hidden;
+    transition: transform 300ms ease, box-shadow 300ms ease, border-color 300ms ease;
+    will-change: transform;
+}
+
+#featured-categories .category-tile {
+    background: #fdf8f0;
 }
 
 .category-tile-media {
@@ -912,25 +919,30 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
     background-position: center;
     background-repeat: no-repeat;
     background-size: contain;
-    margin: 1rem;
+    margin: 0.35rem 0.35rem 0;
     overflow: hidden;
     position: relative;
+    transition: transform 300ms ease;
 }
 
 .category-tile-media--earrings {
     background-image: url('assets/floaa-jew-pics/Spring Petal Earrings-thumb.jpg');
+    background-position: center 44%;
 }
 
 .category-tile-media--necklaces {
     background-image: url('assets/floaa-jew-pics/Verde Royale Set-thumb.jpg');
+    background-position: center 50%;
 }
 
 .category-tile-media--bracelets {
     background-image: url('assets/floaa-jew-pics/Heart Glow Tennis Bracelet-thumb.jpg');
+    background-position: center 47%;
 }
 
 .category-tile-media--combos {
     background-image: url('assets/floaa-jew-pics/Pistachio that girl combo set-thumb.jpg');
+    background-position: center 45%;
 }
 
 .category-tile-media::after {
@@ -955,30 +967,159 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
 }
 
 .category-tile-copy {
-    padding: 0 1.3rem 1.4rem;
+    padding: 0.35rem 1.1rem 0.8rem;
 }
 
 .category-tile-copy h3 {
-    font-size: 2rem;
-    margin-bottom: 0.35rem;
+    font-size: 1.5rem;
+    margin-bottom: 0.1rem;
 }
 
 .category-tile-copy p {
     color: var(--muted);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+    margin-top: 0.05rem;
+    opacity: 0.85;
 }
 
+@media (hover: hover) {
+    .category-tile:hover {
+        border-color: rgba(210, 186, 135, 0.36);
+        box-shadow: 0 8px 32px rgba(92, 82, 88, 0.10);
+        transform: translateY(-2px);
+    }
+    .category-tile:hover .category-tile-media {
+        transform: scale(1.01);
+    }
+}
+
+@media (hover: none) {
+    .category-tile:active {
+        box-shadow: 0 2px 12px rgba(92, 82, 88, 0.04);
+        transform: scale(0.985);
+        transition-duration: 120ms;
+    }
+}
+
+/* ── Featured Categories: scoped polish ─────────────── */
+#featured-categories {
+    padding-bottom: clamp(1.5rem, 2.5vw, 3rem);
+    padding-top: clamp(2.4rem, 4.8vw, 4.2rem);
+}
+
+#featured-categories .section-heading {
+    margin-bottom: 1.6rem;
+}
+
+#featured-categories .section-heading h2 {
+    font-size: clamp(2.1rem, 3.9vw, 3.5rem);
+    line-height: 1.1;
+}
+
+/* Per-tile micro variation — breaks mechanical repetition without visible pattern */
+.category-tile-media--earrings + .category-tile-copy   { padding-bottom: 0.9rem; }
+.category-tile-media--necklaces + .category-tile-copy  { padding-bottom: 0.75rem; }
+.category-tile-media--bracelets + .category-tile-copy  { padding-bottom: 0.85rem; }
+.category-tile-media--combos + .category-tile-copy     { padding-bottom: 0.7rem; }
+
+.category-tile-footer {
+    margin-top: 1.2rem;
+    text-align: center;
+}
+
+.category-tile-cta {
+    color: var(--gold-deep);
+    display: inline-block;
+    font-family: "Cormorant Garamond", serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    transition: color 0.25s ease, letter-spacing 0.3s ease;
+}
+
+.category-tile-cta:hover {
+    color: var(--text);
+    letter-spacing: 0.26em;
+}
+
+.shop-style-section + .split-feature {
+    padding-bottom: clamp(2rem, 3.5vw, 3.5rem);
+    padding-top: clamp(1.5rem, 2.5vw, 2.8rem);
+}
+
+#home-products {
+    padding-bottom: clamp(2rem, 3.5vw, 3.5rem);
+    padding-top: clamp(2rem, 3.5vw, 3.5rem);
+}
+
+/* ── Shop by Style — navigation grid ──── */
 .shop-style-section {
-    background: #fffaf5;
+    background: var(--surface);
+    padding-bottom: clamp(1.5rem, 2.5vw, 2.8rem);
+    padding-top: clamp(1.5rem, 2.5vw, 3rem);
 }
 
-.style-link-row,
+.shop-style-section .section-heading {
+    margin-bottom: 1.6rem;
+}
+
+.style-nav-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.style-nav-item {
+    align-items: center;
+    background: #fff9f3;
+    border: 1px solid rgba(210, 186, 135, 0.18);
+    border-radius: 22px;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    justify-content: center;
+    padding: 0.7rem 1rem 0.85rem;
+    text-align: center;
+    text-decoration: none;
+    transition: background 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+    will-change: transform;
+}
+
+.style-nav-item__title {
+    font-family: "Cormorant Garamond", serif;
+    font-size: clamp(1.15rem, 3.2vw, 1.42rem);
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+@media (hover: hover) {
+    .style-nav-item:hover {
+        background: #f8f4ef;
+        border-color: rgba(210, 186, 135, 0.38);
+        transform: translateY(-2px);
+    }
+}
+
+@media (hover: none) {
+    .style-nav-item:active {
+        background: #f8f4ef;
+        transform: scale(0.985);
+        transition-duration: 120ms;
+    }
+}
+
 .filter-row {
     display: flex;
     flex-wrap: wrap;
     gap: 0.9rem;
 }
 
-.style-link-row a,
 .filter-chip {
     align-items: center;
     background: var(--pill-bg);
@@ -998,7 +1139,6 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
     transition: background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, color 0.22s ease, transform 0.22s cubic-bezier(.2,.8,.2,1);
 }
 
-.style-link-row a:hover,
 .filter-chip:hover {
     background: var(--pill-bg-hover);
     border-color: var(--pill-border-strong);
@@ -1023,7 +1163,7 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
     align-items: center;
     display: grid;
     gap: 2rem;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 47fr 53fr;
     overflow: hidden;
     padding: 1.5rem;
     border-radius: 2rem;
@@ -1038,16 +1178,80 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
     margin-bottom: 1rem;
 }
 
-.text-link {
+.split-feature .feature-copy h2 {
+    font-size: clamp(1.8rem, 3.2vw, 2.6rem);
+    letter-spacing: 0.01em;
+    line-height: 1.15;
+    margin-bottom: 0.9rem;
+}
+
+.split-feature .feature-copy .eyebrow {
+    margin-bottom: 0.6rem;
+}
+
+.split-feature .text-link {
+    color: var(--text);
     display: inline-block;
+    font-weight: 600;
     margin-top: 1.2rem;
     position: relative;
 }
 
 .feature-surface {
     min-height: 380px;
-    background: var(--bg-soft) center/contain no-repeat;
+    background: var(--bg-soft);
     border-radius: 1.4rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.feature-surface-one {
+    /* background-image replaced by <img> element */
+}
+
+.feature-surface__img {
+    height: 100%;
+    inset: 0;
+    object-fit: cover;
+    object-position: center 25%;
+    position: absolute;
+    width: 100%;
+}
+
+@media (min-width: 1101px) {
+    .feature-surface__img {
+        object-position: center 84%;
+    }
+}
+
+/* ── Mobile editorial image breaks ─────────────────── */
+.editorial-break {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    .editorial-break {
+        border-radius: 1.4rem;
+        display: block;
+        margin-left: clamp(1.2rem, 4vw, 2rem);
+        margin-right: clamp(1.2rem, 4vw, 2rem);
+        overflow: hidden;
+    }
+
+    .editorial-break img {
+        aspect-ratio: 4 / 5;
+        display: block;
+        object-fit: cover;
+        width: 100%;
+    }
+
+    .editorial-break--daylight img {
+        object-position: center 20%;
+    }
+
+    .editorial-break--evening img {
+        object-position: center 40%;
+    }
 }
 
 .product-grid {
@@ -3139,7 +3343,8 @@ body[data-page="home"] #home-product-grid .product-stock {
         min-width: 100%;
         object-fit: cover;
         object-position: center 49%;
-        transform: none;
+        transform: scale(1.09);
+        transform-origin: center;
         width: 100%;
     }
 
@@ -3272,7 +3477,21 @@ body[data-page="home"] #home-product-grid .product-stock {
     }
 
     .category-tile-media {
-        margin: 0.55rem;
+        margin: 0.25rem;
+    }
+
+    .category-tile-media--earrings {
+        background-size: 115%;
+    }
+
+    .category-tile-media--bracelets {
+        background-position: center;
+        background-size: 112%;
+    }
+
+    .category-tile-media--combos {
+        background-position: center 42%;
+        background-size: auto 94%;
     }
 
     .category-tile-copy {
@@ -3286,21 +3505,6 @@ body[data-page="home"] #home-product-grid .product-stock {
     .category-tile-copy p {
         font-size: 0.82rem;
         line-height: 1.35;
-    }
-
-    .style-link-row {
-        display: grid;
-        gap: 0.8rem;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .style-link-row a {
-        align-items: center;
-        border-radius: 0.75rem;
-        justify-content: center;
-        min-height: 4rem;
-        padding: 0.8rem;
-        text-align: center;
     }
 
     .filter-chip {
@@ -3682,8 +3886,7 @@ body[data-page="home"] #home-product-grid .product-stock {
         min-height: 84px;
     }
 
-    .filter-row,
-    .style-link-row {
+    .filter-row {
         gap: 0.7rem;
     }
 
@@ -3707,25 +3910,25 @@ body[data-page="home"] #home-product-grid .product-stock {
 /* Trust section styles - isolated using trust- prefix */
 .trust-section {
     background: linear-gradient(180deg, var(--bg-soft) 0%, #fffaf5 100%);
-    padding: clamp(3rem, 6vw, 5.5rem) clamp(1.2rem, 4vw, 4rem);
+    padding: clamp(1.8rem, 3vw, 3rem) clamp(1.2rem, 4vw, 4rem);
 }
 .trust-inner {
     margin: 0 auto;
     max-width: 1120px;
 }
 .trust-eyebrow {
-    color: var(--control-gold-deep);
+    color: #d9c58d;
     font-family: "Manrope", sans-serif;
     font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.24em;
+    font-weight: 600;
+    letter-spacing: 0.26em;
     margin-bottom: 0.8rem;
     text-transform: uppercase;
 }
 .trust-title {
     color: var(--text);
     font-family: "Cormorant Garamond", serif;
-    font-size: clamp(1.9rem, 3.5vw, 2.6rem);
+    font-size: clamp(1.5rem, 2.6vw, 2.1rem);
     font-weight: 600;
     letter-spacing: 0.01em;
     line-height: 1.04;
@@ -3734,7 +3937,7 @@ body[data-page="home"] #home-product-grid .product-stock {
 .trust-intro {
     color: var(--muted);
     font-family: "Manrope", sans-serif;
-    font-size: 1rem;
+    font-size: 0.92rem;
     line-height: 1.7;
     margin-bottom: 1.6rem;
     max-width: 56ch;
@@ -3919,7 +4122,7 @@ body[data-page="home"] #home-product-grid .product-stock {
 
 @media (max-width: 768px) {
     .floaa-mobile-editorial-hero {
-        background: #120d0d;
+        background: #fffaf4;
         display: block;
         height: calc(100svh - 8.5rem);
         min-height: 32rem;
@@ -3957,14 +4160,9 @@ body[data-page="home"] #home-product-grid .product-stock {
         height: 100%;
         object-fit: cover;
         object-position: center 15%;
-        opacity: 0;
-        transform: scale(1);
-        transition: opacity 0.65s ease;
-        width: 100%;
-    }
-
-    .floaa-mobile-editorial-hero__image.is-loaded {
         opacity: 1;
+        transform: scale(1);
+        width: 100%;
     }
 
     .floaa-mobile-editorial-hero__content {
@@ -4085,7 +4283,7 @@ body[data-page="home"] #home-product-grid .product-stock {
 }
 
 @media (max-width: 768px) and (prefers-reduced-motion: no-preference) {
-    .floaa-mobile-editorial-hero__image.is-loaded {
+    .floaa-mobile-editorial-hero__image {
         animation: floaaMobileEditorialImageBreathe 14s ease-in-out infinite alternate;
     }
 }
@@ -4392,11 +4590,11 @@ body[data-page="home"] #home-product-grid .product-stock {
     }
     .product-media img,
     .product-card .btn,
-    .style-link-row a,
     .filter-chip,
     .site-header,
     .whatsapp-float,
-    .search-overlay {
+    .search-overlay,
+    .style-nav-item {
         transition: none;
         animation: none;
     }
