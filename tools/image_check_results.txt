@@ -1,12 +1,12 @@
-﻿url\traw\tstatus\tlength
-http://localhost:8000/assets/branding/floaa-logo.jpeg	assets/branding/floaa-logo.jpeg	200	52223
+url\traw\tstatus\tlength
+http://localhost:8000/assets/branding/logo-primary.jpeg	assets/branding/logo-primary.jpeg	200	52223
 http://localhost:8000/assets/floaa-jew-pics/floaa-09.jpeg	assets/floaa-jew-pics/floaa-09.jpeg	200	51107
 http://localhost:8000/assets/floaa-jew-pics/floaa-10.jpeg	assets/floaa-jew-pics/floaa-10.jpeg	200	47109
 http://localhost:8000/assets/floaa-jew-pics/Forest%20Flame%20Earrings.jpeg	assets/floaa-jew-pics/Forest%20Flame%20Earrings.jpeg	200	154921
 http://localhost:8000/assets/floaa-jew-pics/lavender-empress-set.webp	assets/floaa-jew-pics/lavender-empress-set.webp	200	191692
 http://localhost:8000/assets/floaa-jew-pics/Peach%20Princess%20Earrings.jpeg	assets/floaa-jew-pics/Peach%20Princess%20Earrings.jpeg	200	61328
-http://localhost:8000/assets/floaa-jew-pics/pistachio-model.webp	assets/floaa-jew-pics/pistachio-model.webp	200	174484
-http://localhost:8000/assets/floaa-jew-pics/ruby-model.webp	assets/floaa-jew-pics/ruby-model.webp	200	163846
+http://localhost:8000/assets/branding/hero-pistachio-desktop.webp	assets/branding/hero-pistachio-desktop.webp	200	174484
+http://localhost:8000/assets/branding/hero-ruby.webp	assets/branding/hero-ruby.webp	200	163846
 http://localhost:8000/assets/floaa-jew-pics/Starlight%20dangles.jpeg	assets/floaa-jew-pics/Starlight%20dangles.jpeg	200	76255
 http://localhost:8000/script.js?v=20260521-1	script.js?v=20260521-1	200	103355
 http://localhost:8000/script.js?v=20260525-1	script.js?v=20260525-1	200	103355

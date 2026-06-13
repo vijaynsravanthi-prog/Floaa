@@ -215,10 +215,32 @@
             .split(",")
             .map((item) => item.trim())
             .filter(Boolean);
+        const BRANDING_IMAGE_FILENAMES = new Set([
+            "logo-primary.jpeg",
+            "whatsapp.png",
+            "floaa-editorial-coastal.png",
+            "floaa-editorial-daylight.png",
+            "floaa-editorial-evening.png",
+            "hero-pistachio-mobile.jpeg",
+            "hero-pistachio-desktop.webp",
+            "hero-ruby.webp",
+            "hero-tripti.webp"
+        ]);
+        const PRODUCT_JPG_FILENAMES = new Set([
+            "lavender-empress-set-1.jpg",
+            "lavender-empress-set-3.jpg"
+        ]);
         const normalizeImagePath = (value) => {
             const image = cleanSheetValue(value);
             if (!image || /^https?:\/\//i.test(image) || image.startsWith("assets/")) return image;
-            return `assets/floaa-jew-pics/${image}`;
+            const normalizedImage = image.toLowerCase();
+            const resolvedImage = normalizedImage.endsWith(".jpg")
+                && !BRANDING_IMAGE_FILENAMES.has(normalizedImage)
+                && !PRODUCT_JPG_FILENAMES.has(normalizedImage)
+                ? image.replace(/\.jpg$/i, ".jpeg")
+                : image;
+            const assetFolder = BRANDING_IMAGE_FILENAMES.has(resolvedImage.toLowerCase()) ? "branding" : "products";
+            return `assets/${assetFolder}/${resolvedImage}`;
         };
         const getProductThumbnailSrc = (value) => {
             const imagePath = normalizeImagePath(value);
