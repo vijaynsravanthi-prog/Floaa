@@ -44,9 +44,26 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       {
         "@context": "https://schema.org",
         "@type": "Organization",
+        "@id": "https://floaa.in/#organization",
         "name": "FLOAA Jewellery",
+        "alternateName": "FLOAA",
         "url": "https://floaa.in",
-        "logo": "https://floaa.in/assets/branding/logo-primary.jpeg"
+        "logo": "https://floaa.in/assets/branding/logo-primary.jpeg",
+        "description": "FLOAA Jewellery is a European-inspired jewellery brand in India offering jewellery for women, everyday luxury jewellery, and curated gifting pieces.",
+        "sameAs": [
+          "https://www.instagram.com/thefloaa/"
+        ],
+        "contactPoint": [
+          {
+            "@type": "ContactPoint",
+            "contactType": "customer support",
+            "email": "floaa.jewels@gmail.com",
+            "areaServed": "IN",
+            "availableLanguage": [
+              "en"
+            ]
+          }
+        ]
       }
     </script>
     <script type="application/ld+json">
@@ -55,7 +72,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         "@type": "CollectionPage",
         "name": "Bracelets | FLOAA Jewellery",
         "description": "Explore FLOAA Jewellery, European-inspired jewellery in India with Earrings, Necklaces, Bracelets and Rings, led by refined bracelets.",
-        "url": "https://floaa.in/bracelets.html"
+        "url": "https://floaa.in/bracelets.html",
+        "isPartOf": {
+          "@id": "https://floaa.in/#website"
+        },
+        "about": {
+          "@id": "https://floaa.in/#organization"
+        }
       }
     </script>
     <script type="application/ld+json">
