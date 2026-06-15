@@ -387,6 +387,403 @@
             });
         };
         window.trackEvent = trackEvent;
+        const scheduleAnalyticsTask = (callback) => {
+            if (typeof callback !== "function") return;
+
+            try {
+                if (typeof window.requestIdleCallback === "function") {
+                    window.requestIdleCallback(() => {
+                        try {
+                            callback();
+                        } catch (error) {
+                            // Analytics must never interrupt the customer journey.
+                        }
+                    }, { timeout: 1500 });
+                    return;
+                }
+
+                if (typeof window.queueMicrotask === "function") {
+                    window.queueMicrotask(() => {
+                        try {
+                            callback();
+                        } catch (error) {
+                            // Analytics must never interrupt the customer journey.
+                        }
+                    });
+                    return;
+                }
+
+                window.setTimeout(() => {
+                    try {
+                        callback();
+                    } catch (error) {
+                        // Analytics must never interrupt the customer journey.
+                    }
+                }, 0);
+            } catch (error) {
+                // Analytics scheduling must fail silently.
+            }
+        };
+        const toFiniteAmount = (value) => {
+            const normalized = typeof value === "number"
+                ? value
+                : Number(String(value || "").replace(/[^0-9.]/g, ""));
+            return Number.isFinite(normalized) ? normalized : 0;
+        };
+        const normalizeAnalyticsItems = (items) => {
+            if (!Array.isArray(items)) return [];
+
+            return items
+                .map((item) => {
+                    if (!item || typeof item !== "object") return null;
+
+                    const itemId = normalizeValue(item.productId || item.item_id || item.id);
+                    const itemName = normalizeValue(item.name || item.item_name);
+                    const itemCategory = normalizeValue(item.category || item.item_category);
+                    const quantityValue = Number(item.quantity);
+                    const quantity = Number.isFinite(quantityValue) && quantityValue > 0 ? quantityValue : 1;
+                    const price = toFiniteAmount(
+                        item.discountPriceValue
+                        ?? item.priceValue
+                        ?? item.discountPrice
+                        ?? item.price
+                        ?? item.value
+                    );
+                    const normalizedItem = {
+                        item_id: itemId,
+                        item_name: itemName,
+                        quantity,
+                        price
+                    };
+
+                    if (itemCategory) {
+                        normalizedItem.item_category = itemCategory;
+                    }
+
+                    return normalizedItem;
+                })
+                .filter((item) => item && (item.item_id || item.item_name));
+        };
+        const buildEcommerceEventPayload = (payload = {}) => {
+            const items = normalizeAnalyticsItems(payload.items);
+            const explicitCurrency = normalizeValue(payload.currency).toUpperCase();
+            const currency = explicitCurrency || "INR";
+            const explicitValue = toFiniteAmount(payload.value);
+            const computedValue = explicitValue || items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
+            const eventId = normalizeValue(payload.eventId || payload.event_id);
+            const productId = normalizeValue(payload.productId || payload.item_id || items[0]?.item_id);
+            const productName = normalizeValue(payload.productName || payload.item_name || items[0]?.item_name);
+            const category = normalizeValue(payload.category || payload.item_category || items[0]?.item_category);
+            const contents = items.map((item) => ({
+                id: item.item_id || item.item_name,
+                quantity: item.quantity || 1,
+                item_price: item.price || 0
+            }));
+            const itemCount = items.reduce((sum, item) => sum + (item.quantity || 0), 0) || (items.length ? items.length : 1);
+
+            return {
+                eventId,
+                currency,
+                value: computedValue,
+                itemCount,
+                productId,
+                productName,
+                category,
+                items,
+                contents
+            };
+        };
+        const ANALYTICS_SESSION_DEDUPE_STORAGE_KEY = "floaa-analytics-session-dedupe";
+        const isAnalyticsDebugEnabled = () => {
+            try {
+                return Boolean(window.FLOAA_ANALYTICS_DEBUG);
+            } catch (error) {
+                return false;
+            }
+        };
+        const logAnalyticsDebug = ({ event, payload, metaDispatched, ga4Dispatched, deduped }) => {
+            if (!isAnalyticsDebugEnabled()) return;
+
+            try {
+                console.info("[FLOAA analytics]", {
+                    event,
+                    payload,
+                    metaDispatched,
+                    ga4Dispatched,
+                    deduped
+                });
+            } catch (error) {
+                // Debug logging must never affect the storefront.
+            }
+        };
+        const readAnalyticsSessionDedupeState = () => {
+            try {
+                if (typeof window === "undefined" || !window.sessionStorage) return {};
+                const rawState = window.sessionStorage.getItem(ANALYTICS_SESSION_DEDUPE_STORAGE_KEY);
+                if (!rawState) return {};
+                const parsedState = JSON.parse(rawState);
+                return parsedState && typeof parsedState === "object" ? parsedState : {};
+            } catch (error) {
+                return {};
+            }
+        };
+        const writeAnalyticsSessionDedupeState = (nextState) => {
+            try {
+                if (typeof window === "undefined" || !window.sessionStorage) return;
+                window.sessionStorage.setItem(
+                    ANALYTICS_SESSION_DEDUPE_STORAGE_KEY,
+                    JSON.stringify(nextState && typeof nextState === "object" ? nextState : {})
+                );
+            } catch (error) {
+                // Analytics dedupe persistence must fail silently.
+            }
+        };
+        const buildAnalyticsSessionDedupeKey = (scope, identifier) => {
+            const normalizedScope = normalizeValue(scope).toLowerCase();
+            const normalizedIdentifier = normalizeValue(identifier).toLowerCase();
+            if (!normalizedScope || !normalizedIdentifier) return "";
+            return `${normalizedScope}:${normalizedIdentifier}`;
+        };
+        const claimAnalyticsSessionDedupeKey = (dedupeKey) => {
+            const normalizedKey = normalizeValue(dedupeKey);
+            if (!normalizedKey) return false;
+
+            try {
+                const currentState = readAnalyticsSessionDedupeState();
+                if (currentState[normalizedKey]) {
+                    return true;
+                }
+
+                writeAnalyticsSessionDedupeState({
+                    ...currentState,
+                    [normalizedKey]: new Date().toISOString()
+                });
+            } catch (error) {
+                return false;
+            }
+
+            return false;
+        };
+        const dispatchEcommerceEvent = ({ metaEventName = "", ga4EventName = "", payload = {}, dedupeKey = "" } = {}) => {
+            try {
+                const ecommerce = buildEcommerceEventPayload(payload);
+                const deduped = claimAnalyticsSessionDedupeKey(dedupeKey);
+
+                if (deduped) {
+                    logAnalyticsDebug({
+                        event: {
+                            meta: metaEventName || "",
+                            ga4: ga4EventName || ""
+                        },
+                        payload: ecommerce,
+                        metaDispatched: false,
+                        ga4Dispatched: false,
+                        deduped: true
+                    });
+                    return;
+                }
+
+                scheduleAnalyticsTask(() => {
+                    let metaDispatched = false;
+                    let ga4Dispatched = false;
+
+                    try {
+                        if (metaEventName && typeof window.fbq === "function") {
+                            const metaPayload = {
+                                content_ids: ecommerce.items.map((item) => item.item_id).filter(Boolean),
+                                contents: ecommerce.contents,
+                                value: ecommerce.value,
+                                currency: ecommerce.currency,
+                                content_type: ecommerce.contents.length > 1 ? "product_group" : "product",
+                                num_items: ecommerce.itemCount
+                            };
+
+                            if (ecommerce.productName) {
+                                metaPayload.content_name = ecommerce.productName;
+                            }
+
+                            if (ecommerce.category) {
+                                metaPayload.content_category = ecommerce.category;
+                            }
+
+                            if (ecommerce.eventId) {
+                                window.fbq("track", metaEventName, metaPayload, { eventID: ecommerce.eventId });
+                            } else {
+                                window.fbq("track", metaEventName, metaPayload);
+                            }
+
+                            metaDispatched = true;
+                        }
+                    } catch (error) {
+                        metaDispatched = false;
+                    }
+
+                    try {
+                        if (ga4EventName) {
+                            const eventPayload = {
+                                event: ga4EventName,
+                                page_path: window.location.pathname,
+                                ecommerce: {
+                                    currency: ecommerce.currency,
+                                    value: ecommerce.value,
+                                    items: ecommerce.items
+                                }
+                            };
+
+                            if (ecommerce.eventId) {
+                                eventPayload.event_id = ecommerce.eventId;
+                            }
+
+                            window.dataLayer = window.dataLayer || [];
+                            window.dataLayer.push(eventPayload);
+                            ga4Dispatched = true;
+                        }
+                    } catch (error) {
+                        ga4Dispatched = false;
+                    }
+
+                    logAnalyticsDebug({
+                        event: {
+                            meta: metaEventName || "",
+                            ga4: ga4EventName || ""
+                        },
+                        payload: ecommerce,
+                        metaDispatched,
+                        ga4Dispatched,
+                        deduped: false
+                    });
+                });
+            } catch (error) {
+                // Ecommerce tracking wrappers must fail silently.
+            }
+        };
+        const buildAnalyticsProductPayload = (product, overrides = {}) => {
+            try {
+                const productId = normalizeValue(product?.productId || overrides.productId);
+                const productName = normalizeValue(product?.name || overrides.productName);
+                const category = normalizeValue(product?.category || overrides.category);
+                const price = toFiniteAmount(
+                    overrides.value
+                    ?? product?.discountPriceValue
+                    ?? product?.priceValue
+                    ?? product?.discountPrice
+                    ?? product?.price
+                );
+
+                return {
+                    currency: normalizeValue(overrides.currency).toUpperCase() || "INR",
+                    value: price,
+                    productId,
+                    productName,
+                    category,
+                    eventId: normalizeValue(overrides.eventId || overrides.event_id),
+                    items: [
+                        {
+                            productId,
+                            name: productName,
+                            category,
+                            price,
+                            quantity: Number(overrides.quantity) > 0 ? Number(overrides.quantity) : 1
+                        }
+                    ]
+                };
+            } catch (error) {
+                return {
+                    currency: "INR",
+                    value: 0,
+                    items: []
+                };
+            }
+        };
+        const buildAnalyticsBagPayload = (items, overrides = {}) => {
+            try {
+                const normalizedItems = Array.isArray(items)
+                    ? items
+                        .map((item) => {
+                            const productId = normalizeValue(item?.productId);
+                            const productName = normalizeValue(item?.name);
+                            const price = toFiniteAmount(item?.price);
+
+                            if (!productId || !productName || !price) {
+                                return null;
+                            }
+
+                            return {
+                                productId,
+                                name: productName,
+                                price,
+                                quantity: 1
+                            };
+                        })
+                        .filter(Boolean)
+                    : [];
+
+                return {
+                    currency: normalizeValue(overrides.currency).toUpperCase() || "INR",
+                    value: toFiniteAmount(overrides.value) || normalizedItems.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0),
+                    eventId: normalizeValue(overrides.eventId || overrides.event_id),
+                    items: normalizedItems
+                };
+            } catch (error) {
+                return {
+                    currency: "INR",
+                    value: 0,
+                    items: []
+                };
+            }
+        };
+        const trackViewContent = (payload = {}, options = {}) => {
+            try {
+                dispatchEcommerceEvent({
+                    metaEventName: "ViewContent",
+                    ga4EventName: "view_item",
+                    payload,
+                    dedupeKey: options.dedupeKey
+                });
+            } catch (error) {
+                // Ecommerce tracking wrappers must fail silently.
+            }
+        };
+        const trackAddToCart = (payload = {}, options = {}) => {
+            try {
+                dispatchEcommerceEvent({
+                    metaEventName: "AddToCart",
+                    ga4EventName: "add_to_cart",
+                    payload,
+                    dedupeKey: options.dedupeKey
+                });
+            } catch (error) {
+                // Ecommerce tracking wrappers must fail silently.
+            }
+        };
+        const trackInitiateCheckout = (payload = {}, options = {}) => {
+            try {
+                dispatchEcommerceEvent({
+                    metaEventName: "InitiateCheckout",
+                    ga4EventName: "begin_checkout",
+                    payload,
+                    dedupeKey: options.dedupeKey
+                });
+            } catch (error) {
+                // Ecommerce tracking wrappers must fail silently.
+            }
+        };
+        const trackPurchase = (payload = {}, options = {}) => {
+            try {
+                dispatchEcommerceEvent({
+                    metaEventName: "Purchase",
+                    ga4EventName: "purchase",
+                    payload,
+                    dedupeKey: options.dedupeKey
+                });
+            } catch (error) {
+                // Ecommerce tracking wrappers must fail silently.
+            }
+        };
+        window.trackViewContent = trackViewContent;
+        window.trackAddToCart = trackAddToCart;
+        window.trackInitiateCheckout = trackInitiateCheckout;
+        window.trackPurchase = trackPurchase;
         const getProductWhatsAppPayload = (item) => {
             const finalPrice = item.discountPrice || item.price;
             let imageUrl = "";
@@ -706,6 +1103,15 @@
                 document.body.classList.add("has-product-gallery-open");
                 syncGalleryChrome();
                 showMedia(0);
+                trackViewContent(
+                    buildAnalyticsProductPayload(item),
+                    {
+                        dedupeKey: buildAnalyticsSessionDedupeKey(
+                            "view_content",
+                            item?.productId || item?.name
+                        )
+                    }
+                );
                 window.setTimeout(() => popup.querySelector(".product-gallery-lightbox__close")?.focus(), 0);
             };
 
@@ -2375,6 +2781,17 @@
                 popup.hidden = false;
                 popup.classList.add("is-open");
                 document.body.classList.add("has-floaa-order-modal");
+                if (!popup.hidden && activeBagItems.length >= 1) {
+                    trackInitiateCheckout(
+                        buildAnalyticsBagPayload(activeBagItems, { value: activeBagTotal }),
+                        {
+                            dedupeKey: buildAnalyticsSessionDedupeKey(
+                                "begin_checkout",
+                                activeBagItems.map((item) => normalizeValue(item?.productId)).filter(Boolean).sort().join("|")
+                            )
+                        }
+                    );
+                }
                 window.setTimeout(() => nameInput.focus(), 0);
             };
 
@@ -2585,6 +3002,11 @@
                 }
             ];
             writeBagItems(nextItems);
+            const persistedItems = readBagItems();
+            const persistedItem = persistedItems.find((item) => item.productId === normalizedProductId);
+            if (persistedItem) {
+                trackAddToCart(buildAnalyticsProductPayload(product));
+            }
 
             return {
                 status: "added",

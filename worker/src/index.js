@@ -81,7 +81,8 @@ const createWorkerExecutionContext = () => ({
   ordersHeaderRow: null,
   ordersHeaderMap: null,
   ordersSheetRows: null,
-  orderRowsByPaymentLinkId: new Map()
+  orderRowsByPaymentLinkId: new Map(),
+  orderRowsByOrderId: new Map()
 });
 
 const buildProductsResponseHeaders = (request, extraHeaders = {}) => ({
@@ -1404,6 +1405,86 @@ const fetchOrderRowsByPaymentLinkId = async (paymentLinkId, env, runtimeContext 
   return result;
 };
 
+const fetchOrderRowsByOrderId = async (orderId, env, runtimeContext = null) => {
+  const normalizedOrderId = normalizeValue(orderId);
+  const orderIdCacheKey = normalizedOrderId.toLowerCase();
+  const cachedOrderRows = runtimeContext?.orderRowsByOrderId?.get(orderIdCacheKey);
+  if (cachedOrderRows) {
+    return cachedOrderRows;
+  }
+
+  const { accessToken, headerRow, headerMap, rows } = await fetchOrdersSheetRows(env, runtimeContext);
+  const orderIdIndex = headerMap[normalizeKey("OrderId")] ?? -1;
+  if (orderIdIndex === -1) {
+    throw new Error("OrderId column not found");
+  }
+
+  const matches = [];
+
+  for (let index = 1; index < rows.length; index += 1) {
+    const row = rows[index];
+    const rowOrderId = normalizeValue(row[orderIdIndex]);
+
+    if (rowOrderId === normalizedOrderId) {
+      matches.push({
+        accessToken,
+        rowIndex: index + 1,
+        headerRow,
+        headerMap,
+        rowValues: row,
+        orderRecord: buildOrderRecordFromRow(headerRow, row)
+      });
+    }
+  }
+
+  if (!matches.length) {
+    const error = new Error("Order not found");
+    error.status = 404;
+    throw error;
+  }
+
+  const result = {
+    accessToken,
+    headerRow,
+    headerMap,
+    matches,
+    orderRecords: matches.map((match) => match.orderRecord),
+    orderRecord: buildGroupedOrderRecord(matches.map((match) => match.orderRecord))
+  };
+
+  if (runtimeContext?.orderRowsByOrderId) {
+    runtimeContext.orderRowsByOrderId.set(orderIdCacheKey, result);
+  }
+
+  return result;
+};
+
+const buildOrderStatusResponse = (orderRecord) => {
+  const groupedOrderRecord = orderRecord && typeof orderRecord === "object" ? orderRecord : {};
+  const orderId = getOrderRecordValue(groupedOrderRecord, "OrderId");
+  const paymentStatus = getOrderRecordValue(groupedOrderRecord, "PaymentStatus");
+  const orderStatus = getOrderRecordValue(groupedOrderRecord, "OrderStatus");
+  const value = parseOrderAmount(getOrderRecordValue(groupedOrderRecord, "Amount"));
+  const currency = (getOrderRecordValue(groupedOrderRecord, "Currency") || "INR").toUpperCase();
+  const rawItemCount = Number.parseInt(getOrderRecordValue(groupedOrderRecord, "Quantity"), 10);
+  const itemCount = Number.isFinite(rawItemCount) && rawItemCount > 0 ? rawItemCount : 1;
+  const paymentCapturedAt = getOrderRecordValue(groupedOrderRecord, "PaymentCapturedAt");
+
+  return {
+    success: true,
+    verified: paymentStatus === PAYMENT_STATUSES.PAID,
+    order: {
+      orderId,
+      paymentStatus,
+      orderStatus,
+      value,
+      currency,
+      itemCount,
+      paymentCapturedAt
+    }
+  };
+};
+
 const fetchMatchedOrderRowValues = async ({ paymentLinkId, env, runtimeContext = null }) => fetchOrderRowsByPaymentLinkId(paymentLinkId, env, runtimeContext);
 
 const updateOrderRowFields = async ({ paymentLinkId, updates, env, runtimeContext = null }) => {
@@ -1768,7 +1849,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if (request.method === "OPTIONS" && (url.pathname === "/orders" || url.pathname === "/create-payment-link" || url.pathname === "/create-bag-payment-link" || url.pathname === "/razorpay-webhook" || url.pathname === "/whatsapp-webhook" || url.pathname === "/api/products")) {
+    if (request.method === "OPTIONS" && (url.pathname === "/orders" || url.pathname === "/create-payment-link" || url.pathname === "/create-bag-payment-link" || url.pathname === "/razorpay-webhook" || url.pathname === "/whatsapp-webhook" || url.pathname === "/api/products" || url.pathname === "/order-status")) {
       return new Response(null, {
         status: 204,
         headers: getCorsHeaders(request)
@@ -1904,6 +1985,56 @@ export default {
             "x-floaa-products-error": errorHeaderValue
           })
         });
+      }
+    }
+
+    if (request.method === "GET" && url.pathname === "/order-status") {
+      const orderId = normalizeValue(url.searchParams.get("orderId"));
+      if (!orderId) {
+        return jsonResponse(
+          {
+            success: false,
+            message: "orderId is required"
+          },
+          { status: 400 },
+          request
+        );
+      }
+
+      try {
+        const runtimeContext = createWorkerExecutionContext();
+        const { orderRecord } = await fetchOrderRowsByOrderId(orderId, env, runtimeContext);
+
+        return jsonResponse(
+          buildOrderStatusResponse(orderRecord),
+          {},
+          request
+        );
+      } catch (error) {
+        if (error?.status === 404 || error?.message === "Order not found") {
+          return jsonResponse(
+            {
+              success: false,
+              message: "Order not found"
+            },
+            { status: 404 },
+            request
+          );
+        }
+
+        console.error("order status verification failed", {
+          orderId,
+          message: error?.message || "Unknown error"
+        });
+
+        return jsonResponse(
+          {
+            success: false,
+            message: "Unable to verify order"
+          },
+          { status: 500 },
+          request
+        );
       }
     }
 
