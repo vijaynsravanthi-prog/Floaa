@@ -1945,6 +1945,13 @@ export default {
 
       try {
         const products = await fetchProducts();
+        await env.PRODUCTS_CACHE.put(
+          "products:v1",
+          JSON.stringify(products),
+          {
+            expirationTtl: 604800
+          }
+        );
         console.log("api products fetch success", {
           count: products.length
         });
@@ -1975,6 +1982,37 @@ export default {
           bodyPreview: errorBodyPreview,
           isArrayPayload
         });
+
+        try {
+          const staleProductsValue = await env.PRODUCTS_CACHE.get("products:v1");
+
+          if (staleProductsValue) {
+            try {
+              const staleProducts = JSON.parse(staleProductsValue);
+
+              if (Array.isArray(staleProducts)) {
+                console.log("product kv stale hit", {
+                  count: staleProducts.length,
+                  source: "kv-stale"
+                });
+                return new Response(JSON.stringify(staleProducts), {
+                  status: 200,
+                  headers: buildProductsResponseHeaders(request, {
+                    "x-floaa-products-source": "kv-stale"
+                  })
+                });
+              }
+            } catch (parseError) {
+              console.warn("product kv parse error", {
+                message: parseError?.message
+              });
+            }
+          }
+        } catch (kvError) {
+          console.warn("product kv read error", {
+            message: kvError?.message
+          });
+        }
 
         return new Response(JSON.stringify({
           success: false,
