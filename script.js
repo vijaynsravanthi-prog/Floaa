@@ -233,12 +233,7 @@
         const normalizeImagePath = (value) => {
             const image = cleanSheetValue(value);
             if (!image || /^https?:\/\//i.test(image) || image.startsWith("assets/")) return image;
-            const normalizedImage = image.toLowerCase();
-            const resolvedImage = normalizedImage.endsWith(".jpg")
-                && !BRANDING_IMAGE_FILENAMES.has(normalizedImage)
-                && !PRODUCT_JPG_FILENAMES.has(normalizedImage)
-                ? image.replace(/\.jpg$/i, ".jpeg")
-                : image;
+            const resolvedImage = image;
             const assetFolder = BRANDING_IMAGE_FILENAMES.has(resolvedImage.toLowerCase()) ? "branding" : "products";
             return `assets/${assetFolder}/${resolvedImage}`;
         };
@@ -249,7 +244,9 @@
             const extensionMatch = imagePath.match(/(\.[^.]+)$/);
             if (!extensionMatch) return imagePath;
 
-            return imagePath.replace(/(\.[^.]+)$/, "-thumb.jpg");
+            return /-thumb\.jpe?g$/i.test(imagePath)
+                ? imagePath
+                : imagePath.replace(/(\.[^.]+)$/, "-thumb.jpg");
         };
         const getProductImages = (value) => normalizeList(value).map(normalizeImagePath).filter(Boolean);
         const parsePrice = (value) => {
@@ -340,6 +337,26 @@
                 }
             }
             return filteredItems;
+        };
+        const resolveCurrentProduct = (products, searchParams) => {
+            if (!Array.isArray(products) || !searchParams) return null;
+
+            const requestedProductId = cleanSheetValue(searchParams.get("productId"));
+            if (requestedProductId) {
+                const productById = products.find((product) => normalizeValue(product?.productId) === requestedProductId);
+                if (productById) return productById;
+            }
+
+            const requestedSlug = cleanSheetValue(
+                searchParams.get("product")
+                || searchParams.get("slug")
+            );
+            if (requestedSlug) {
+                const normalizedRequestedSlug = buildAnchorSlug(requestedSlug);
+                return products.find((product) => buildAnchorSlug(product?.name) === normalizedRequestedSlug) || null;
+            }
+
+            return null;
         };
         const getRowValue = (row, names) => {
             const normalizedNames = names.map(normalizeSlug);
@@ -1416,14 +1433,13 @@
                         <span class="search-result-card__arrow" aria-hidden="true"></span>
                     `;
                     card.addEventListener("click", () => {
-                        const savedTrigger = currentTrigger;
                         trackEvent("search_result_click", {
                             product_name: item.name,
                             product_category: item.category,
                             query: input.value.trim()
                         });
                         closeOverlay(false);
-                        productGalleryLightbox.open(item, savedTrigger);
+                        window.location.href = `product.html?product=${encodeURIComponent(buildAnchorSlug(item.name))}`;
                     });
                     resultsEl.append(card);
                 });
@@ -1531,212 +1547,6 @@
         };
         const searchOverlay = createSearchOverlay();
 
-        const createWhatsAppIntentPopup = () => {
-            const popup = document.createElement("div");
-            popup.className = "whatsapp-intent-popup";
-            popup.hidden = true;
-            popup.innerHTML = `
-                <div class="whatsapp-intent-popup__backdrop" data-popup-close="true"></div>
-                <div class="whatsapp-intent-popup__dialog" role="dialog" aria-modal="true" aria-labelledby="whatsapp-intent-title">
-                    <button class="whatsapp-intent-popup__close" type="button" aria-label="Close popup" data-popup-close="true">&times;</button>
-                    <div class="whatsapp-intent-popup__content">
-                        <div class="whatsapp-intent-popup__panel whatsapp-intent-popup__panel--choices">
-                            <p class="whatsapp-intent-popup__eyebrow">FLOAA WhatsApp</p>
-                            <h2 id="whatsapp-intent-title" class="whatsapp-intent-popup__title">How would you like to continue?</h2>
-                            <p class="whatsapp-intent-popup__subtitle">Our team can help with questions, styling or reserving your piece.</p>
-                            <div class="whatsapp-intent-popup__product"></div>
-                            <div class="whatsapp-intent-popup__actions">
-                                <button class="btn btn-secondary whatsapp-intent-popup__action" type="button" data-intent-action="question">Ask a Question</button>
-                                <button class="btn btn-primary whatsapp-intent-popup__action" type="button" data-intent-action="reserve">Reserve This Piece</button>
-                            </div>
-                        </div>
-                        <div class="whatsapp-intent-popup__panel whatsapp-intent-popup__panel--form" hidden>
-                            <button class="whatsapp-intent-popup__back" type="button" data-intent-back="true">Back</button>
-                            <p class="whatsapp-intent-popup__eyebrow">Reserve This Piece</p>
-                            <h2 class="whatsapp-intent-popup__title">Complete your WhatsApp order</h2>
-                            <p class="whatsapp-intent-popup__subtitle">Share your details so we can confirm your piece and send the payment link.</p>
-                            <form class="whatsapp-intent-popup__form" novalidate>
-                                <label class="whatsapp-intent-popup__field">
-                                    <span>Name</span>
-                                    <input type="text" name="customerName" autocomplete="name" required>
-                                </label>
-                                <label class="whatsapp-intent-popup__field">
-                                    <span>Delivery address</span>
-                                    <textarea name="customerAddress" rows="4" autocomplete="street-address" required></textarea>
-                                </label>
-                                <p class="whatsapp-intent-popup__error" aria-live="polite" hidden></p>
-                                <button class="btn btn-primary whatsapp-intent-popup__submit" type="submit">Continue on WhatsApp</button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.append(popup);
-
-            const dialog = popup.querySelector(".whatsapp-intent-popup__dialog");
-            const productSummary = popup.querySelector(".whatsapp-intent-popup__product");
-            const choicesPanel = popup.querySelector(".whatsapp-intent-popup__panel--choices");
-            const formPanel = popup.querySelector(".whatsapp-intent-popup__panel--form");
-            const form = popup.querySelector(".whatsapp-intent-popup__form");
-            const nameInput = form.querySelector('input[name="customerName"]');
-            const addressInput = form.querySelector('textarea[name="customerAddress"]');
-            const errorMessage = popup.querySelector(".whatsapp-intent-popup__error");
-            const askButton = popup.querySelector('[data-intent-action="question"]');
-            const reserveButton = popup.querySelector('[data-intent-action="reserve"]');
-            const backButton = popup.querySelector('[data-intent-back="true"]');
-            let activeItem = null;
-            let activeBrandContent = null;
-            let previousActiveElement = null;
-
-            const setProductSummary = (item) => {
-                const { finalPrice } = getProductWhatsAppPayload(item);
-                productSummary.innerHTML = `
-                    <p class="whatsapp-intent-popup__product-name">${item.name}</p>
-                    <p class="whatsapp-intent-popup__product-meta">${finalPrice}</p>
-                `;
-            };
-
-            const openWhatsAppFromMessage = (message) => {
-                const whatsappNumber = getWhatsAppNumber(activeBrandContent || {});
-                if (!whatsappNumber) return;
-                const whatsappUrl = buildWhatsAppUrl(whatsappNumber, message);
-                trackMetaWhatsAppClick();
-                window.open(whatsappUrl, "_blank", "noopener");
-            };
-
-            const resetForm = () => {
-                form.reset();
-                errorMessage.hidden = true;
-                errorMessage.textContent = "";
-            };
-
-            const showChoices = () => {
-                choicesPanel.hidden = false;
-                formPanel.hidden = true;
-                resetForm();
-            };
-
-            const showForm = () => {
-                choicesPanel.hidden = true;
-                formPanel.hidden = false;
-                errorMessage.hidden = true;
-                errorMessage.textContent = "";
-                window.setTimeout(() => nameInput.focus(), 0);
-            };
-
-            const closePopup = () => {
-                popup.hidden = true;
-                popup.classList.remove("is-open");
-                document.body.classList.remove("has-whatsapp-intent-popup");
-                showChoices();
-                activeItem = null;
-                activeBrandContent = null;
-                if (previousActiveElement instanceof HTMLElement) {
-                    previousActiveElement.focus();
-                }
-            };
-
-            const openPopup = (item, brandContent, trigger) => {
-                activeItem = item;
-                activeBrandContent = brandContent;
-                previousActiveElement = trigger instanceof HTMLElement ? trigger : document.activeElement;
-                setProductSummary(item);
-                showChoices();
-                popup.hidden = false;
-                popup.classList.add("is-open");
-                document.body.classList.add("has-whatsapp-intent-popup");
-                window.setTimeout(() => askButton.focus(), 0);
-            };
-
-            popup.addEventListener("click", (event) => {
-                const closeTarget = event.target.closest("[data-popup-close='true']");
-                if (closeTarget) {
-                    closePopup();
-                }
-            });
-
-            document.addEventListener("keydown", (event) => {
-                if (event.key === "Escape" && !popup.hidden) {
-                    closePopup();
-                }
-            });
-
-            askButton.addEventListener("click", () => {
-                if (!activeItem) return;
-                const { finalPrice, imageUrl } = getProductWhatsAppPayload(activeItem);
-                const message = [
-                    "Hi FLOAA! I have a question about this piece.",
-                    "",
-                    `Product: ${activeItem.name}`,
-                    `Price: ${finalPrice}`,
-                    "Quantity: 1",
-                    "",
-                    imageUrl ? "View Product Image:" : "",
-                    imageUrl || "",
-                    "",
-                    "Question:",
-                    "Could you help me out?"
-                ].filter(Boolean).join("\n");
-                trackMetaCustomEvent("whatsapp_enquiry_click");
-                openWhatsAppFromMessage(message);
-                closePopup();
-            });
-
-            reserveButton.addEventListener("click", showForm);
-            backButton.addEventListener("click", showChoices);
-
-            form.addEventListener("submit", (event) => {
-                event.preventDefault();
-                if (!activeItem) return;
-
-                const customerName = nameInput.value.trim();
-                const customerAddress = addressInput.value.trim();
-                if (!customerName || !customerAddress) {
-                    errorMessage.textContent = "Please enter your name and delivery address to continue.";
-                    errorMessage.hidden = false;
-                    if (!customerName) {
-                        nameInput.focus();
-                    } else {
-                        addressInput.focus();
-                    }
-                    return;
-                }
-
-                const { finalPrice, imageUrl } = getProductWhatsAppPayload(activeItem);
-                const message = [
-                    "Hi FLOAA! I'd like to order this.",
-                    "",
-                    `Product: ${activeItem.name}`,
-                    `Price: ${finalPrice}`,
-                    "Quantity: 1",
-                    "",
-                    imageUrl ? "View Product Image:" : "",
-                    imageUrl || "",
-                    "",
-                    `Name: ${customerName}`,
-                    `Address: ${customerAddress}`,
-                    "",
-                    "Please confirm and share the payment link."
-                ].filter(Boolean).join("\n");
-
-                trackMetaCustomEvent("whatsapp_order_submit");
-                trackEvent("whatsapp_order_click", {
-                    product_name: activeItem.name,
-                    product_price: finalPrice,
-                    product_category: activeItem.category,
-                    location: "product_card"
-                });
-                openWhatsAppFromMessage(message);
-                closePopup();
-            });
-
-            return {
-                open(item, brandContent, trigger) {
-                    openPopup(item, brandContent, trigger);
-                }
-            };
-        };
-        const whatsappIntentPopup = null;
         const openWhatsAppMessage = (brandContent, message) => {
             const whatsappNumber = getWhatsAppNumber(brandContent || {});
             if (!whatsappNumber) return;
@@ -1744,22 +1554,11 @@
             trackMetaWhatsAppClick();
             window.open(whatsappUrl, "_blank", "noopener");
         };
-        const getCanonicalProductPagePath = (product) => {
-            const category = normalizeKey(product?.category);
-            if (category === "earrings") return "earrings.html";
-            if (category === "bracelets") return "bracelets.html";
-            if (category === "necklaces") return "necklaces.html";
-            if (category === "combos" || category === "comboset") return "rings.html";
-            return "shop.html";
-        };
         const getCanonicalProductUrl = (product) => {
-            const anchorId = buildAnchorSlug(product?.name);
-            const pagePath = getCanonicalProductPagePath(product);
-            const canonicalUrl = new URL(pagePath, "https://floaa.in/");
-            if (anchorId) {
-                canonicalUrl.hash = anchorId;
-            }
-            return canonicalUrl.href;
+            return new URL(
+                `product.html?product=${encodeURIComponent(buildAnchorSlug(product?.name))}`,
+                "https://floaa.in/"
+            ).href;
         };
         const handleProductAssistance = (product) => {
             if (!product) return;
@@ -3110,8 +2909,7 @@
             }, 2200);
         };
         const handleProductShare = async (item, card) => {
-            const anchor = card.id ? `#${card.id}` : "";
-            const url = `${window.location.origin}${window.location.pathname}${anchor}`;
+            const url = getCanonicalProductUrl(item);
             if (navigator.share) {
                 try {
                     await navigator.share({ title: item.name || "FLOAA", url });
@@ -3694,6 +3492,402 @@
             container.append(notice);
             signalGridRefresh(container);
         };
+        const formatProductStockState = (product) => {
+            const stockState = normalizeValue(product?.stockStatus);
+            return stockState === "sold-out" ? "Sold Out" : "In Stock";
+        };
+        const initializeProductPageDisclosures = (container) => {
+            if (!(container instanceof HTMLElement)) return;
+
+            const disclosureButtons = Array.from(container.querySelectorAll("[data-product-disclosure-toggle]"));
+            disclosureButtons.forEach((button) => {
+                const panelId = button.getAttribute("aria-controls");
+                const panel = panelId ? container.querySelector(`#${panelId}`) : null;
+                if (!(panel instanceof HTMLElement)) return;
+
+                button.addEventListener("click", () => {
+                    const isExpanded = button.getAttribute("aria-expanded") === "true";
+                    const nextExpanded = !isExpanded;
+                    button.setAttribute("aria-expanded", String(nextExpanded));
+                    button.classList.toggle("is-open", nextExpanded);
+                    panel.hidden = !nextExpanded;
+                });
+            });
+        };
+        const renderProductPageNotice = (container, message) => {
+            if (!container) return;
+
+            container.innerHTML = "";
+            container.setAttribute("aria-busy", "false");
+            const notice = document.createElement("div");
+            notice.className = "product-grid-notice is-error";
+            notice.textContent = message;
+            container.append(notice);
+        };
+        const renderProductPage = (container, product) => {
+            if (!container || !product) return;
+
+            const galleryStage = container.querySelector("[data-product-gallery-stage]");
+            const galleryList = container.querySelector("[data-product-gallery-list]");
+            const productName = container.querySelector("[data-product-name]");
+            const productPrice = container.querySelector("[data-product-price]");
+            const productDescription = container.querySelector("[data-product-description]");
+            const productStock = container.querySelector("[data-product-stock]");
+            const buyNowButton = container.querySelector("[data-product-buy-now]");
+            const addToBagButton = container.querySelector("[data-product-add-to-bag]");
+            const galleryItems = buildProductGalleryItems(product);
+
+            const renderProductPageGallery = () => {
+                if (!galleryStage) return;
+
+                galleryStage.innerHTML = "";
+                if (galleryList) {
+                    galleryList.innerHTML = "";
+                    galleryList.hidden = true;
+                }
+
+                if (!galleryItems.length) return;
+
+                let activeIndex = 0;
+                let touchStartX = 0;
+                let touchStartY = 0;
+                let isZoomed = false;
+                let fadeTimer = null;
+                let hasShownItem = false;
+                let updateZoomCursor = () => {};
+                const isTouchDevice = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+
+                const stageShell = document.createElement("div");
+                stageShell.className = "product-page-gallery-shell";
+
+                const mediaFrame = document.createElement("div");
+                mediaFrame.className = "product-page-gallery-media-frame";
+
+                const previousButton = document.createElement("button");
+                previousButton.className = "product-page-gallery-nav product-page-gallery-nav--prev";
+                previousButton.type = "button";
+                previousButton.setAttribute("aria-label", "Previous image");
+                previousButton.innerHTML = '<span aria-hidden="true">&#8249;</span>';
+
+                const nextButton = document.createElement("button");
+                nextButton.className = "product-page-gallery-nav product-page-gallery-nav--next";
+                nextButton.type = "button";
+                nextButton.setAttribute("aria-label", "Next image");
+                nextButton.innerHTML = '<span aria-hidden="true">&#8250;</span>';
+
+                const image = document.createElement("img");
+                image.className = "product-page-gallery-image";
+                image.alt = getPreferredAltText(product.name, product.description);
+                image.decoding = "async";
+                image.fetchPriority = "high";
+                image.sizes = "(max-width: 960px) 100vw, 58vw";
+
+                const video = document.createElement("video");
+                video.className = "product-page-gallery-video";
+                video.controls = true;
+                video.playsInline = true;
+                video.preload = "metadata";
+                video.hidden = true;
+
+                const handleGalleryImageError = () => {
+                    applyImageFallback(image, `product-page:${product?.name || "unknown"}`);
+                };
+                const handleGalleryThumbError = (thumbImage) => {
+                    applyImageFallback(thumbImage, `product-page-thumb:${product?.name || "unknown"}`);
+                };
+
+                const exitZoom = () => {
+                    if (!isZoomed) return;
+                    isZoomed = false;
+                    mediaFrame.classList.remove("is-zoomed");
+                    updateZoomCursor();
+                };
+                const enterZoom = () => {
+                    if (isZoomed) return;
+                    isZoomed = true;
+                    mediaFrame.classList.add("is-zoomed");
+                    updateZoomCursor();
+                };
+                const updateThumbSelection = (indexOverride) => {
+                    const highlightIndex = indexOverride !== undefined ? indexOverride : activeIndex;
+                    if (!galleryList || galleryItems.length <= 1) return;
+                    Array.from(galleryList.querySelectorAll(".product-page-gallery-thumb-button")).forEach((button, index) => {
+                        const isActive = index === highlightIndex;
+                        button.classList.toggle("is-active", isActive);
+                        button.setAttribute("aria-current", isActive ? "true" : "false");
+                    });
+                };
+
+                const showGalleryItem = (nextIndex) => {
+                    const targetIndex = (nextIndex + galleryItems.length) % galleryItems.length;
+                    const targetItem = galleryItems[targetIndex];
+                    const shouldFade = hasShownItem && galleryItems[activeIndex]?.type === "image" && targetItem.type === "image";
+
+                    clearTimeout(fadeTimer);
+                    if (isZoomed) exitZoom();
+                    updateThumbSelection(targetIndex);
+                    hasShownItem = true;
+
+                    const applyItem = () => {
+                        activeIndex = targetIndex;
+                        image.hidden = targetItem.type !== "image";
+                        video.hidden = targetItem.type !== "video";
+
+                        if (targetItem.type === "image") {
+                            video.pause();
+                            video.removeAttribute("src");
+                            video.load();
+                            image.loading = activeIndex === 0 ? "eager" : "lazy";
+                            image.fetchPriority = activeIndex === 0 ? "high" : "auto";
+                            image.alt = targetItem.alt;
+                            image.removeEventListener("error", handleGalleryImageError);
+                            image.src = targetItem.src;
+                            image.addEventListener("error", handleGalleryImageError, { once: true });
+                        } else {
+                            image.removeAttribute("src");
+                            video.src = targetItem.src;
+                            video.load();
+                        }
+
+                        preloadGalleryAsset(galleryItems[activeIndex + 1]);
+                        preloadGalleryAsset(galleryItems[activeIndex - 1]);
+                        updateZoomCursor();
+                    };
+
+                    if (shouldFade) {
+                        image.classList.add("is-transitioning");
+                        fadeTimer = window.setTimeout(() => {
+                            applyItem();
+                            window.requestAnimationFrame(() => image.classList.remove("is-transitioning"));
+                        }, 200);
+                    } else {
+                        applyItem();
+                    }
+                };
+
+                if (galleryItems.length > 1) {
+                    previousButton.addEventListener("click", () => showGalleryItem(activeIndex - 1));
+                    nextButton.addEventListener("click", () => showGalleryItem(activeIndex + 1));
+
+                    stageShell.addEventListener("touchstart", (event) => {
+                        const firstTouch = event.changedTouches?.[0];
+                        if (!firstTouch) return;
+                        touchStartX = firstTouch.clientX;
+                        touchStartY = firstTouch.clientY;
+                    }, { passive: true });
+
+                    stageShell.addEventListener("touchend", (event) => {
+                        const firstTouch = event.changedTouches?.[0];
+                        if (!firstTouch) return;
+                        const deltaX = firstTouch.clientX - touchStartX;
+                        const deltaY = firstTouch.clientY - touchStartY;
+                        if (Math.abs(deltaX) < 48 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+                        if (deltaX < 0) {
+                            showGalleryItem(activeIndex + 1);
+                        } else {
+                            showGalleryItem(activeIndex - 1);
+                        }
+                    }, { passive: true });
+                } else {
+                    previousButton.hidden = true;
+                    nextButton.hidden = true;
+                }
+
+                if (galleryList && galleryItems.length > 1) {
+                    galleryList.hidden = false;
+                    const thumbsFragment = document.createDocumentFragment();
+                    galleryItems.forEach((galleryItem, index) => {
+                        const thumbButton = document.createElement("button");
+                        thumbButton.className = "product-page-gallery-thumb-button";
+                        thumbButton.type = "button";
+                        thumbButton.setAttribute("aria-label", `${galleryItem.type === "video" ? "Video" : "Image"} ${index + 1}`);
+
+                        if (galleryItem.type === "video") {
+                            const videoBadge = document.createElement("span");
+                            videoBadge.className = "product-page-gallery-thumb-video";
+                            videoBadge.textContent = "Play";
+                            thumbButton.append(videoBadge);
+                        } else {
+                            const thumbImage = document.createElement("img");
+                            thumbImage.className = "product-page-gallery-thumb";
+                            thumbImage.src = galleryItem.thumb || galleryItem.src;
+                            thumbImage.alt = galleryItem.alt;
+                            thumbImage.loading = "lazy";
+                            thumbImage.decoding = "async";
+                            thumbImage.sizes = "78px";
+                            thumbImage.addEventListener("error", () => {
+                                handleGalleryThumbError(thumbImage);
+                            }, { once: true });
+                            thumbButton.append(thumbImage);
+                        }
+
+                        thumbButton.addEventListener("click", () => showGalleryItem(index));
+                        thumbsFragment.append(thumbButton);
+                    });
+                    galleryList.append(thumbsFragment);
+                }
+
+                mediaFrame.append(image, video);
+                stageShell.append(previousButton, mediaFrame, nextButton);
+                galleryStage.append(stageShell);
+                showGalleryItem(0);
+
+                if (!isTouchDevice) {
+                    updateZoomCursor = () => {
+                        const activeItem = galleryItems[activeIndex];
+                        if (!activeItem || activeItem.type !== "image") {
+                            image.removeAttribute("data-zoom");
+                        } else if (isZoomed) {
+                            image.setAttribute("data-zoom", "active");
+                        } else {
+                            image.setAttribute("data-zoom", "available");
+                        }
+                    };
+                    updateZoomCursor();
+
+                    image.addEventListener("click", () => {
+                        const activeItem = galleryItems[activeIndex];
+                        if (!activeItem || activeItem.type !== "image") return;
+                        if (isZoomed) exitZoom();
+                        else enterZoom();
+                    });
+                    mediaFrame.addEventListener("mousemove", (event) => {
+                        if (!isZoomed) return;
+                        const rect = mediaFrame.getBoundingClientRect();
+                        const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
+                        const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
+                        mediaFrame.style.setProperty("--zoom-x", `${x}%`);
+                        mediaFrame.style.setProperty("--zoom-y", `${y}%`);
+                    });
+                    mediaFrame.addEventListener("mouseleave", () => {
+                        if (isZoomed) exitZoom();
+                    });
+                    document.addEventListener("keydown", (event) => {
+                        if (event.key === "Escape" && isZoomed) exitZoom();
+                    });
+                } else {
+                    const zoomOverlay = document.createElement("div");
+                    zoomOverlay.className = "product-page-zoom-overlay";
+                    zoomOverlay.hidden = true;
+                    zoomOverlay.setAttribute("role", "dialog");
+                    zoomOverlay.setAttribute("aria-modal", "true");
+                    zoomOverlay.setAttribute("aria-label", "Full size image");
+                    const overlayClose = document.createElement("button");
+                    overlayClose.className = "product-page-zoom-overlay-close";
+                    overlayClose.type = "button";
+                    overlayClose.setAttribute("aria-label", "Close");
+                    overlayClose.innerHTML = "&times;";
+                    const overlayImg = document.createElement("img");
+                    overlayImg.className = "product-page-zoom-overlay-image";
+                    overlayImg.decoding = "async";
+                    zoomOverlay.append(overlayClose, overlayImg);
+                    document.body.append(zoomOverlay);
+                    let overlayOpener = null;
+                    const openOverlay = () => {
+                        const activeItem = galleryItems[activeIndex];
+                        if (!activeItem || activeItem.type !== "image") return;
+                        overlayOpener = document.activeElement;
+                        overlayImg.src = activeItem.src;
+                        overlayImg.alt = activeItem.alt;
+                        zoomOverlay.hidden = false;
+                        document.body.classList.add("has-zoom-overlay");
+                        overlayClose.focus();
+                    };
+                    const closeOverlay = () => {
+                        zoomOverlay.hidden = true;
+                        document.body.classList.remove("has-zoom-overlay");
+                        overlayOpener?.focus();
+                        overlayOpener = null;
+                    };
+                    image.addEventListener("click", openOverlay);
+                    overlayClose.addEventListener("click", closeOverlay);
+                    zoomOverlay.addEventListener("click", (event) => {
+                        if (event.target === zoomOverlay) closeOverlay();
+                    });
+                    document.addEventListener("keydown", (event) => {
+                        if (event.key === "Escape" && !zoomOverlay.hidden) closeOverlay();
+                    });
+                }
+
+                const preloadRemainingGalleryItems = () => {
+                    galleryItems.slice(1).forEach((galleryItem) => preloadGalleryAsset(galleryItem));
+                };
+
+                if (typeof window.requestIdleCallback === "function") {
+                    window.requestIdleCallback(preloadRemainingGalleryItems, { timeout: 900 });
+                } else {
+                    window.setTimeout(preloadRemainingGalleryItems, 220);
+                }
+            };
+
+            renderProductPageGallery();
+            container.setAttribute("aria-busy", "false");
+
+            if (productName) {
+                productName.textContent = product.name || "Product";
+            }
+
+            if (productPrice) {
+                productPrice.textContent = product.discountPrice || product.price || "";
+            }
+
+            if (productDescription) {
+                productDescription.textContent = product.description || "";
+            }
+
+            if (productStock) {
+                const stockLabel = formatProductStockState(product);
+                productStock.textContent = stockLabel;
+                productStock.className = product.stockStatus === "sold-out"
+                    ? "product-stock is-sold-out"
+                    : "product-stock";
+            }
+
+            const isSoldOut = product.stockStatus === "sold-out";
+            if (buyNowButton) {
+                buyNowButton.disabled = isSoldOut;
+                buyNowButton.setAttribute("aria-disabled", String(isSoldOut));
+                buyNowButton.classList.toggle("is-disabled", isSoldOut);
+                buyNowButton.onclick = isSoldOut ? null : () => buyNowModal.open(product, buyNowButton);
+            }
+
+            if (addToBagButton) {
+                addToBagButton.disabled = isSoldOut;
+                addToBagButton.setAttribute("aria-disabled", String(isSoldOut));
+                addToBagButton.classList.toggle("is-disabled", isSoldOut);
+                addToBagButton.onclick = isSoldOut ? null : () => {
+                    const bagResult = addProductToBag(product);
+                    updateBagBadge();
+
+                    if (bagResult.status === "existing") {
+                        showBagToast("Already in your Bag \u2728");
+                        return;
+                    }
+
+                    if (bagResult.status === "added") {
+                        showBagToast("Added to your Bag \u2728");
+                    }
+                };
+            }
+
+            initializeProductPageDisclosures(container);
+
+            const recommendationsSection = document.querySelector(".product-page-recommendations");
+            const recommendationsGrid = document.getElementById("product-page-recommendations-grid");
+
+            if (recommendationsSection && recommendationsGrid && Array.isArray(products)) {
+                const related = products
+                    .filter((p) => (p.productId && product.productId ? p.productId !== product.productId : buildAnchorSlug(p.name) !== buildAnchorSlug(product.name)) && p.category === product.category && p.name && p.image)
+                    .slice(0, 4);
+                if (related.length > 0) {
+                    recommendationsGrid.innerHTML = "";
+                    renderProducts(recommendationsGrid, related, "product.html");
+                } else {
+                    recommendationsGrid.innerHTML = "";
+                }
+                recommendationsSection.hidden = recommendationsGrid.children.length === 0;
+            }
+        };
         const injectProductSchema = (container, items) => {
             const existingSchema = document.getElementById("floaa-product-schema");
             existingSchema?.remove();
@@ -3706,11 +3900,10 @@
 
             const validItems = items.filter((item) => item?.name && item?.image);
             const itemListElement = validItems.slice(0, productCards.length).map((item, index) => {
-                const productCard = productCards[index];
-                const anchorId = productCard?.id || "";
-                const productUrl = anchorId
-                    ? `${window.location.href.split("#")[0]}#${encodeURIComponent(anchorId)}`
-                    : window.location.href.split("#")[0];
+                const productUrl = new URL(
+                    `product.html?product=${encodeURIComponent(buildAnchorSlug(item.name))}`,
+                    "https://floaa.in/"
+                ).href;
                 const imageUrl = item.image
                     ? new URL(encodeURI(item.image), "https://floaa.in/").href
                     : "";
@@ -3793,11 +3986,18 @@
             try {
                 items.forEach((item, index) => {
                     if (!item?.name || !item?.image) return;
+                    const productPageUrl = `product.html?product=${encodeURIComponent(buildAnchorSlug(item.name))}`;
+                    const navigateToProductPage = () => {
+                        window.location.href = productPageUrl;
+                    };
                     const productCard = document.createElement("article");
                     productCard.className = "product-card";
                     productCard.dataset.productId = item.productId;
                     productCard.dataset.productName = item.name;
                     productCard.dataset.productCategory = item.category;
+                    productCard.setAttribute("role", "link");
+                    productCard.setAttribute("tabindex", "0");
+                    productCard.setAttribute("aria-label", `View ${item.name}`);
 
                     if (shouldAddProductAnchors) {
                         const baseAnchorId = buildAnchorSlug(item.name);
@@ -3833,9 +4033,6 @@
                     }, { once: true });
 
                     productMedia.append(productImage);
-                    productMedia.setAttribute("role", "button");
-                    productMedia.setAttribute("tabindex", "0");
-                    productMedia.setAttribute("aria-label", `Open gallery for ${item.name}`);
                     const warmZoomAssets = () => warmProductZoomAssets(item);
 
                     if (shouldKeepEager) {
@@ -3843,17 +4040,7 @@
                     }
 
                     productMedia.addEventListener("pointerenter", warmZoomAssets, { once: true });
-                    productMedia.addEventListener("focus", warmZoomAssets, { once: true });
                     productMedia.addEventListener("touchstart", warmZoomAssets, { once: true, passive: true });
-                    productMedia.addEventListener("click", () => {
-                        productGalleryLightbox.open(item, productMedia);
-                    });
-                    productMedia.addEventListener("keydown", (event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            productGalleryLightbox.open(item, productMedia);
-                        }
-                    });
                     if (item.isNew) {
                         const newBadge = document.createElement("span");
                         newBadge.textContent = "New";
@@ -4000,6 +4187,18 @@
                             product_category: item.category,
                             click_target: event.target.closest(".product-media") ? "product_image" : "product_details"
                         });
+                        navigateToProductPage();
+                    });
+                    productCard.addEventListener("keydown", (event) => {
+                        if (event.key !== "Enter" && event.key !== " ") return;
+                        if (event.target.closest("button")) return;
+                        event.preventDefault();
+                        trackEvent("product_card_click", {
+                            product_name: item.name,
+                            product_category: item.category,
+                            click_target: "product_card_keyboard"
+                        });
+                        navigateToProductPage();
                     });
 
                     productInfo.append(productTag, productName, productPrice, productDescription, productStock, productCtaGroup);
@@ -4065,7 +4264,8 @@
         const homeGrid = document.getElementById("home-product-grid");
         const shopGrid = document.getElementById("shop-product-grid");
         const categoryGrid = document.getElementById("category-product-grid");
-        const needsProducts = Boolean(homeGrid || shopGrid || categoryGrid);
+        const productPageRoot = document.getElementById("product-page-root");
+        const needsProducts = Boolean(homeGrid || shopGrid || categoryGrid || productPageRoot);
         const products = needsProducts ? await fetchProducts() : [];
         if (needsProducts && Array.isArray(products)) searchProductsCache = products;
 
@@ -4134,6 +4334,30 @@
                     button.setAttribute("aria-pressed", "true");
                     renderProducts(categoryGrid, nextItems, "contact.html");
                 });
+            });
+        }
+
+        if (productPageRoot) {
+            const searchParams = new URLSearchParams(window.location.search);
+            const currentProduct = resolveCurrentProduct(products, searchParams);
+
+            if (!Array.isArray(products)) {
+                renderProductPageNotice(productPageRoot, "Product details are loading. Please try again in a moment.");
+            } else if (!currentProduct) {
+                renderProductPageNotice(productPageRoot, "We couldn't find that product. Please return to the shop and try again.");
+            } else {
+                renderProductPage(productPageRoot, currentProduct);
+            }
+        }
+
+        const productBackBtn = document.getElementById("product-page-back");
+        if (productBackBtn) {
+            productBackBtn.addEventListener("click", () => {
+                if (window.history.length > 1) {
+                    window.history.back();
+                } else {
+                    window.location.href = "shop.html";
+                }
             });
         }
 

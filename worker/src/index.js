@@ -1,10 +1,13 @@
-const PRODUCTS_URL = "https://opensheet.elk.sh/1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs/1";
-const PRODUCTS_CACHE_TTL_SECONDS = 21600;
+const OPENSHEET_PRODUCTS_URL = "https://opensheet.elk.sh/1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs/1";
+const PRODUCTS_CACHE_TTL_SECONDS = 60;
 const PRODUCTS_CACHE_URL = "https://floaa-worker-cache.internal/products";
+const PRODUCTS_SHEET_NAME = "Products";
+const PRODUCTS_API_VERSION = "google-sheets-v1";
 const SPREADSHEET_ID = "1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs";
 const ORDERS_SHEET_NAME = "Orders";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
+const GOOGLE_SHEETS_METADATA_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?fields=sheets.properties`;
 const RAZORPAY_PAYMENT_LINKS_URL = "https://api.razorpay.com/v1/payment_links";
 const GOOGLE_SHEETS_API_BASE_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values`;
 const GOOGLE_SHEETS_BATCH_UPDATE_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values:batchUpdate`;
@@ -81,6 +84,10 @@ const createWorkerExecutionContext = () => ({
   ordersHeaderRow: null,
   ordersHeaderMap: null,
   ordersSheetRows: null,
+  productsHeaderRow: null,
+  productsHeaderMap: null,
+  productsSheetRows: null,
+  productsSheetName: "",
   orderRowsByPaymentLinkId: new Map(),
   orderRowsByOrderId: new Map()
 });
@@ -90,6 +97,45 @@ const buildProductsResponseHeaders = (request, extraHeaders = {}) => ({
   ...(request ? getCorsHeaders(request) : {}),
   ...extraHeaders
 });
+
+const getBearerToken = (request) => {
+  const authorization = request.headers.get("authorization") || "";
+  const [scheme, token] = authorization.split(/\s+/, 2);
+  if (!/^Bearer$/i.test(scheme) || !token) return "";
+  return token;
+};
+
+const requireAdminSecret = (request, env) => {
+  if (!env.ADMIN_SECRET) {
+    return jsonResponse(
+      {
+        success: false,
+        message: "ADMIN_SECRET is not configured"
+      },
+      { status: 500 },
+      request
+    );
+  }
+
+  const providedToken = getBearerToken(request);
+  if (!providedToken || providedToken !== env.ADMIN_SECRET) {
+    return jsonResponse(
+      {
+        success: false,
+        message: "Unauthorized"
+      },
+      {
+        status: 401,
+        headers: {
+          "www-authenticate": "Bearer"
+        }
+      },
+      request
+    );
+  }
+
+  return null;
+};
 
 const buildProductsError = (type, details = {}) => {
   const error = new Error(details.message || "Products request failed");
@@ -103,6 +149,14 @@ const buildProductsError = (type, details = {}) => {
 
 const getProductsCacheRequest = () => new Request(PRODUCTS_CACHE_URL, {
   method: "GET"
+});
+
+const buildProductsDiagnosticHeaders = ({ source, cacheStatus, count, fetchMs }) => ({
+  "x-floaa-products-source": source,
+  "x-floaa-products-cache": cacheStatus,
+  "x-floaa-products-count": String(Number.isFinite(count) ? count : 0),
+  "x-floaa-products-fetch-ms": String(Math.max(0, Math.round(fetchMs || 0))),
+  "x-floaa-products-version": PRODUCTS_API_VERSION
 });
 
 const parseProductsResponse = async (response) => {
@@ -169,7 +223,168 @@ const cacheProductsResponse = async ({ responseText, contentType, count }) => {
   });
 };
 
-const fetchProducts = async () => {
+const fetchProductsFromOpenSheet = async () => {
+  let response;
+
+  try {
+    response = await fetch(OPENSHEET_PRODUCTS_URL);
+  } catch (error) {
+    throw buildProductsError("fetch-failed", {
+      message: error?.message || "Products request failed"
+    });
+  }
+
+  return parseProductsResponse(response);
+};
+
+const logProductsHeaderDiagnostics = (headerRow, headerMap) => {
+  console.log("products header row detected", headerRow);
+  console.log("products header index ProductId", headerMap[normalizeKey("ProductId")] ?? -1);
+  console.log("products header index Name", headerMap[normalizeKey("Name")] ?? -1);
+  console.log("products header index Image", headerMap[normalizeKey("Image")] ?? -1);
+};
+
+const fetchProductsHeaderRow = async (env, runtimeContext = null) => {
+  if (runtimeContext?.productsHeaderRow && runtimeContext?.productsHeaderMap) {
+    const accessToken = await getGoogleAccessToken(env, runtimeContext);
+    return {
+      accessToken,
+      headerRow: runtimeContext.productsHeaderRow,
+      headerMap: runtimeContext.productsHeaderMap
+    };
+  }
+
+  const accessToken = await getGoogleAccessToken(env, runtimeContext);
+  const sheetName = await fetchProductsSheetName(env, runtimeContext);
+  const range = `${buildA1SheetPrefix(sheetName)}!1:1`;
+  const response = await fetch(`${GOOGLE_SHEETS_API_BASE_URL}/${encodeURIComponent(range)}`, {
+    headers: {
+      authorization: `Bearer ${accessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    throw buildProductsError("google-header-failed", {
+      message: `Products header lookup failed with status ${response.status}`,
+      status: response.status,
+      contentType: response.headers.get("content-type") || "",
+      bodyPreview: await response.text()
+    });
+  }
+
+  const data = await response.json();
+  const headerRow = Array.isArray(data.values?.[0]) ? data.values[0] : [];
+
+  if (!headerRow.length) {
+    throw buildProductsError("google-header-empty", {
+      message: "Products sheet header row not found"
+    });
+  }
+
+  const headerMap = buildHeaderMap(headerRow);
+  logProductsHeaderDiagnostics(headerRow, headerMap);
+
+  if (runtimeContext) {
+    runtimeContext.productsHeaderRow = headerRow;
+    runtimeContext.productsHeaderMap = headerMap;
+  }
+
+  return {
+    accessToken,
+    headerRow,
+    headerMap
+  };
+};
+
+const fetchProductsSheetRows = async (env, runtimeContext = null) => {
+  if (runtimeContext?.productsSheetRows && runtimeContext?.productsHeaderRow && runtimeContext?.productsHeaderMap) {
+    const accessToken = await getGoogleAccessToken(env, runtimeContext);
+    return {
+      accessToken,
+      headerRow: runtimeContext.productsHeaderRow,
+      headerMap: runtimeContext.productsHeaderMap,
+      rows: runtimeContext.productsSheetRows
+    };
+  }
+
+  const { accessToken, headerRow, headerMap } = await fetchProductsHeaderRow(env, runtimeContext);
+  const sheetName = await fetchProductsSheetName(env, runtimeContext);
+  const range = `${buildA1SheetPrefix(sheetName)}!A:${getColumnLetter(headerRow.length)}`;
+  const response = await fetch(`${GOOGLE_SHEETS_API_BASE_URL}/${encodeURIComponent(range)}`, {
+    headers: {
+      authorization: `Bearer ${accessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    throw buildProductsError("google-sheet-failed", {
+      message: `Products sheet lookup failed with status ${response.status}`,
+      status: response.status,
+      contentType: response.headers.get("content-type") || "",
+      bodyPreview: await response.text()
+    });
+  }
+
+  const data = await response.json();
+  const rows = Array.isArray(data.values) ? data.values : [];
+
+  if (runtimeContext) {
+    runtimeContext.productsSheetRows = rows;
+  }
+
+  return {
+    accessToken,
+    headerRow,
+    headerMap,
+    rows
+  };
+};
+
+const mapSheetRowsToObjects = (headerRow, rows) => {
+  if (!Array.isArray(headerRow) || !Array.isArray(rows)) return [];
+
+  return rows
+    .slice(1)
+    .reduce((products, row) => {
+      if (!Array.isArray(row)) return products;
+
+      const product = {};
+      let hasAnyValue = false;
+      const columnCount = Math.min(headerRow.length, row.length);
+
+      for (let index = 0; index < columnCount; index += 1) {
+        const headerValue = headerRow[index];
+        const headerName = typeof headerValue === "string" ? headerValue : "";
+        if (!headerName) continue;
+
+        const cellValue = typeof row[index] === "undefined" ? "" : String(row[index]);
+        if (normalizeValue(cellValue)) {
+          hasAnyValue = true;
+        }
+        product[headerName] = cellValue;
+      }
+
+      if (hasAnyValue) {
+        products.push(product);
+      }
+
+      return products;
+    }, []);
+};
+
+const fetchProductsFromGoogleSheets = async (env, runtimeContext = null) => {
+  const { headerRow, rows } = await fetchProductsSheetRows(env, runtimeContext);
+  const products = mapSheetRowsToObjects(headerRow, rows);
+
+  return {
+    products,
+    responseText: JSON.stringify(products),
+    contentType: "application/json; charset=utf-8"
+  };
+};
+
+const fetchProductsWithDiagnostics = async (env, runtimeContext = null) => {
+  const startedAt = Date.now();
   const cache = caches.default;
   const cacheRequest = getProductsCacheRequest();
   const cachedResponse = await cache.match(cacheRequest);
@@ -179,28 +394,25 @@ const fetchProducts = async () => {
       ttlSeconds: PRODUCTS_CACHE_TTL_SECONDS
     });
     const { products } = await parseProductsResponse(cachedResponse);
-    return products;
+    return {
+      products,
+      source: "google",
+      cacheStatus: "hit",
+      count: products.length,
+      fetchMs: Date.now() - startedAt,
+      version: PRODUCTS_API_VERSION
+    };
   }
 
   console.log("product cache miss", {
     ttlSeconds: PRODUCTS_CACHE_TTL_SECONDS
   });
 
-  let response;
-
-  try {
-    response = await fetch(PRODUCTS_URL);
-  } catch (error) {
-    throw buildProductsError("fetch-failed", {
-      message: error?.message || "Products request failed"
-    });
-  }
-
   const {
     products,
     responseText,
     contentType
-  } = await parseProductsResponse(response);
+  } = await fetchProductsFromGoogleSheets(env, runtimeContext);
 
   await cacheProductsResponse({
     responseText,
@@ -208,6 +420,18 @@ const fetchProducts = async () => {
     count: products.length
   });
 
+  return {
+    products,
+    source: "google",
+    cacheStatus: "miss",
+    count: products.length,
+    fetchMs: Date.now() - startedAt,
+    version: PRODUCTS_API_VERSION
+  };
+};
+
+const fetchProducts = async (env, runtimeContext = null) => {
+  const { products } = await fetchProductsWithDiagnostics(env, runtimeContext);
   return products;
 };
 
@@ -402,6 +626,60 @@ const getColumnLetter = (columnNumber) => {
   }
 
   return column;
+};
+
+const buildA1SheetPrefix = (sheetName) => {
+  const normalizedSheetName = String(sheetName || "");
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(normalizedSheetName)) {
+    return normalizedSheetName;
+  }
+
+  return `'${normalizedSheetName.replace(/'/g, "''")}'`;
+};
+
+const fetchProductsSheetName = async (env, runtimeContext = null) => {
+  if (runtimeContext?.productsSheetName) {
+    return runtimeContext.productsSheetName;
+  }
+
+  const accessToken = await getGoogleAccessToken(env, runtimeContext);
+  const response = await fetch(GOOGLE_SHEETS_METADATA_URL, {
+    headers: {
+      authorization: `Bearer ${accessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    throw buildProductsError("google-metadata-failed", {
+      message: `Products sheet metadata lookup failed with status ${response.status}`,
+      status: response.status,
+      contentType: response.headers.get("content-type") || "",
+      bodyPreview: await response.text()
+    });
+  }
+
+  const data = await response.json();
+  const sheetTitles = Array.isArray(data.sheets)
+    ? data.sheets
+      .map((sheet) => normalizeValue(sheet?.properties?.title))
+      .filter(Boolean)
+    : [];
+
+  const resolvedSheetName = sheetTitles.find((title) => title === PRODUCTS_SHEET_NAME)
+    || sheetTitles[0]
+    || PRODUCTS_SHEET_NAME;
+
+  if (runtimeContext) {
+    runtimeContext.productsSheetName = resolvedSheetName;
+  }
+
+  console.log("products sheet resolved", {
+    requested: PRODUCTS_SHEET_NAME,
+    resolved: resolvedSheetName,
+    available: sheetTitles
+  });
+
+  return resolvedSheetName;
 };
 
 const buildHeaderMap = (headerRow) => headerRow.reduce((map, headerValue, index) => {
@@ -722,8 +1000,8 @@ const appendBagPaymentLinkOrders = async (orders, env) => {
   }
 };
 
-const fetchProductById = async (productId) => {
-  const products = await fetchProducts();
+const fetchProductById = async (productId, env) => {
+  const products = await fetchProducts(env);
   const normalizedProductId = normalizeValue(productId);
   const normalizedLookupSlug = buildProductSlug(normalizedProductId);
 
@@ -776,8 +1054,8 @@ const fetchProductById = async (productId) => {
   };
 };
 
-const fetchBagProductsByIds = async (items) => {
-  const products = await fetchProducts();
+const fetchBagProductsByIds = async (items, env) => {
+  const products = await fetchProducts(env);
   const invalidItems = [];
   const matchedProducts = [];
 
@@ -1071,51 +1349,11 @@ const buildAdminOrderAlertTemplateComponents = (orderRecord, env) => {
   ];
 };
 
-const getCanonicalProductPagePath = (categoryValue) => {
-  const category = normalizeKey(categoryValue);
-  if (category === "earrings") return "earrings.html";
-  if (category === "bracelets") return "bracelets.html";
-  if (category === "necklaces") return "necklaces.html";
-  if (category === "combos" || category === "comboset") return "rings.html";
-  return "shop.html";
-};
-
-const resolveCanonicalProductPagePathForOrder = async (orderRecord) => {
-  const productId = getOrderRecordValue(orderRecord, "ProductId");
+const buildCanonicalProductUrlForOrder = (orderRecord, env) => {
   const productName = getOrderRecordValue(orderRecord, "ProductName");
-  const productSlug = buildProductSlug(productName);
-  const products = await fetchProducts();
-
-  if (!Array.isArray(products)) {
-    return "shop.html";
-  }
-
-  const matchedProduct = products.find((item) => {
-    const rowProductId = normalizeValue(getRowValue(item, ["ProductId", "Product ID", "productId"]));
-    const rowProductName = normalizeValue(getRowValue(item, ["Name", "ProductName", "Product Name"]));
-    const rowProductSlug = buildProductSlug(rowProductName);
-    return rowProductId === productId || rowProductSlug === productSlug;
-  });
-
-  if (!matchedProduct) {
-    return "shop.html";
-  }
-
-  const categoryValue = getRowValue(matchedProduct, ["Category", "ProductCategory", "Product Category"]);
-  return getCanonicalProductPagePath(categoryValue);
-};
-
-const buildCanonicalProductUrlForOrder = async (orderRecord, env) => {
-  const productName = getOrderRecordValue(orderRecord, "ProductName");
-  const productAnchor = buildProductSlug(productName);
-  const pagePath = await resolveCanonicalProductPagePathForOrder(orderRecord);
-  const productBaseUrl = new URL(pagePath, `${stripTrailingSlash(env?.PUBLIC_SITE_URL || DEFAULT_SITE_URL)}/`);
-
-  if (productAnchor) {
-    productBaseUrl.hash = productAnchor;
-  }
-
-  return productBaseUrl.href;
+  const slug = buildProductSlug(productName);
+  const base = `${stripTrailingSlash(env?.PUBLIC_SITE_URL || DEFAULT_SITE_URL)}/`;
+  return new URL(`product.html?product=${encodeURIComponent(slug)}`, base).href;
 };
 
 const normalizeWhatsAppRecipient = (phone, env) => {
@@ -1849,7 +2087,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    if (request.method === "OPTIONS" && (url.pathname === "/orders" || url.pathname === "/create-payment-link" || url.pathname === "/create-bag-payment-link" || url.pathname === "/razorpay-webhook" || url.pathname === "/whatsapp-webhook" || url.pathname === "/api/products" || url.pathname === "/order-status")) {
+    if (request.method === "OPTIONS" && (url.pathname === "/orders" || url.pathname === "/create-payment-link" || url.pathname === "/create-bag-payment-link" || url.pathname === "/razorpay-webhook" || url.pathname === "/whatsapp-webhook" || url.pathname === "/api/products" || url.pathname === "/order-status" || url.pathname === "/admin/purge-products-cache")) {
       return new Response(null, {
         status: 204,
         headers: getCorsHeaders(request)
@@ -1915,7 +2153,7 @@ export default {
       console.log("/products request received");
 
       try {
-        const products = await fetchProducts();
+        const products = await fetchProducts(env);
 
         return jsonResponse(
           {
@@ -1944,7 +2182,13 @@ export default {
       console.log("api products request received");
 
       try {
-        const products = await fetchProducts();
+        const {
+          products,
+          source,
+          cacheStatus,
+          count,
+          fetchMs
+        } = await fetchProductsWithDiagnostics(env);
         await env.PRODUCTS_CACHE.put(
           "products:v1",
           JSON.stringify(products),
@@ -1959,7 +2203,12 @@ export default {
         return new Response(JSON.stringify(products), {
           status: 200,
           headers: buildProductsResponseHeaders(request, {
-            "x-floaa-products-source": "opensheet"
+            ...buildProductsDiagnosticHeaders({
+              source,
+              cacheStatus,
+              count,
+              fetchMs
+            })
           })
         });
       } catch (error) {
@@ -1991,6 +2240,7 @@ export default {
               const staleProducts = JSON.parse(staleProductsValue);
 
               if (Array.isArray(staleProducts)) {
+                const fetchMs = 0;
                 console.log("product kv stale hit", {
                   count: staleProducts.length,
                   source: "kv-stale"
@@ -1998,7 +2248,12 @@ export default {
                 return new Response(JSON.stringify(staleProducts), {
                   status: 200,
                   headers: buildProductsResponseHeaders(request, {
-                    "x-floaa-products-source": "kv-stale"
+                    ...buildProductsDiagnosticHeaders({
+                      source: "kv-stale",
+                      cacheStatus: "stale",
+                      count: staleProducts.length,
+                      fetchMs
+                    })
                   })
                 });
               }
@@ -2024,6 +2279,29 @@ export default {
           })
         });
       }
+    }
+
+    if (request.method === "POST" && url.pathname === "/admin/purge-products-cache") {
+      const unauthorizedResponse = requireAdminSecret(request, env);
+      if (unauthorizedResponse) {
+        return unauthorizedResponse;
+      }
+
+      const cache = caches.default;
+      const cacheRequest = getProductsCacheRequest();
+      const cachePurged = await cache.delete(cacheRequest);
+      await env.PRODUCTS_CACHE.delete("products:v1");
+
+      return jsonResponse(
+        {
+          success: true,
+          cachePurged,
+          kvPurged: true,
+          timestamp: new Date().toISOString()
+        },
+        {},
+        request
+      );
     }
 
     if (request.method === "GET" && url.pathname === "/order-status") {
@@ -2185,7 +2463,7 @@ export default {
       }
 
       try {
-        const product = await fetchProductById(payload.productId);
+        const product = await fetchProductById(payload.productId, env);
         const orderId = generateOrderId();
         const callbackBaseUrl = getCheckoutCallbackBaseUrl(request, env);
         const createdAt = new Date().toISOString();
@@ -2317,7 +2595,7 @@ export default {
       }
 
       try {
-        const products = await fetchBagProductsByIds(validation.items);
+        const products = await fetchBagProductsByIds(validation.items, env);
         const orderId = generateOrderId();
         const callbackBaseUrl = getCheckoutCallbackBaseUrl(request, env);
         const createdAt = new Date().toISOString();
