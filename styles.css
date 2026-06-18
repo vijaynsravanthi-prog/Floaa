@@ -3907,6 +3907,10 @@ body[data-page="home"] #home-product-grid .product-stock {
     transition: transform 220ms ease-out;
 }
 
+.product-page-gallery-image.is-zoom-anim {
+    transition: transform 220ms ease, opacity 200ms ease;
+}
+
 /* Trust section styles - isolated using trust- prefix */
 .trust-section {
     background: linear-gradient(180deg, var(--bg-soft) 0%, #fffaf5 100%);
@@ -4856,6 +4860,8 @@ body[data-page="home"] #home-product-grid .product-stock {
     transform-origin: var(--zoom-x, 50%) var(--zoom-y, 50%);
     transition: opacity 200ms ease;
     will-change: opacity, transform;
+    -webkit-touch-callout: none;
+    user-select: none;
 }
 
 .product-page-gallery-image[data-zoom="available"] {

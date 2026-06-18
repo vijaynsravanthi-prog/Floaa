@@ -3554,6 +3554,18 @@
                 let isZoomed = false;
                 let fadeTimer = null;
                 let hasShownItem = false;
+                let scale = 1;
+                let translateX = 0;
+                let translateY = 0;
+                let lastTapTime = 0;
+                let touchMode = "";
+                let touchStartTranslateX = 0;
+                let touchStartTranslateY = 0;
+                let pinchStartDist = 0;
+                let pinchStartScale = 1;
+                let longPressTimer = 0;
+                let longPressDidFire = false;
+                let openOverlay = () => {};
                 let updateZoomCursor = () => {};
                 const isTouchDevice = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
 
@@ -3608,6 +3620,29 @@
                     mediaFrame.classList.add("is-zoomed");
                     updateZoomCursor();
                 };
+                const distBetweenPoints = (t) => Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY);
+                const clampedTranslate = () => {
+                    const r = mediaFrame.getBoundingClientRect();
+                    const lx = Math.max(0, (r.width * scale - r.width) / 2);
+                    const ly = Math.max(0, (r.height * scale - r.height) / 2);
+                    translateX = Math.max(-lx, Math.min(lx, translateX));
+                    translateY = Math.max(-ly, Math.min(ly, translateY));
+                };
+                const applyInlineTransform = (animated) => {
+                    clampedTranslate();
+                    if (animated) image.classList.add("is-zoom-anim");
+                    image.style.transformOrigin = "50% 50%";
+                    image.style.transform = scale === 1
+                        ? "translate3d(0,0,0) scale(1)"
+                        : `translate3d(${translateX}px,${translateY}px,0) scale(${scale})`;
+                    if (animated) window.setTimeout(() => image.classList.remove("is-zoom-anim"), 250);
+                };
+                const resetInlineZoom = () => {
+                    scale = 1;
+                    translateX = 0;
+                    translateY = 0;
+                    applyInlineTransform(true);
+                };
                 const updateThumbSelection = (indexOverride) => {
                     const highlightIndex = indexOverride !== undefined ? indexOverride : activeIndex;
                     if (!galleryList || galleryItems.length <= 1) return;
@@ -3625,6 +3660,7 @@
 
                     clearTimeout(fadeTimer);
                     if (isZoomed) exitZoom();
+                    if (scale > 1) resetInlineZoom();
                     updateThumbSelection(targetIndex);
                     hasShownItem = true;
 
@@ -3668,29 +3704,116 @@
                 if (galleryItems.length > 1) {
                     previousButton.addEventListener("click", () => showGalleryItem(activeIndex - 1));
                     nextButton.addEventListener("click", () => showGalleryItem(activeIndex + 1));
-
-                    stageShell.addEventListener("touchstart", (event) => {
-                        const firstTouch = event.changedTouches?.[0];
-                        if (!firstTouch) return;
-                        touchStartX = firstTouch.clientX;
-                        touchStartY = firstTouch.clientY;
-                    }, { passive: true });
-
-                    stageShell.addEventListener("touchend", (event) => {
-                        const firstTouch = event.changedTouches?.[0];
-                        if (!firstTouch) return;
-                        const deltaX = firstTouch.clientX - touchStartX;
-                        const deltaY = firstTouch.clientY - touchStartY;
-                        if (Math.abs(deltaX) < 48 || Math.abs(deltaX) < Math.abs(deltaY)) return;
-                        if (deltaX < 0) {
-                            showGalleryItem(activeIndex + 1);
-                        } else {
-                            showGalleryItem(activeIndex - 1);
-                        }
-                    }, { passive: true });
                 } else {
                     previousButton.hidden = true;
                     nextButton.hidden = true;
+                }
+
+                if (isTouchDevice) {
+                    stageShell.addEventListener("touchstart", (event) => {
+                        window.clearTimeout(longPressTimer);
+                        longPressTimer = 0;
+                        longPressDidFire = false;
+                        const t = event.touches;
+                        if (t.length === 2) {
+                            event.preventDefault();
+                            touchMode = "pinch";
+                            pinchStartDist = distBetweenPoints(t);
+                            pinchStartScale = scale;
+                            return;
+                        }
+                        if (t.length !== 1) return;
+                        touchStartX = t[0].clientX;
+                        touchStartY = t[0].clientY;
+                        touchStartTranslateX = translateX;
+                        touchStartTranslateY = translateY;
+                        touchMode = scale > 1 ? "pan" : "swipe";
+                        longPressTimer = window.setTimeout(() => {
+                            longPressTimer = 0;
+                            longPressDidFire = true;
+                            lastTapTime = 0;
+                            openOverlay();
+                        }, 500);
+                    }, { passive: false });
+
+                    stageShell.addEventListener("touchmove", (event) => {
+                        if (longPressTimer) {
+                            const t0 = event.changedTouches?.[0];
+                            if (t0 && (Math.abs(t0.clientX - touchStartX) > 8 || Math.abs(t0.clientY - touchStartY) > 8)) {
+                                window.clearTimeout(longPressTimer);
+                                longPressTimer = 0;
+                            }
+                        }
+                        if (touchMode === "pinch" && event.touches.length === 2) {
+                            event.preventDefault();
+                            const d = distBetweenPoints(event.touches);
+                            scale = Math.max(1, Math.min(4, pinchStartScale * (d / pinchStartDist)));
+                            applyInlineTransform(false);
+                            return;
+                        }
+                        if (touchMode === "pan" && event.touches.length === 1) {
+                            event.preventDefault();
+                            translateX = touchStartTranslateX + (event.touches[0].clientX - touchStartX);
+                            translateY = touchStartTranslateY + (event.touches[0].clientY - touchStartY);
+                            applyInlineTransform(false);
+                        }
+                    }, { passive: false });
+
+                    stageShell.addEventListener("touchend", (event) => {
+                        window.clearTimeout(longPressTimer);
+                        longPressTimer = 0;
+                        const ch = event.changedTouches?.[0];
+                        if (!ch) return;
+
+                        if (longPressDidFire) {
+                            longPressDidFire = false;
+                            if (!event.touches.length) touchMode = "";
+                            return;
+                        }
+
+                        if (touchMode === "pinch") {
+                            if (!event.touches.length && scale <= 1.05) resetInlineZoom();
+                            if (!event.touches.length) touchMode = "";
+                            return;
+                        }
+
+                        if (!event.touches.length) {
+                            const deltaX = ch.clientX - touchStartX;
+                            const deltaY = ch.clientY - touchStartY;
+                            const isTap = Math.abs(deltaX) < 12 && Math.abs(deltaY) < 12;
+
+                            if (isTap) {
+                                const now = Date.now();
+                                if (now - lastTapTime < 280) {
+                                    event.preventDefault();
+                                    if (scale > 1) {
+                                        resetInlineZoom();
+                                    } else {
+                                        const rect = mediaFrame.getBoundingClientRect();
+                                        scale = 2;
+                                        translateX = -(ch.clientX - rect.left - rect.width / 2);
+                                        translateY = -(ch.clientY - rect.top - rect.height / 2);
+                                        applyInlineTransform(true);
+                                    }
+                                    lastTapTime = 0;
+                                } else {
+                                    lastTapTime = now;
+                                }
+                            } else if (touchMode === "swipe" && galleryItems.length > 1 &&
+                                       Math.abs(deltaX) > 48 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                                showGalleryItem(activeIndex + (deltaX < 0 ? 1 : -1));
+                            }
+
+                            touchMode = "";
+                        }
+                    });
+
+                    stageShell.addEventListener("touchcancel", () => {
+                        window.clearTimeout(longPressTimer);
+                        longPressTimer = 0;
+                        longPressDidFire = false;
+                        touchMode = "";
+                    }, { passive: true });
                 }
 
                 if (galleryList && galleryItems.length > 1) {
@@ -3783,7 +3906,7 @@
                     zoomOverlay.append(overlayClose, overlayImg);
                     document.body.append(zoomOverlay);
                     let overlayOpener = null;
-                    const openOverlay = () => {
+                    openOverlay = () => {
                         const activeItem = galleryItems[activeIndex];
                         if (!activeItem || activeItem.type !== "image") return;
                         overlayOpener = document.activeElement;
@@ -3799,7 +3922,9 @@
                         overlayOpener?.focus();
                         overlayOpener = null;
                     };
-                    image.addEventListener("click", openOverlay);
+                    image.addEventListener("click", (event) => {
+                        if (event.detail === 0 && scale === 1) openOverlay();
+                    });
                     overlayClose.addEventListener("click", closeOverlay);
                     zoomOverlay.addEventListener("click", (event) => {
                         if (event.target === zoomOverlay) closeOverlay();
