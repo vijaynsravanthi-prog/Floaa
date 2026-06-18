@@ -264,7 +264,6 @@
                     const controller = new AbortController();
                     const timeoutId = window.setTimeout(() => controller.abort(), 10000);
                     const response = await fetch(url, {
-                        cache: "no-store",
                         signal: controller.signal
                     }).finally(() => {
                         window.clearTimeout(timeoutId);
