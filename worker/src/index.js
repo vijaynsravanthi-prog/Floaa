@@ -81,6 +81,7 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const createWorkerExecutionContext = () => ({
   googleAccessToken: "",
+  oauthCacheStatus: "",
   ordersHeaderRow: null,
   ordersHeaderMap: null,
   ordersSheetRows: null,
@@ -151,12 +152,13 @@ const getProductsCacheRequest = () => new Request(PRODUCTS_CACHE_URL, {
   method: "GET"
 });
 
-const buildProductsDiagnosticHeaders = ({ source, cacheStatus, count, fetchMs }) => ({
+const buildProductsDiagnosticHeaders = ({ source, cacheStatus, count, fetchMs, oauthCacheStatus }) => ({
   "x-floaa-products-source": source,
   "x-floaa-products-cache": cacheStatus,
   "x-floaa-products-count": String(Number.isFinite(count) ? count : 0),
   "x-floaa-products-fetch-ms": String(Math.max(0, Math.round(fetchMs || 0))),
-  "x-floaa-products-version": PRODUCTS_API_VERSION
+  "x-floaa-products-version": PRODUCTS_API_VERSION,
+  "x-floaa-oauth-cache": oauthCacheStatus || "n/a"
 });
 
 const parseProductsResponse = async (response) => {
@@ -733,15 +735,11 @@ const pemToArrayBuffer = (pem) => {
   return bytes.buffer;
 };
 
-const getGoogleAccessToken = async (env, runtimeContext = null) => {
-  if (runtimeContext?.googleAccessToken) {
-    return runtimeContext.googleAccessToken;
-  }
+const GOOGLE_ACCESS_TOKEN_EXPIRY_BUFFER_SECONDS = 60;
+let cachedGoogleAccessToken = null;
+let pendingGoogleAccessTokenPromise = null;
 
-  if (!env.GOOGLE_CLIENT_EMAIL || !env.GOOGLE_PRIVATE_KEY) {
-    throw new Error("Google credentials missing");
-  }
-
+const requestGoogleAccessToken = async (env) => {
   const issuedAt = Math.floor(Date.now() / 1000);
   const expiresAt = issuedAt + 3600;
   const jwtHeader = {
@@ -798,10 +796,49 @@ const getGoogleAccessToken = async (env, runtimeContext = null) => {
   }
 
   console.log("google auth success");
-  if (runtimeContext) {
-    runtimeContext.googleAccessToken = tokenData.access_token;
+  cachedGoogleAccessToken = { accessToken: tokenData.access_token, expiresAt };
+  return cachedGoogleAccessToken;
+};
+
+const getGoogleAccessToken = async (env, runtimeContext = null) => {
+  if (runtimeContext?.googleAccessToken) {
+    return runtimeContext.googleAccessToken;
   }
-  return tokenData.access_token;
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  if (cachedGoogleAccessToken && cachedGoogleAccessToken.expiresAt - GOOGLE_ACCESS_TOKEN_EXPIRY_BUFFER_SECONDS > nowSeconds) {
+    if (runtimeContext) {
+      runtimeContext.googleAccessToken = cachedGoogleAccessToken.accessToken;
+      runtimeContext.oauthCacheStatus = "hit";
+    }
+    return cachedGoogleAccessToken.accessToken;
+  }
+
+  if (!env.GOOGLE_CLIENT_EMAIL || !env.GOOGLE_PRIVATE_KEY) {
+    throw new Error("Google credentials missing");
+  }
+
+  if (pendingGoogleAccessTokenPromise) {
+    const sharedResult = await pendingGoogleAccessTokenPromise;
+    if (runtimeContext) {
+      runtimeContext.googleAccessToken = sharedResult.accessToken;
+      runtimeContext.oauthCacheStatus = "shared";
+    }
+    return sharedResult.accessToken;
+  }
+
+  pendingGoogleAccessTokenPromise = requestGoogleAccessToken(env);
+
+  try {
+    const result = await pendingGoogleAccessTokenPromise;
+    if (runtimeContext) {
+      runtimeContext.googleAccessToken = result.accessToken;
+      runtimeContext.oauthCacheStatus = "miss";
+    }
+    return result.accessToken;
+  } finally {
+    pendingGoogleAccessTokenPromise = null;
+  }
 };
 
 const logOrdersHeaderDiagnostics = (headerRow, headerMap) => {
@@ -2182,13 +2219,14 @@ export default {
       console.log("api products request received");
 
       try {
+        const runtimeContext = createWorkerExecutionContext();
         const {
           products,
           source,
           cacheStatus,
           count,
           fetchMs
-        } = await fetchProductsWithDiagnostics(env);
+        } = await fetchProductsWithDiagnostics(env, runtimeContext);
         await env.PRODUCTS_CACHE.put(
           "products:v1",
           JSON.stringify(products),
@@ -2207,7 +2245,8 @@ export default {
               source,
               cacheStatus,
               count,
-              fetchMs
+              fetchMs,
+              oauthCacheStatus: runtimeContext.oauthCacheStatus
             })
           })
         });
