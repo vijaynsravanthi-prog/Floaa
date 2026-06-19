@@ -3578,7 +3578,8 @@
                         window.__floaaSharedObservers?.homepageEditorialReveal?.unobserve(target);
                     });
                 }, {
-                    threshold: 0.2
+                    threshold: 0.3,
+                    rootMargin: "0px 0px -10% 0px"
                 });
 
             window.__floaaSharedObservers.homepageEditorialReveal = observer;
@@ -4261,7 +4262,7 @@
                         setTimeout(() => card.classList.remove("is-card-hidden"), delay);
                         window.__floaaSharedObservers?.productCardReveal?.unobserve(card);
                     });
-            }, { threshold: 0.06, rootMargin: "0px 0px -32px 0px" });
+            }, { threshold: 0.15, rootMargin: "0px 0px -8% 0px" });
             window.__floaaSharedObservers.productCardReveal = observer;
             cards.forEach((card) => {
                 card.classList.add("is-card-hidden");
