@@ -58,6 +58,14 @@
 
             return window.__floaaBrandRowsPromise;
         };
+        const isLocalDevelopmentHost = () => typeof window !== "undefined"
+            && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+        const debugConsole = (method, ...args) => {
+            if (!isLocalDevelopmentHost()) return;
+            const consoleMethod = console?.[method];
+            if (typeof consoleMethod !== "function") return;
+            consoleMethod(...args);
+        };
 
         const applyImageFallback = (img, context = '') => {
             try {
@@ -67,9 +75,7 @@
                 img.src = IMAGE_PLACEHOLDER;
                 img.classList.add('img--failed');
                 // keep layout reserved via existing CSS; log in dev for visibility
-                if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-                    console.warn('[ImageFallback] applied', context || 'unknown', img);
-                }
+                debugConsole("warn", '[ImageFallback] applied', context || 'unknown', img);
             } catch (e) {
                 // swallow errors to avoid breaking rendering
             }
@@ -98,6 +104,32 @@
             const safeImageSrc = /^https?:\/\//i.test(preferredImageSrc) ? preferredImageSrc : encodeURI(preferredImageSrc);
             const loadedImageSrc = await preloadImageSource(safeImageSrc);
             if (!loadedImageSrc) return;
+
+            const surfaceImage = surface.querySelector(".feature-surface__img");
+            if (surfaceImage instanceof HTMLImageElement) {
+                const revealSurfaceImage = () => {
+                    window.requestAnimationFrame(() => {
+                        surfaceImage.classList.add("is-ready");
+                    });
+                };
+
+                surface.style.backgroundImage = "";
+                surfaceImage.classList.remove("is-ready");
+                surfaceImage.src = loadedImageSrc;
+
+                if (surfaceImage.complete && normalizeValue(surfaceImage.currentSrc || surfaceImage.src)) {
+                    revealSurfaceImage();
+                } else {
+                    surfaceImage.addEventListener("load", revealSurfaceImage, { once: true });
+                    surfaceImage.addEventListener("error", () => {
+                        applyImageFallback(surfaceImage, "feature-surface");
+                    }, { once: true });
+                }
+
+                surface.classList.add("is-ready");
+                return;
+            }
+
             surface.style.backgroundImage = `url("${loadedImageSrc}")`;
             surface.classList.add("is-ready");
         };
@@ -225,10 +257,6 @@
             "hero-pistachio-desktop.webp",
             "hero-ruby.webp",
             "hero-tripti.webp"
-        ]);
-        const PRODUCT_JPG_FILENAMES = new Set([
-            "lavender-empress-set-1.jpg",
-            "lavender-empress-set-3.jpg"
         ]);
         const normalizeImagePath = (value) => {
             const image = cleanSheetValue(value);
@@ -521,7 +549,7 @@
             if (!isAnalyticsDebugEnabled()) return;
 
             try {
-                console.info("[FLOAA analytics]", {
+                debugConsole("info", "[FLOAA analytics]", {
                     event,
                     payload,
                     metaDispatched,
@@ -2040,7 +2068,7 @@
                     });
                     showSuccessState(result.orderId);
                 } catch (error) {
-                    console.error("order modal submit failed", error);
+                    debugConsole("error", "order modal submit failed", error);
                     trackEvent("order_modal_submit_failure", {
                         product_name: activeItem.name,
                         product_category: activeItem.category,
@@ -2406,7 +2434,7 @@
                     });
                     window.location.href = result.paymentUrl;
                 } catch (error) {
-                    console.error("buy now modal submit failed", error);
+                    debugConsole("error", "buy now modal submit failed", error);
                     errorMessage.textContent = failureMessage;
                     errorMessage.hidden = false;
                     setSubmittingState(false);
@@ -2667,7 +2695,7 @@
                     });
                     window.location.href = result.paymentUrl;
                 } catch (error) {
-                    console.error("bag checkout modal submit failed", error);
+                    debugConsole("error", "bag checkout modal submit failed", error);
                     errorMessage.textContent = failureMessage;
                     errorMessage.hidden = false;
                     setSubmittingState(false);
@@ -2748,7 +2776,7 @@
                     return normalizeBagItems(parsedBag.items);
                 }
             } catch (error) {
-                console.warn("bag read failed", error);
+                debugConsole("warn", "bag read failed", error);
             }
 
             return [];
@@ -2758,7 +2786,7 @@
                 if (typeof window === "undefined" || !window.localStorage) return;
                 window.localStorage.setItem(BAG_STORAGE_KEY, JSON.stringify(normalizeBagItems(items)));
             } catch (error) {
-                console.warn("bag write failed", error);
+                debugConsole("warn", "bag write failed", error);
             }
         };
         const removeBagItem = (productId) => {
@@ -2813,6 +2841,41 @@
         };
         const getBagCount = () => readBagItems().length;
         const getBagItems = () => readBagItems();
+        const WISHLIST_STORAGE_KEY = "floaa_wishlist";
+        const readWishlistIds = () => {
+            try {
+                if (typeof window === "undefined" || !window.localStorage) return [];
+                const rawWishlist = window.localStorage.getItem(WISHLIST_STORAGE_KEY);
+                if (!rawWishlist) return [];
+                const parsedWishlist = JSON.parse(rawWishlist);
+                return Array.isArray(parsedWishlist) ? parsedWishlist.filter((id) => typeof id === "string" && id) : [];
+            } catch (error) {
+                debugConsole("warn", "wishlist read failed", error);
+                return [];
+            }
+        };
+        const writeWishlistIds = (ids) => {
+            try {
+                if (typeof window === "undefined" || !window.localStorage) return;
+                window.localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(ids));
+            } catch (error) {
+                debugConsole("warn", "wishlist write failed", error);
+            }
+        };
+        const isWishlisted = (productId) => readWishlistIds().includes(normalizeValue(productId));
+        const toggleWishlistItem = (productId) => {
+            const normalizedProductId = normalizeValue(productId);
+            if (!normalizedProductId) return false;
+            const currentIds = readWishlistIds();
+            const existingIndex = currentIds.indexOf(normalizedProductId);
+            if (existingIndex === -1) {
+                writeWishlistIds([...currentIds, normalizedProductId]);
+                return true;
+            }
+            currentIds.splice(existingIndex, 1);
+            writeWishlistIds(currentIds);
+            return false;
+        };
         const parseBagPriceValue = (value) => {
             const normalizedPrice = normalizeValue(value).replace(/[^0-9.]/g, "");
             const parsedPrice = Number(normalizedPrice);
@@ -3065,7 +3128,7 @@
                 if (typeof window === "undefined" || !window.sessionStorage) return;
                 window.sessionStorage.setItem(ORDER_SUCCESS_STORAGE_KEY, JSON.stringify(orderData));
             } catch (error) {
-                console.warn("order success snapshot save failed", error);
+                debugConsole("warn", "order success snapshot save failed", error);
             }
         };
         const readOrderSuccessSnapshot = () => {
@@ -3074,7 +3137,7 @@
                 const rawSnapshot = window.sessionStorage.getItem(ORDER_SUCCESS_STORAGE_KEY);
                 return rawSnapshot ? JSON.parse(rawSnapshot) : {};
             } catch (error) {
-                console.warn("order success snapshot read failed", error);
+                debugConsole("warn", "order success snapshot read failed", error);
                 return {};
             }
         };
@@ -3133,7 +3196,7 @@
                         createdSource: ""
                     });
                 } catch (error) {
-                    console.warn("bag clear on success failed", error);
+                    debugConsole("warn", "bag clear on success failed", error);
                 }
             }
         };
@@ -3187,7 +3250,7 @@
                     .map(transformProduct)
                     .filter((product) => product.name && product.image && product.status !== "inactive");
             } catch (error) {
-                console.error(error);
+                debugConsole("error", error);
                 return null;
             }
         };
@@ -3209,7 +3272,7 @@
                     return content;
                 }, {});
             } catch (error) {
-                console.error(error);
+                debugConsole("error", error);
                 return {};
             }
         };
@@ -3443,9 +3506,102 @@
             }
         };
 
+        const initializeHomepageHeroImageReveal = () => {
+            if (document.body.dataset.page !== "home") return;
+
+            const heroImage = document.querySelector(".floaa-mobile-editorial-hero__image");
+            if (!(heroImage instanceof HTMLImageElement)) return;
+
+            const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            const markImageReady = (image) => {
+                image.classList.add("is-ready");
+            };
+
+            if (prefersReducedMotion) {
+                markImageReady(heroImage);
+                return;
+            }
+
+            if (heroImage.complete) {
+                markImageReady(heroImage);
+                return;
+            }
+
+            heroImage.addEventListener("load", () => {
+                markImageReady(heroImage);
+            }, { once: true });
+        };
+        const initializeHomepageEditorialSectionReveal = () => {
+            const pageKey = normalizeValue(document.body.dataset.page);
+            const revealSelectorsByPage = {
+                home: "#featured-categories, .shop-style-section, .split-feature, .editorial-break, .floaa-testimonials, .trust-section, .floaa-faq",
+                about: ".founder-story, .story-grid, .detail-grid",
+                contact: ".support-grid"
+            };
+            const revealSelector = revealSelectorsByPage[pageKey];
+            if (!revealSelector) return;
+
+            const revealTargets = Array.from(document.querySelectorAll(
+                revealSelector
+            ));
+            if (!revealTargets.length) return;
+
+            const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            const markVisible = (element) => {
+                if (!(element instanceof HTMLElement)) return;
+                element.classList.add("homepage-editorial-reveal", "is-visible");
+            };
+
+            if (prefersReducedMotion || typeof IntersectionObserver === "undefined") {
+                revealTargets.forEach(markVisible);
+                return;
+            }
+
+            window.__floaaSharedObservers = window.__floaaSharedObservers || {};
+            const observer = window.__floaaSharedObservers.homepageEditorialReveal
+                || new IntersectionObserver((entries) => {
+                    entries.forEach((entry) => {
+                        if (!entry.isIntersecting) return;
+                        const target = entry.target;
+                        if (!(target instanceof HTMLElement)) return;
+                        target.classList.add("is-visible");
+                        window.__floaaSharedObservers?.homepageEditorialReveal?.unobserve(target);
+                    });
+                }, {
+                    threshold: 0.2
+                });
+
+            window.__floaaSharedObservers.homepageEditorialReveal = observer;
+            revealTargets.forEach((target) => {
+                if (!(target instanceof HTMLElement)) return;
+                target.classList.add("homepage-editorial-reveal");
+                if (target.classList.contains("is-visible") || target.dataset.editorialRevealObserved === "true") return;
+                target.dataset.editorialRevealObserved = "true";
+                observer.observe(target);
+            });
+        };
+
         const clearGridSkeletons = (container) => {
             container?.querySelectorAll(".skeleton-card").forEach((element) => element.remove());
         };
+        const fadeOutSkeletons = (container) => new Promise((resolve) => {
+            const skeletons = container ? Array.from(container.querySelectorAll(".skeleton-card")) : [];
+            if (!skeletons.length || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+                resolve();
+                return;
+            }
+            skeletons.forEach((skeleton) => skeleton.classList.add("is-fading-out"));
+            window.setTimeout(resolve, 350);
+        });
+        const fadeOutGridCards = (container) => new Promise((resolve) => {
+            const cards = container ? Array.from(container.querySelectorAll(".product-card")) : [];
+            if (!cards.length || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+                resolve();
+                return;
+            }
+            cards.forEach((card) => card.classList.add("is-filter-fading-out"));
+            window.setTimeout(resolve, 280);
+        });
         const shouldEnableProductAnchors = (container) => {
             if (!container) return false;
             if (container.id === "shop-product-grid") return true;
@@ -3479,10 +3635,11 @@
             window.setTimeout(() => {
                 container.classList.remove("is-refreshed");
                 container.setAttribute("aria-busy", "false");
-            }, 220);
+            }, 320);
         };
-        const renderGridNotice = (container, message, tone = "info") => {
+        const renderGridNotice = async (container, message, tone = "info") => {
             if (!container) return;
+            await fadeOutSkeletons(container);
             container.innerHTML = "";
             clearGridSkeletons(container);
             const notice = document.createElement("div");
@@ -3523,7 +3680,7 @@
             notice.textContent = message;
             container.append(notice);
         };
-        const renderProductPage = (container, product) => {
+        const renderProductPage = async (container, product) => {
             if (!container || !product) return;
 
             const galleryStage = container.querySelector("[data-product-gallery-stage]");
@@ -4004,8 +4161,7 @@
                     .filter((p) => (p.productId && product.productId ? p.productId !== product.productId : buildAnchorSlug(p.name) !== buildAnchorSlug(product.name)) && p.category === product.category && p.name && p.image)
                     .slice(0, 4);
                 if (related.length > 0) {
-                    recommendationsGrid.innerHTML = "";
-                    renderProducts(recommendationsGrid, related, "product.html");
+                    await renderProducts(recommendationsGrid, related, "product.html");
                 } else {
                     recommendationsGrid.innerHTML = "";
                 }
@@ -4076,15 +4232,17 @@
             if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
             const cards = Array.from(container.querySelectorAll(".product-card"));
             if (!cards.length) return;
-            const observer = new IntersectionObserver((entries) => {
+            window.__floaaSharedObservers = window.__floaaSharedObservers || {};
+            const observer = window.__floaaSharedObservers.productCardReveal || new IntersectionObserver((entries) => {
                 entries.forEach((entry) => {
                     if (!entry.isIntersecting) return;
                     const card = entry.target;
                     const delay = (card._revealIndex || 0) * 30;
                     setTimeout(() => card.classList.remove("is-card-hidden"), delay);
-                    observer.unobserve(card);
+                    window.__floaaSharedObservers?.productCardReveal?.unobserve(card);
                 });
             }, { threshold: 0.06, rootMargin: "0px 0px -32px 0px" });
+            window.__floaaSharedObservers.productCardReveal = observer;
             cards.forEach((card, i) => {
                 card._revealIndex = i;
                 card.classList.add("is-card-hidden");
@@ -4092,7 +4250,7 @@
             });
         };
 
-        const renderProducts = (container, items, href) => {
+        const renderProducts = async (container, items, href) => {
             if (!container) return;
             if (!Array.isArray(items)) {
                 renderGridNotice(container, "Products are loading. Please try again in a moment.", "error");
@@ -4157,6 +4315,29 @@
                     }, { once: true });
 
                     productMedia.append(productImage);
+
+                    const secondaryImageSrc = Array.isArray(item.images) && item.images[1]
+                        ? getProductThumbnailSrc(item.images[1])
+                        : "";
+                    if (secondaryImageSrc) {
+                        const primaryImageSrc = productImage.src;
+                        let hoverSwapTimeoutId = 0;
+                        let isShowingSecondaryImage = false;
+                        const swapHoverImage = (showSecondary) => {
+                            if (showSecondary === isShowingSecondaryImage) return;
+                            if (!window.matchMedia("(hover: hover)").matches) return;
+                            window.clearTimeout(hoverSwapTimeoutId);
+                            isShowingSecondaryImage = showSecondary;
+                            productImage.style.opacity = "0";
+                            hoverSwapTimeoutId = window.setTimeout(() => {
+                                productImage.src = showSecondary ? secondaryImageSrc : primaryImageSrc;
+                                productImage.style.opacity = "1";
+                            }, 200);
+                        };
+                        productMedia.addEventListener("mouseenter", () => swapHoverImage(true));
+                        productMedia.addEventListener("mouseleave", () => swapHoverImage(false));
+                    }
+
                     const warmZoomAssets = () => warmProductZoomAssets(item);
 
                     if (shouldKeepEager) {
@@ -4173,18 +4354,25 @@
                         productMedia.append(newBadge);
                     }
 
-                    const productMediaIcons = document.createElement("div");
-                    productMediaIcons.className = "product-media-icons";
-
                     const wishlistBtn = document.createElement("button");
-                    wishlistBtn.className = "product-media-btn product-wishlist-btn";
+                    wishlistBtn.className = "product-media-btn product-wishlist-overlay-btn";
                     wishlistBtn.type = "button";
+                    if (isWishlisted(item.productId)) {
+                        wishlistBtn.classList.add("is-active");
+                    }
+                    wishlistBtn.setAttribute("aria-pressed", wishlistBtn.classList.contains("is-active") ? "true" : "false");
                     wishlistBtn.setAttribute("aria-label", `Save ${item.name} to wishlist`);
                     wishlistBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="18" height="18"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
-                    wishlistBtn.addEventListener("click", (e) => { e.stopPropagation(); });
+                    wishlistBtn.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        const nowWishlisted = toggleWishlistItem(item.productId);
+                        wishlistBtn.classList.toggle("is-active", nowWishlisted);
+                        wishlistBtn.setAttribute("aria-pressed", nowWishlisted ? "true" : "false");
+                    });
+                    productMedia.append(wishlistBtn);
 
                     const shareBtn = document.createElement("button");
-                    shareBtn.className = "product-media-btn product-share-btn";
+                    shareBtn.className = "product-media-btn product-share-overlay-btn";
                     shareBtn.type = "button";
                     shareBtn.setAttribute("aria-label", `Share ${item.name}`);
                     shareBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="18" height="18"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
@@ -4192,32 +4380,7 @@
                         e.stopPropagation();
                         handleProductShare(item, productCard);
                     });
-
-                    productMediaIcons.append(wishlistBtn, shareBtn);
-                    productMedia.append(productMediaIcons);
-
-                    // Mobile action row — CSS hides this on hover-capable devices
-                    const productActionRow = document.createElement("div");
-                    productActionRow.className = "product-action-row";
-
-                    const actionWishlistBtn = document.createElement("button");
-                    actionWishlistBtn.className = "product-media-btn product-wishlist-btn";
-                    actionWishlistBtn.type = "button";
-                    actionWishlistBtn.setAttribute("aria-label", `Save ${item.name} to wishlist`);
-                    actionWishlistBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="18" height="18"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
-                    actionWishlistBtn.addEventListener("click", (e) => { e.stopPropagation(); });
-
-                    const actionShareBtn = document.createElement("button");
-                    actionShareBtn.className = "product-media-btn product-share-btn";
-                    actionShareBtn.type = "button";
-                    actionShareBtn.setAttribute("aria-label", `Share ${item.name}`);
-                    actionShareBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="18" height="18"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
-                    actionShareBtn.addEventListener("click", (e) => {
-                        e.stopPropagation();
-                        handleProductShare(item, productCard);
-                    });
-
-                    productActionRow.append(actionWishlistBtn, actionShareBtn);
+                    productMedia.append(shareBtn);
 
                     const productInfo = document.createElement("div");
                     productInfo.className = "product-info";
@@ -4245,10 +4408,6 @@
                     } else {
                         productPrice.textContent = item.price;
                     }
-
-                    const productDescription = document.createElement("p");
-                    productDescription.className = "product-description";
-                    productDescription.textContent = item.description;
 
                     const isSoldOut = item.stockStatus === "sold-out";
                     const productStock = document.createElement("p");
@@ -4325,12 +4484,12 @@
                         navigateToProductPage();
                     });
 
-                    productInfo.append(productTag, productName, productPrice, productDescription, productStock, productCtaGroup);
-                    productCard.append(productMedia, productActionRow, productInfo);
+                    productInfo.append(productTag, productName, productPrice, productStock, productCtaGroup);
+                    productCard.append(productMedia, productInfo);
                     fragment.append(productCard);
                 });
             } catch (error) {
-                console.error("renderProducts failed", error);
+                debugConsole("error", "renderProducts failed", error);
                 renderGridNotice(container, "We couldn't load these products right now. Please refresh and try again.", "error");
                 return;
             }
@@ -4340,6 +4499,7 @@
                 return;
             }
 
+            await fadeOutSkeletons(container);
             container.innerHTML = "";
             clearGridSkeletons(container);
             container.append(fragment);
@@ -4385,6 +4545,8 @@
             return brandContent;
         };
         void brandContentPromise.then(applyResolvedBrandContent);
+        initializeHomepageHeroImageReveal();
+        initializeHomepageEditorialSectionReveal();
         const homeGrid = document.getElementById("home-product-grid");
         const shopGrid = document.getElementById("shop-product-grid");
         const categoryGrid = document.getElementById("category-product-grid");
@@ -4439,7 +4601,7 @@
             renderProducts(categoryGrid, categoryProducts, "contact.html");
             filterButtons.forEach((button) => {
                 button.setAttribute("aria-pressed", button.dataset.filter === "all" ? "true" : "false");
-                button.addEventListener("click", () => {
+                button.addEventListener("click", async () => {
                     const filterValue = button.dataset.filter;
                     const nextItems = Array.isArray(categoryProducts)
                         ? applyProductFilters(categoryProducts, { categoryFilter: filterValue })
@@ -4456,6 +4618,7 @@
                     });
                     button.classList.add("is-active");
                     button.setAttribute("aria-pressed", "true");
+                    await fadeOutGridCards(categoryGrid);
                     renderProducts(categoryGrid, nextItems, "contact.html");
                 });
             });
@@ -4470,7 +4633,7 @@
             } else if (!currentProduct) {
                 renderProductPageNotice(productPageRoot, "We couldn't find that product. Please return to the shop and try again.");
             } else {
-                renderProductPage(productPageRoot, currentProduct);
+                await renderProductPage(productPageRoot, currentProduct);
             }
         }
 
