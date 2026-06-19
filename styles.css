@@ -1372,7 +1372,7 @@ body[data-page="home"] .brand-message-strip[data-brand-pending="true"] {
 .product-card.is-card-hidden {
     opacity: 0;
     pointer-events: none;
-    transform: translateY(6px);
+    transform: translateY(12px);
 }
 
 @media (hover: hover) {

@@ -4253,17 +4253,17 @@
             if (!cards.length) return;
             window.__floaaSharedObservers = window.__floaaSharedObservers || {};
             const observer = window.__floaaSharedObservers.productCardReveal || new IntersectionObserver((entries) => {
-                entries.forEach((entry) => {
-                    if (!entry.isIntersecting) return;
-                    const card = entry.target;
-                    const delay = (card._revealIndex || 0) * 30;
-                    setTimeout(() => card.classList.remove("is-card-hidden"), delay);
-                    window.__floaaSharedObservers?.productCardReveal?.unobserve(card);
-                });
+                entries
+                    .filter((entry) => entry.isIntersecting)
+                    .forEach((entry, batchIndex) => {
+                        const card = entry.target;
+                        const delay = Math.min(batchIndex * 30, 90);
+                        setTimeout(() => card.classList.remove("is-card-hidden"), delay);
+                        window.__floaaSharedObservers?.productCardReveal?.unobserve(card);
+                    });
             }, { threshold: 0.06, rootMargin: "0px 0px -32px 0px" });
             window.__floaaSharedObservers.productCardReveal = observer;
-            cards.forEach((card, i) => {
-                card._revealIndex = i;
+            cards.forEach((card) => {
                 card.classList.add("is-card-hidden");
                 observer.observe(card);
             });
