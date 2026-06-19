@@ -3531,20 +3531,20 @@
                 markImageReady(heroImage);
             }, { once: true });
         };
-        const initializeHomepageEditorialSectionReveal = () => {
+        const HOMEPAGE_EDITORIAL_REVEAL_SELECTORS_BY_PAGE = {
+            home: "#featured-categories, .shop-style-section, .split-feature, .editorial-break, .floaa-testimonials, .trust-section, .floaa-faq",
+            about: ".founder-story, .story-grid, .detail-grid",
+            contact: ".support-grid"
+        };
+        const prepareHomepageEditorialReveal = () => {
             const pageKey = normalizeValue(document.body.dataset.page);
-            const revealSelectorsByPage = {
-                home: "#featured-categories, .shop-style-section, .split-feature, .editorial-break, .floaa-testimonials, .trust-section, .floaa-faq",
-                about: ".founder-story, .story-grid, .detail-grid",
-                contact: ".support-grid"
-            };
-            const revealSelector = revealSelectorsByPage[pageKey];
-            if (!revealSelector) return;
+            const revealSelector = HOMEPAGE_EDITORIAL_REVEAL_SELECTORS_BY_PAGE[pageKey];
+            if (!revealSelector) return null;
 
             const revealTargets = Array.from(document.querySelectorAll(
                 revealSelector
             ));
-            if (!revealTargets.length) return;
+            if (!revealTargets.length) return null;
 
             const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
             const markVisible = (element) => {
@@ -3554,8 +3554,18 @@
 
             if (prefersReducedMotion || typeof IntersectionObserver === "undefined") {
                 revealTargets.forEach(markVisible);
-                return;
+                return null;
             }
+
+            revealTargets.forEach((target) => {
+                if (!(target instanceof HTMLElement)) return;
+                target.classList.add("homepage-editorial-reveal");
+            });
+
+            return revealTargets;
+        };
+        const activateHomepageEditorialReveal = (revealTargets) => {
+            if (!Array.isArray(revealTargets) || !revealTargets.length) return;
 
             window.__floaaSharedObservers = window.__floaaSharedObservers || {};
             const observer = window.__floaaSharedObservers.homepageEditorialReveal
@@ -3574,10 +3584,19 @@
             window.__floaaSharedObservers.homepageEditorialReveal = observer;
             revealTargets.forEach((target) => {
                 if (!(target instanceof HTMLElement)) return;
-                target.classList.add("homepage-editorial-reveal");
                 if (target.classList.contains("is-visible") || target.dataset.editorialRevealObserved === "true") return;
                 target.dataset.editorialRevealObserved = "true";
                 observer.observe(target);
+            });
+        };
+        const initializeHomepageEditorialSectionReveal = () => {
+            const revealTargets = prepareHomepageEditorialReveal();
+            if (!revealTargets) return;
+
+            window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(() => {
+                    activateHomepageEditorialReveal(revealTargets);
+                });
             });
         };
 
