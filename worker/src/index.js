@@ -1,5 +1,5 @@
 const OPENSHEET_PRODUCTS_URL = "https://opensheet.elk.sh/1ZQzgsE-Yv7Ad6_t29hWi2UXe549YXcBu3dD_jEjygfs/1";
-const PRODUCTS_CACHE_TTL_SECONDS = 600;
+const PRODUCTS_CACHE_TTL_SECONDS = 3600;
 const PRODUCTS_CACHE_URL = "https://floaa-worker-cache.internal/products-gs-v1";
 const PRODUCTS_SHEET_NAME = "Products";
 const PRODUCTS_API_VERSION = "google-sheets-v1";
