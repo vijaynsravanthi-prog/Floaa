@@ -4405,10 +4405,6 @@
                     const productInfo = document.createElement("div");
                     productInfo.className = "product-info";
 
-                    const productTag = document.createElement("span");
-                    productTag.className = "product-tag";
-                    productTag.textContent = item.tag;
-
                     const productName = document.createElement("h3");
                     productName.className = "product-name";
                     productName.textContent = item.name;
@@ -4431,7 +4427,7 @@
 
                     const isSoldOut = item.stockStatus === "sold-out";
                     const productStock = document.createElement("p");
-                    productStock.className = isSoldOut ? "product-stock is-sold-out" : "product-stock";
+                    productStock.className = isSoldOut ? "product-stock is-sold-out" : "product-stock is-stock-empty";
                     productStock.textContent = isSoldOut ? "Sold Out" : "";
 
                     const productCtaGroup = document.createElement("div");
@@ -4476,7 +4472,7 @@
                         const assistanceBtn = document.createElement("button");
                         assistanceBtn.className = "btn btn-product-assistance";
                         assistanceBtn.type = "button";
-                        assistanceBtn.textContent = "Need styling advice?";
+                        assistanceBtn.textContent = "💬 Chat with FLOAA";
                         assistanceBtn.addEventListener("click", () => handleProductAssistance(item));
 
                         productCardActions.append(buyNowBtn, addToBagBtn);
@@ -4504,7 +4500,7 @@
                         navigateToProductPage();
                     });
 
-                    productInfo.append(productTag, productName, productPrice, productStock, productCtaGroup);
+                    productInfo.append(productName, productPrice, productStock, productCtaGroup);
                     productCard.append(productMedia, productInfo);
                     fragment.append(productCard);
                 });
