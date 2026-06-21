@@ -2737,6 +2737,11 @@
         };
         const ORDER_SUCCESS_STORAGE_KEY = "floaa-order-success";
         const BAG_STORAGE_KEY = "floaa_bag";
+        const hasRealDiscount = (price, discountPrice) => {
+            const normalizedPrice = normalizeValue(price);
+            const normalizedDiscountPrice = normalizeValue(discountPrice);
+            return Boolean(normalizedPrice && normalizedDiscountPrice && normalizedPrice !== normalizedDiscountPrice);
+        };
         const normalizeBagItems = (value) => {
             if (!Array.isArray(value)) return [];
 
@@ -2745,6 +2750,7 @@
                 const name = normalizeValue(item?.name);
                 const image = normalizeValue(item?.image);
                 const price = normalizeValue(item?.price);
+                const discountPrice = normalizeValue(item?.discountPrice);
                 const addedAt = normalizeValue(item?.addedAt);
 
                 if (!productId || !name || !image || !price || !addedAt) {
@@ -2756,6 +2762,7 @@
                     name,
                     image,
                     price,
+                    discountPrice,
                     addedAt
                 });
                 return items;
@@ -2824,6 +2831,9 @@
                     name: normalizeValue(product?.name),
                     image: normalizeValue(product?.image),
                     price: normalizeValue(product?.discountPrice || product?.price),
+                    discountPrice: hasRealDiscount(product?.price, product?.discountPrice)
+                        ? normalizeValue(product?.price)
+                        : "",
                     addedAt: new Date().toISOString()
                 }
             ];
@@ -3070,8 +3080,20 @@
                 bagItemName.textContent = item.name;
 
                 const bagItemPrice = document.createElement("p");
-                bagItemPrice.className = "bag-item-price";
-                bagItemPrice.textContent = item.price;
+                bagItemPrice.className = "bag-item-price product-price";
+                if (hasRealDiscount(item.discountPrice, item.price)) {
+                    const originalPrice = document.createElement("span");
+                    originalPrice.className = "product-price-original";
+                    originalPrice.textContent = item.discountPrice;
+
+                    const discountPrice = document.createElement("span");
+                    discountPrice.className = "product-price-discount";
+                    discountPrice.textContent = item.price;
+
+                    bagItemPrice.append(discountPrice, originalPrice);
+                } else {
+                    bagItemPrice.textContent = item.price;
+                }
 
                 const removeAction = document.createElement("button");
                 removeAction.className = "bag-remove-action";
@@ -4129,7 +4151,22 @@
             }
 
             if (productPrice) {
-                productPrice.textContent = product.discountPrice || product.price || "";
+                const hasDiscount = hasRealDiscount(product.price, product.discountPrice);
+                productPrice.textContent = "";
+
+                if (hasDiscount) {
+                    const originalPrice = document.createElement("span");
+                    originalPrice.className = "product-price-original";
+                    originalPrice.textContent = product.price;
+
+                    const discountPrice = document.createElement("span");
+                    discountPrice.className = "product-price-discount";
+                    discountPrice.textContent = product.discountPrice;
+
+                    productPrice.append(discountPrice, originalPrice);
+                } else {
+                    productPrice.textContent = product.price || product.discountPrice || "";
+                }
             }
 
             if (productDescription) {
@@ -4411,7 +4448,7 @@
 
                     const productPrice = document.createElement("p");
                     productPrice.className = "product-price";
-                    if (item.discountPrice) {
+                    if (hasRealDiscount(item.price, item.discountPrice)) {
                         const originalPrice = document.createElement("span");
                         originalPrice.className = "product-price-original";
                         originalPrice.textContent = item.price;
