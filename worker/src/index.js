@@ -1063,7 +1063,7 @@ const fetchProductById = async (productId, env) => {
   const productName = normalizeValue(getRowValue(product, ["Name", "ProductName", "Product Name"]));
   const productStatus = normalizeKey(getRowValue(product, ["Product status", "ProductStatus", "Status"]));
   const stockStatus = normalizeKey(getRowValue(product, ["Stock", "Stock status", "StockStatus"]));
-  const priceValue = getRowValue(product, ["Price"]);
+  const payablePriceValue = getRowValue(product, ["DiscountPrice", "Discount Price"]) || getRowValue(product, ["Price"]);
 
   console.log("product status", productStatus);
   console.log("stock status", stockStatus);
@@ -1077,11 +1077,11 @@ const fetchProductById = async (productId, env) => {
     throw error;
   }
 
-  const amount = parsePriceToPaise(priceValue);
+  const amount = parsePriceToPaise(payablePriceValue);
 
   console.log("matched ProductId", matchedProductId);
   console.log("matched product name", productName);
-  console.log("matched price", normalizeValue(priceValue));
+  console.log("matched price", normalizeValue(payablePriceValue));
   console.log("product lookup success", { productId: matchedProductId });
 
   return {
@@ -1120,7 +1120,7 @@ const fetchBagProductsByIds = async (items, env) => {
     const productName = normalizeValue(getRowValue(product, ["Name", "ProductName", "Product Name"]));
     const productStatus = normalizeKey(getRowValue(product, ["Product status", "ProductStatus", "Status"]));
     const stockStatus = normalizeKey(getRowValue(product, ["Stock", "Stock status", "StockStatus"]));
-    const priceValue = getRowValue(product, ["Price"]);
+    const payablePriceValue = getRowValue(product, ["DiscountPrice", "Discount Price"]) || getRowValue(product, ["Price"]);
     const unavailableStatuses = new Set(["soldout", "outofstock", "inactive"]);
     const hasExplicitInactiveStatus = productStatus && productStatus !== "active";
     const isUnavailable = hasExplicitInactiveStatus || unavailableStatuses.has(productStatus) || unavailableStatuses.has(stockStatus);
@@ -1143,7 +1143,7 @@ const fetchBagProductsByIds = async (items, env) => {
 
     let amount;
     try {
-      amount = parsePriceToPaise(priceValue);
+      amount = parsePriceToPaise(payablePriceValue);
     } catch (error) {
       invalidItems.push({
         productId: matchedProductId,
