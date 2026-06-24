@@ -4843,6 +4843,14 @@ body[data-page="home"] #home-product-grid .product-stock {
     line-height: 1.6;
 }
 
+.product-page-note {
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.75;
+    margin: 1.5rem 0 0;
+    max-width: 58ch;
+}
+
 .product-page-gallery-shell {
     position: relative;
 }
